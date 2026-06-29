@@ -13,8 +13,8 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 const variants: Record<Variant, React.CSSProperties> = {
   primary: {
     background: "var(--color-accent)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,0.08)",
+    color: "var(--color-on-accent)",
+    border: "1px solid transparent",
   },
   secondary: {
     background: "var(--color-elevated)",
@@ -27,17 +27,20 @@ const variants: Record<Variant, React.CSSProperties> = {
     border: "1px solid transparent",
   },
   danger: {
-    background: "rgba(239,68,68,0.1)",
-    color: "#ef4444",
-    border: "1px solid rgba(239,68,68,0.25)",
+    background: "var(--color-danger-tint)",
+    color: "var(--color-danger)",
+    border: "1px solid var(--color-danger-border)",
   },
 };
 
 const hoverVariants: Record<Variant, React.CSSProperties> = {
-  primary: { background: "#6a58e8" },
-  secondary: { background: "#252532", borderColor: "var(--color-border-strong)" },
+  primary: { background: "var(--color-accent-hover)" },
+  secondary: {
+    background: "var(--color-secondary-hover)",
+    borderColor: "var(--color-border-strong)",
+  },
   ghost: { background: "var(--color-elevated)", color: "var(--color-text)" },
-  danger: { background: "rgba(239,68,68,0.18)" },
+  danger: { background: "var(--color-danger-tint-hover)" },
 };
 
 const sizes: Record<Size, React.CSSProperties> = {
@@ -146,7 +149,7 @@ export function Input({ label, error, style, ...props }: InputProps) {
         {...props}
         style={{
           background: "var(--color-elevated)",
-          border: `1px solid ${error ? "#ef4444" : "var(--color-border-strong)"}`,
+          border: `1px solid ${error ? "var(--color-danger)" : "var(--color-border-strong)"}`,
           borderRadius: "var(--radius-sm)",
           color: "var(--color-text)",
           fontSize: "13px",
@@ -164,12 +167,12 @@ export function Input({ label, error, style, ...props }: InputProps) {
         }}
         onBlur={(e) => {
           (e.currentTarget as HTMLElement).style.borderColor = error
-            ? "#ef4444"
+            ? "var(--color-danger)"
             : "var(--color-border-strong)";
           props.onBlur?.(e);
         }}
       />
-      {error && <span style={{ fontSize: "11px", color: "#ef4444" }}>{error}</span>}
+      {error && <span style={{ fontSize: "11px", color: "var(--color-danger)" }}>{error}</span>}
     </div>
   );
 }
@@ -201,7 +204,7 @@ export function Select({ label, error, children, style, ...props }: SelectProps)
         {...props}
         style={{
           background: "var(--color-elevated)",
-          border: `1px solid ${error ? "#ef4444" : "var(--color-border-strong)"}`,
+          border: `1px solid ${error ? "var(--color-danger)" : "var(--color-border-strong)"}`,
           borderRadius: "var(--radius-sm)",
           color: "var(--color-text)",
           fontSize: "13px",
@@ -219,14 +222,14 @@ export function Select({ label, error, children, style, ...props }: SelectProps)
         }}
         onBlur={(e) => {
           (e.currentTarget as HTMLElement).style.borderColor = error
-            ? "#ef4444"
+            ? "var(--color-danger)"
             : "var(--color-border-strong)";
           props.onBlur?.(e);
         }}
       >
         {children}
       </select>
-      {error && <span style={{ fontSize: "11px", color: "#ef4444" }}>{error}</span>}
+      {error && <span style={{ fontSize: "11px", color: "var(--color-danger)" }}>{error}</span>}
     </div>
   );
 }
@@ -261,7 +264,7 @@ export function Textarea({
         {...props}
         style={{
           background: "var(--color-elevated)",
-          border: `1px solid ${error ? "#ef4444" : "var(--color-border-strong)"}`,
+          border: `1px solid ${error ? "var(--color-danger)" : "var(--color-border-strong)"}`,
           borderRadius: "var(--radius-sm)",
           color: "var(--color-text)",
           fontSize: "13px",
@@ -281,12 +284,12 @@ export function Textarea({
         }}
         onBlur={(e) => {
           (e.currentTarget as HTMLElement).style.borderColor = error
-            ? "#ef4444"
+            ? "var(--color-danger)"
             : "var(--color-border-strong)";
           props.onBlur?.(e);
         }}
       />
-      {error && <span style={{ fontSize: "11px", color: "#ef4444" }}>{error}</span>}
+      {error && <span style={{ fontSize: "11px", color: "var(--color-danger)" }}>{error}</span>}
     </div>
   );
 }

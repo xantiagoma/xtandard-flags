@@ -843,7 +843,7 @@ export function FlagEditor({
               <div
                 style={{
                   background: "rgba(239,68,68,0.08)",
-                  border: "1px solid rgba(239,68,68,0.25)",
+                  border: "1px solid var(--color-danger-border)",
                   borderRadius: "var(--radius-md)",
                   padding: "12px 14px",
                 }}
@@ -853,14 +853,14 @@ export function FlagEditor({
                     margin: "0 0 6px",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#ef4444",
+                    color: "var(--color-danger)",
                   }}
                 >
                   Validation errors
                 </p>
                 <ul style={{ margin: 0, padding: "0 0 0 16px" }}>
                   {apiErrors.map((e, i) => (
-                    <li key={i} style={{ fontSize: "12px", color: "#fca5a5" }}>
+                    <li key={i} style={{ fontSize: "12px", color: "var(--color-danger)" }}>
                       {e.path ? <code>{e.path}</code> : null} {e.message}
                     </li>
                   ))}

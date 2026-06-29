@@ -44,26 +44,21 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
     return () => clearTimeout(t);
   }, [toast.id, onRemove]);
 
-  const kindStyle: Record<ToastKind, string> = {
-    success: "border-green-500/30 text-green-400",
-    error: "border-red-500/30 text-red-400",
-    warning: "border-amber-500/30 text-amber-400",
-    info: "border-sky-500/30 text-sky-400",
+  const kindColor: Record<ToastKind, string> = {
+    success: "var(--color-success)",
+    error: "var(--color-danger)",
+    warning: "var(--color-warning)",
+    info: "var(--color-info)",
   };
-
-  const dot: Record<ToastKind, string> = {
-    success: "bg-green-500",
-    error: "bg-red-500",
-    warning: "bg-amber-500",
-    info: "bg-sky-500",
-  };
+  const accent = kindColor[toast.kind];
 
   return (
     <div
       role="alert"
       style={{
-        background: "var(--color-elevated)",
+        background: "var(--color-surface)",
         border: "1px solid var(--color-border-strong)",
+        borderLeft: `3px solid ${accent}`,
         borderRadius: "var(--radius-md)",
         padding: "12px 14px",
         display: "flex",
@@ -71,10 +66,9 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
         gap: "10px",
         minWidth: "280px",
         maxWidth: "380px",
-        boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+        boxShadow: "var(--shadow-lg)",
         animation: "toastIn 160ms ease-out",
       }}
-      className={kindStyle[toast.kind]}
     >
       <span
         style={{
@@ -83,8 +77,8 @@ function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) =
           borderRadius: "50%",
           flexShrink: 0,
           marginTop: "5px",
+          background: accent,
         }}
-        className={dot[toast.kind]}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
         <p

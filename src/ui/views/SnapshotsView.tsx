@@ -108,7 +108,7 @@ function SnapshotDetailModal({
     >
       {query.isLoading && <p style={{ color: "var(--color-muted)", fontSize: "13px" }}>Loading…</p>}
       {query.isError && (
-        <p style={{ color: "#ef4444", fontSize: "13px" }}>Failed to load snapshot</p>
+        <p style={{ color: "var(--color-danger)", fontSize: "13px" }}>Failed to load snapshot</p>
       )}
       {query.data && (
         <div style={{ overflowX: "auto" }}>
@@ -192,7 +192,7 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
         <p style={{ color: "var(--color-faint)", fontSize: "13px" }}>Loading snapshots…</p>
       )}
       {query.isError && (
-        <p style={{ color: "#ef4444", fontSize: "13px" }}>Failed to load snapshots</p>
+        <p style={{ color: "var(--color-danger)", fontSize: "13px" }}>Failed to load snapshots</p>
       )}
 
       {versions.length === 0 && !query.isLoading && (

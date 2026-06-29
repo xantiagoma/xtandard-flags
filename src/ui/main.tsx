@@ -3,7 +3,11 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./App.tsx";
 import { ToastProvider } from "./components/Toast.tsx";
+import { initTheme } from "./theme.ts";
 import "./styles.css";
+
+// Apply the persisted theme before first paint.
+initTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

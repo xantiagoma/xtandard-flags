@@ -3,24 +3,24 @@ import type { FlagType } from "../types.ts";
 
 const typeColors: Record<FlagType, { bg: string; text: string; border: string }> = {
   boolean: {
-    bg: "rgba(124,106,247,0.12)",
-    text: "#a594f9",
-    border: "rgba(124,106,247,0.25)",
+    bg: "var(--color-accent-tint)",
+    text: "var(--color-accent)",
+    border: "var(--color-accent-border)",
   },
   string: {
-    bg: "rgba(56,189,248,0.1)",
-    text: "#38bdf8",
-    border: "rgba(56,189,248,0.2)",
+    bg: "var(--color-info-tint)",
+    text: "var(--color-info)",
+    border: "var(--color-info-border)",
   },
   number: {
-    bg: "rgba(245,158,11,0.1)",
-    text: "#f59e0b",
-    border: "rgba(245,158,11,0.2)",
+    bg: "var(--color-warning-tint)",
+    text: "var(--color-warning)",
+    border: "var(--color-warning-border)",
   },
   json: {
-    bg: "rgba(34,197,94,0.1)",
-    text: "#22c55e",
-    border: "rgba(34,197,94,0.2)",
+    bg: "var(--color-success-tint)",
+    text: "var(--color-success)",
+    border: "var(--color-success-border)",
   },
 };
 
@@ -103,11 +103,12 @@ export function StatusBadge({
             width: "12px",
             height: "12px",
             borderRadius: "50%",
-            background: "#fff",
+            background: "var(--color-knob)",
             position: "absolute",
             top: "3px",
             left: enabled ? "17px" : "3px",
             transition: "left 0.15s",
+            boxShadow: "var(--shadow-sm)",
           }}
         />
       </span>
@@ -129,24 +130,24 @@ export function Pill({
       border: "var(--color-border)",
     },
     success: {
-      bg: "rgba(34,197,94,0.1)",
-      text: "#22c55e",
-      border: "rgba(34,197,94,0.2)",
+      bg: "var(--color-success-tint)",
+      text: "var(--color-success)",
+      border: "var(--color-success-border)",
     },
     warning: {
-      bg: "rgba(245,158,11,0.1)",
-      text: "#f59e0b",
-      border: "rgba(245,158,11,0.2)",
+      bg: "var(--color-warning-tint)",
+      text: "var(--color-warning)",
+      border: "var(--color-warning-border)",
     },
     danger: {
-      bg: "rgba(239,68,68,0.1)",
-      text: "#ef4444",
-      border: "rgba(239,68,68,0.2)",
+      bg: "var(--color-danger-tint)",
+      text: "var(--color-danger)",
+      border: "var(--color-danger-border)",
     },
     accent: {
-      bg: "rgba(124,106,247,0.12)",
-      text: "#a594f9",
-      border: "rgba(124,106,247,0.25)",
+      bg: "var(--color-accent-tint)",
+      text: "var(--color-accent)",
+      border: "var(--color-accent-border)",
     },
   };
 

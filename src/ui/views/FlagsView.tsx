@@ -273,7 +273,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
             gap: "8px",
           }}
         >
-          <p style={{ fontSize: "13px", color: "#ef4444" }}>Failed to load flags</p>
+          <p style={{ fontSize: "13px", color: "var(--color-danger)" }}>Failed to load flags</p>
           <Button size="sm" variant="secondary" onClick={() => query.refetch()}>
             Retry
           </Button>

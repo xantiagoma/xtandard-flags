@@ -64,7 +64,7 @@ export function AuditView({ projectKey, environmentKey }: Props) {
         <p style={{ color: "var(--color-faint)", fontSize: "13px" }}>Loading audit log…</p>
       )}
       {query.isError && (
-        <p style={{ color: "#ef4444", fontSize: "13px" }}>Failed to load audit log</p>
+        <p style={{ color: "var(--color-danger)", fontSize: "13px" }}>Failed to load audit log</p>
       )}
 
       {entries.length === 0 && !query.isLoading && (

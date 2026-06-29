@@ -15,6 +15,7 @@ import {
   LockIcon,
   ChevronDownIcon,
 } from "./components/Icons.tsx";
+import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { FlagsView } from "./views/FlagsView.tsx";
 import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
@@ -373,13 +374,15 @@ export function App() {
               style={{
                 width: "26px",
                 height: "26px",
-                background: "linear-gradient(135deg, #7c6af7 0%, #a594f9 100%)",
-                borderRadius: "6px",
+                background:
+                  "linear-gradient(135deg, var(--color-accent), var(--color-accent-hover))",
+                borderRadius: "7px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#fff",
+                color: "var(--color-on-accent)",
                 flexShrink: 0,
+                boxShadow: "var(--shadow-sm)",
               }}
             >
               <SparkIcon size={14} />
@@ -466,11 +469,15 @@ export function App() {
           />
         </nav>
 
-        {/* Bottom: version / info */}
+        {/* Bottom: theme switch + info */}
         <div
           style={{
             padding: "12px 14px",
             borderTop: "1px solid var(--color-border)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "8px",
           }}
         >
           <p
@@ -478,10 +485,14 @@ export function App() {
               margin: 0,
               fontSize: "11px",
               color: "var(--color-faint)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             {config?.title ?? "Xtandard Flags"}
           </p>
+          <ThemeToggle />
         </div>
       </aside>
 
@@ -510,9 +521,9 @@ export function App() {
           >
             <span
               style={{
-                background: "rgba(56,189,248,0.1)",
-                border: "1px solid rgba(56,189,248,0.2)",
-                color: "#38bdf8",
+                background: "var(--color-info-tint)",
+                border: "1px solid var(--color-info-border)",
+                color: "var(--color-info)",
                 borderRadius: "20px",
                 padding: "2px 10px",
                 fontSize: "11px",
@@ -535,8 +546,8 @@ export function App() {
                 alignItems: "center",
                 gap: "5px",
                 background: "rgba(245,158,11,0.08)",
-                border: "1px solid rgba(245,158,11,0.2)",
-                color: "#f59e0b",
+                border: "1px solid var(--color-warning-border)",
+                color: "var(--color-warning)",
                 borderRadius: "var(--radius-sm)",
                 padding: "4px 10px",
                 fontSize: "11px",
