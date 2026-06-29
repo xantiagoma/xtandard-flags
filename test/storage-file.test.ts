@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -54,6 +54,35 @@ describe("createFileStorage specifics", () => {
     await storage.setItem("flags/p/e/k", { v: 1 });
     await clearFileStorage({ dir });
     expect(await storage.getKeys("flags/")).toEqual([]);
+  });
+
+  test("removeItem of a missing key is a no-op", async () => {
+    const storage = createFileStorage({ dir });
+    await expect(storage.removeItem("flags/p/e/ghost")).resolves.toBeUndefined();
+  });
+
+  test("creates nested directories for deep keys", async () => {
+    const storage = createFileStorage({ dir });
+    await storage.setItem("flags/a/b/c/d/e/leaf", { deep: true });
+    expect(await storage.getItem("flags/a/b/c/d/e/leaf")).toEqual({ deep: true });
+  });
+
+  test("getKeys ignores non-.json files in the tree", async () => {
+    const storage = createFileStorage({ dir });
+    await storage.setItem("flags/p/e/k", { v: 1 });
+    await writeFile(join(dir, "stray.txt"), "not a key", "utf8");
+    const keys = await storage.getKeys("");
+    expect(keys).toEqual(["flags/p/e/k"]);
+  });
+
+  test("watch reports change events for matching keys", async () => {
+    const storage = createFileStorage({ dir });
+    const events: { type: string; key: string }[] = [];
+    const off = await storage.watch("flags/", (e) => events.push(e));
+    await storage.setItem("flags/w/e/k", { v: 1 });
+    await new Promise((r) => setTimeout(r, 250));
+    off();
+    expect(events.some((e) => e.key === "flags/w/e/k")).toBe(true);
   });
 });
 

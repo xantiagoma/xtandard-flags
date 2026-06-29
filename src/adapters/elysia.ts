@@ -13,9 +13,10 @@
 
 import { createFetchHandler, type FlagsPanelOptions } from "../server/create-fetch-handler.ts";
 
-/** A web-standard fetch handler with the admin `core` attached for convenience. */
+/** A web-standard fetch handler with the admin `core` + `openapi()` attached. */
 export type ElysiaFlagsHandler = ((request: Request) => Promise<Response>) & {
   core: ReturnType<typeof createFetchHandler>["core"];
+  openapi: ReturnType<typeof createFetchHandler>["openapi"];
 };
 
 /** Create a panel handler suitable for `Elysia.mount(path, handler)`. */
@@ -23,6 +24,7 @@ export function flagsPanel(options: FlagsPanelOptions): ElysiaFlagsHandler {
   const handler = createFetchHandler(options);
   const fn = ((request: Request) => handler.fetch(request)) as ElysiaFlagsHandler;
   fn.core = handler.core;
+  fn.openapi = handler.openapi;
   return fn;
 }
 

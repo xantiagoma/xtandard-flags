@@ -125,4 +125,37 @@ describe("basicAuth", () => {
     const response = auth.challenge?.(new Request("http://x/"));
     expect(response?.headers.get("WWW-Authenticate")).toBe('Basic realm="xtandard-flags"');
   });
+
+  test("plaintext password of a different length fails (constant-time length guard)", async () => {
+    const auth = basicAuth({ users: [{ username: "dev", password: "plain" }] });
+    // Different length triggers the length-mismatch branch in constantTimeEquals.
+    expect(await auth.authenticate(basicHeader("dev", "a-much-longer-password"))).toBeNull();
+  });
+
+  test("a header with no ':' separator yields null", async () => {
+    const auth = basicAuth({ users: [{ username: "dev", password: "plain" }] });
+    const request = new Request("http://x/", {
+      headers: { Authorization: "Basic " + btoa("no-colon-here") },
+    });
+    expect(await auth.authenticate(request)).toBeNull();
+  });
+
+  test("a user with no credentials configured can never authenticate", async () => {
+    const auth = basicAuth({ users: [{ username: "ghost" }] });
+    expect(await auth.authenticate(basicHeader("ghost", "anything"))).toBeNull();
+  });
+
+  test("passwordVerifier runs a dummy check for unknown users (still null)", async () => {
+    const calls: string[] = [];
+    const auth = basicAuth({
+      users: [{ username: "admin", roles: ["admin"] }],
+      passwordVerifier: (username) => {
+        calls.push(username);
+        return true; // even if it would accept, an unknown user is rejected
+      },
+    });
+    expect(await auth.authenticate(basicHeader("unknown-user", "pw"))).toBeNull();
+    // The dummy verification was invoked to keep timing uniform.
+    expect(calls).toContain("unknown-user");
+  });
 });

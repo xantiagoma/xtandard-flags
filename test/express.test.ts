@@ -12,6 +12,13 @@ beforeAll(async () => {
   const app = express();
   app.get("/", (_req, res) => res.send("app"));
   app.use("/flags", flagsPanel({ basePath: "/flags", sourceStorage: createMemoryStorage() }));
+  // A mount where an upstream body parser consumes the stream first, so the
+  // adapter must re-serialize req.body (the `req.readableEnded` branch).
+  app.use(
+    "/parsed",
+    express.json(),
+    flagsPanel({ basePath: "/parsed", sourceStorage: createMemoryStorage() }),
+  );
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => resolve());
   });
@@ -51,5 +58,24 @@ describe("express adapter", () => {
     const res = await fetch(`${base}/flags/anything`);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
+  });
+
+  test("re-serializes a body already parsed by express.json()", async () => {
+    const res = await fetch(`${base}/parsed/api/projects/default/environments/production/flags`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(themeFlag()),
+    });
+    expect(res.status).toBe(201);
+    const list = await fetch(
+      `${base}/parsed/api/projects/default/environments/production/flags`,
+    );
+    expect((await list.json()).length).toBe(1);
+  });
+
+  test("attaches the admin core to the handler", () => {
+    const handler = flagsPanel({ sourceStorage: createMemoryStorage() });
+    expect(handler.core).toBeDefined();
+    expect(typeof handler.core.listProjects).toBe("function");
   });
 });

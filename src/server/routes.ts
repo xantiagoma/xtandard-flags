@@ -14,6 +14,7 @@ import type {
 } from "../authorization/contract.ts";
 import { FlagValidationError, NotFoundError, ReadonlyError, type FlagsCore } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
+import { buildOpenApiDocument } from "./openapi.ts";
 import type { Draft, Flag } from "../schema.ts";
 
 /** Everything the API router needs. */
@@ -63,10 +64,19 @@ export async function handleApiRequest(
   path: string,
   ctx: ApiContext,
 ): Promise<Response | null> {
-  const isApi = path === "/config" || path === "/api/config" || path.startsWith("/api/");
+  const isApi =
+    path === "/config" ||
+    path === "/api/config" ||
+    path === "/openapi.json" ||
+    path.startsWith("/api/");
   if (!isApi) return null;
 
   const method = request.method.toUpperCase();
+
+  // Public OpenAPI document (no auth) — for docs tooling and host-app merging.
+  if (path === "/api/openapi.json" || path === "/openapi.json") {
+    return json(buildOpenApiDocument({ basePath: ctx.basePath, title: ctx.title }));
+  }
 
   // --- Authentication ---
   let principal: Principal | null = null;

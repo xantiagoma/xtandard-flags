@@ -110,4 +110,71 @@ describe("createMongoStorage shape", () => {
     const storage = createMongoStorage({ url: "mongodb://localhost:27017" });
     await expect(storage.close()).resolves.toBeUndefined();
   });
+
+  test("throws a clear error when neither client nor url is supplied", async () => {
+    const storage = createMongoStorage({});
+    await expect(storage.getItem("flags/p/e/k")).rejects.toThrow(/requires either a "client" or a "url"/);
+  });
+
+  test("a connection failure is not cached: a later call retries", async () => {
+    // Point at an unroutable port with a short server-selection timeout so this
+    // fails fast. The first call rejects; the second must attempt to connect
+    // again (the `connecting` promise is cleared on failure).
+    const storage = createMongoStorage({
+      url: "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=200&connectTimeoutMS=200",
+    });
+    await expect(storage.getItem("flags/p/e/k")).rejects.toBeTruthy();
+    await expect(storage.getItem("flags/p/e/k")).rejects.toBeTruthy();
+    await storage.close();
+  });
+
+  test("a pre-connected, borrowed client is not closed by close()", async () => {
+    let closed = false;
+    let _connectCalls = 0;
+    const fakeCollection = {
+      findOne: async () => null,
+      updateOne: async () => ({}),
+      deleteOne: async () => ({}),
+      find: () => ({ project: () => ({ [Symbol.asyncIterator]: async function* () {} }) }),
+    };
+    const fakeClient = {
+      async connect() {
+        _connectCalls++;
+      },
+      db: () => ({ collection: () => fakeCollection }),
+      async close() {
+        closed = true;
+      },
+    };
+    const storage = createMongoStorage({ client: fakeClient as never });
+    expect(await storage.getItem("flags/p/e/k")).toBeNull();
+    await storage.close();
+    // close() is a no-op for borrowed clients.
+    expect(closed).toBe(false);
+  });
+
+  test("an 'already connected' connect() error is swallowed", async () => {
+    const fakeCollection = { findOne: async () => null };
+    const fakeClient = {
+      async connect() {
+        throw new Error("MongoClient is already connected");
+      },
+      db: () => ({ collection: () => fakeCollection }),
+      async close() {},
+    };
+    const storage = createMongoStorage({ client: fakeClient as never });
+    expect(await storage.getItem("flags/p/e/k")).toBeNull();
+  });
+
+  test("a genuine connect() error propagates", async () => {
+    const fakeClient = {
+      async connect() {
+        throw new Error("authentication failed");
+      },
+      db: () => ({ collection: () => ({}) }),
+      async close() {},
+    };
+    const storage = createMongoStorage({ client: fakeClient as never });
+    await expect(storage.getItem("flags/p/e/k")).rejects.toThrow(/authentication failed/);
+  });
 });

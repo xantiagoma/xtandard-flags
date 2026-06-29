@@ -65,8 +65,8 @@ jobs:
       - name: Format check
         run: bun run format:check
 
-      - name: Test (unit + integration, incl. live Redis)
-        run: bun run test
+      - name: Test + coverage (live Redis/Mongo/Postgres; enforces thresholds)
+        run: bun run test:coverage
 
       - name: Test (bun:sqlite, native bun test)
         run: bun run test:bun

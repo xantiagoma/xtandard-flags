@@ -13,6 +13,7 @@ import { createFlagsCore, type FlagsCore } from "../core.ts";
 import type { FlagsStorage } from "../storage/contract.ts";
 import { normalizeBasePath, stripBasePath } from "./base-path.ts";
 import { renderIndexHtml } from "./render-index-html.ts";
+import { buildOpenApiDocument } from "./openapi.ts";
 import { handleApiRequest, type ApiContext } from "./routes.ts";
 import { looksLikeAsset, serveStaticAsset } from "./static-assets.ts";
 
@@ -48,6 +49,11 @@ export interface CreateFetchHandlerResult {
   fetch(request: Request): Promise<Response>;
   /** The underlying admin core (handy for tests, CLI, and standalone wiring). */
   core: FlagsCore;
+  /**
+   * The admin API as an OpenAPI 3.1 document (also served at `{basePath}/api/openapi.json`).
+   * Merge it into your host app's docs — e.g. Elysia `@elysiajs/openapi` `references`.
+   */
+  openapi(): Record<string, unknown>;
 }
 
 // Anonymous defaults keep embedded usage zero-config; harden via auth/authorization.
@@ -141,5 +147,5 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
     });
   }
 
-  return { fetch, core };
+  return { fetch, core, openapi: () => buildOpenApiDocument({ basePath, title }) };
 }

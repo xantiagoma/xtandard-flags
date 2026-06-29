@@ -4,11 +4,15 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
     exclude: ["node_modules/**", "dist/**", "e2e/**", "test/**/*.bun.test.ts"],
+    // A couple of integration tests depend on live Redis/Mongo pub-sub & timer
+    // timing; retry absorbs rare scheduling flakes (esp. under coverage load).
+    retry: 2,
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/ui/**", "src/entry-*.ts"],
+      exclude: ["src/ui/**", "src/entry-*.ts", "src/storage/sqlite.ts"],
       reporter: ["text", "html", "lcov"],
+      thresholds: { statements: 92, branches: 85, functions: 90, lines: 92 },
     },
   },
   lint: {

@@ -14,13 +14,14 @@ import { Hono } from "hono";
 import { createFetchHandler, type FlagsPanelOptions } from "../server/create-fetch-handler.ts";
 
 /** Create a Hono sub-app serving the panel. The admin `core` is attached. */
-export function flagsPanel(
-  options: FlagsPanelOptions,
-): Hono & { core: ReturnType<typeof createFetchHandler>["core"] } {
+export function flagsPanel(options: FlagsPanelOptions): Hono & {
+  core: ReturnType<typeof createFetchHandler>["core"];
+  openapi: ReturnType<typeof createFetchHandler>["openapi"];
+} {
   const handler = createFetchHandler(options);
   const app = new Hono();
   app.all("*", (c) => handler.fetch(c.req.raw));
-  return Object.assign(app, { core: handler.core });
+  return Object.assign(app, { core: handler.core, openapi: handler.openapi });
 }
 
 export type { FlagsPanelOptions };

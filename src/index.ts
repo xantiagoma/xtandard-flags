@@ -112,3 +112,5 @@ export type {
 } from "./core.ts";
 export { createFetchHandler } from "./server/create-fetch-handler.ts";
 export type { CreateFetchHandlerResult, FlagsPanelOptions } from "./server/create-fetch-handler.ts";
+export { buildOpenApiDocument } from "./server/openapi.ts";
+export type { OpenApiOptions } from "./server/openapi.ts";

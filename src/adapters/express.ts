@@ -26,6 +26,7 @@ export type ExpressFlagsHandler = ((
   next: NextFunction,
 ) => void) & {
   core: ReturnType<typeof createFetchHandler>["core"];
+  openapi: ReturnType<typeof createFetchHandler>["openapi"];
 };
 
 function headersFrom(req: ExRequest): Headers {
@@ -87,7 +88,7 @@ export function flagsPanel(options: FlagsPanelOptions): ExpressFlagsHandler {
     })().catch(next);
   };
 
-  return Object.assign(middleware, { core: handler.core });
+  return Object.assign(middleware, { core: handler.core, openapi: handler.openapi });
 }
 
 export type { FlagsPanelOptions };
