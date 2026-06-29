@@ -171,15 +171,15 @@ implementations of public contracts.
 
 ## Subpath exports
 
-| Import                                                  | What                                                                     |
-| ------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `@xtandard/flags`                                       | core types, evaluator, snapshot, `createFlagsCore`, `createFetchHandler` |
-| `@xtandard/flags/openfeature`                           | OpenFeature provider                                                     |
-| `@xtandard/flags/storage/{memory,file,redis,unstorage}` | storage adapters                                                         |
-| `@xtandard/flags/auth/{none,basic,delegated}`           | auth providers                                                           |
-| `@xtandard/flags/authorization/{none,roles,delegated}`  | authorization providers                                                  |
-| `@xtandard/flags/{elysia,hono,bun}`                     | framework adapters                                                       |
-| `@xtandard/flags/testing`                               | in-memory panel + flag builders                                          |
+| Import                                                                   | What                                                                     |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `@xtandard/flags`                                                        | core types, evaluator, snapshot, `createFlagsCore`, `createFetchHandler` |
+| `@xtandard/flags/openfeature`                                            | OpenFeature provider                                                     |
+| `@xtandard/flags/storage/{memory,file,redis,unstorage,postgres,mongodb}` | storage adapters                                                         |
+| `@xtandard/flags/auth/{none,basic,delegated}`                            | auth providers                                                           |
+| `@xtandard/flags/authorization/{none,roles,delegated}`                   | authorization providers                                                  |
+| `@xtandard/flags/{elysia,hono,bun,express}`                              | framework adapters                                                       |
+| `@xtandard/flags/testing`                                                | in-memory panel + flag builders                                          |
 
 ## CLI
 

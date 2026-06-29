@@ -1,12 +1,11 @@
 {
-  "name": "example-express",
+  "name": "example-storage-drivers",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts"
   },
   "dependencies": {
-    "@xtandard/flags": "file:../..",
-    "express": "^5.0.0"
+    "@xtandard/flags": "file:../.."
   }
 }

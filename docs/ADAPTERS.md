@@ -197,3 +197,32 @@ Any runtime that accepts `(Request) => Response | Promise<Response>` can use `cr
 | `defaultEnvironmentKey` | `string`                | `"production"`            | Default environment for the core.                   |
 | `uiDir`                 | `string`                | dist/ui beside the module | Directory to serve the bundled UI from.             |
 | `core`                  | `FlagsCore`             | —                         | Reuse an existing core instead of constructing one. |
+
+## Express (`@xtandard/flags/express`)
+
+Express predates the Fetch API, so the adapter bridges Node `req`/`res` to the
+web-standard handler. **Mount it before any body-parsing middleware** — it reads
+the raw request body itself.
+
+```ts
+import express from "express";
+import { flagsPanel } from "@xtandard/flags/express";
+import { createRedisStorage } from "@xtandard/flags/storage/redis";
+
+const app = express();
+
+app.use(
+  "/flags",
+  flagsPanel({
+    basePath: "/flags",
+    sourceStorage: createRedisStorage({ url: process.env.REDIS_URL! }),
+  }),
+);
+
+// Your own JSON routes can mount their parsers after the panel.
+app.use(express.json());
+app.listen(3000);
+```
+
+The returned handler also carries `.core` for programmatic access to the admin
+operations (publish, rollback, etc.).

@@ -6,7 +6,7 @@
     "start": "bun run src/index.ts"
   },
   "dependencies": {
-    "@xtandard/flags": "^0.1.0",
+    "@xtandard/flags": "file:../..",
     "hono": "^4.6.0"
   }
 }

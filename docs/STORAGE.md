@@ -232,3 +232,74 @@ const watchableStorage: WatchableFlagsStorage = {
   },
 };
 ```
+
+## Postgres (`@xtandard/flags/storage/postgres`)
+
+Peer dep: `pg` (or pass any client exposing `query(text, params)` — including
+[PGlite](https://pglite.dev) for a zero-infra embedded Postgres).
+
+```ts
+import { createPostgresStorage } from "@xtandard/flags/storage/postgres";
+
+// Lazily creates a pg Pool:
+const storage = createPostgresStorage({ connectionString: process.env.DATABASE_URL! });
+
+// …or pass your own client / PGlite (great for tests, no server needed):
+import { PGlite } from "@electric-sql/pglite";
+const storage = createPostgresStorage({ client: new PGlite(), table: "xtandard_flags" });
+```
+
+Data lives in one table `key text PRIMARY KEY, value jsonb` (auto-created on first
+use). `table` defaults to `xtandard_flags` and is validated as a safe identifier.
+
+## MongoDB (`@xtandard/flags/storage/mongodb`)
+
+Peer dep: `mongodb`.
+
+```ts
+import { createMongoStorage } from "@xtandard/flags/storage/mongodb";
+
+const storage = createMongoStorage({
+  url: process.env.MONGO_URL!,
+  dbName: "xtandard_flags", // default
+  collectionName: "flags_kv", // default
+});
+// …or pass a connected MongoClient via { client }.
+```
+
+Documents are `{ _id: <key>, value: <any> }`. `watch` is not implemented (change
+streams require a replica set); the provider's polling refresh covers updates.
+
+## unstorage driver ecosystem (`@xtandard/flags/storage/unstorage`)
+
+The unstorage adapter bridges **any** [unstorage driver](https://unstorage.unjs.io/drivers)
+into `FlagsStorage` — so you get dozens of backends for free without a dedicated
+adapter:
+
+| Driver                                      | Use case                              |
+| ------------------------------------------- | ------------------------------------- |
+| `unstorage/drivers/upstash`                 | Upstash Redis (serverless / edge)     |
+| `unstorage/drivers/vercel-kv`               | Vercel KV                             |
+| `unstorage/drivers/cloudflare-kv-binding`   | Cloudflare Workers KV                 |
+| `unstorage/drivers/s3`                      | AWS S3 / R2                           |
+| `unstorage/drivers/github`                  | GitOps: read flags from a GitHub repo |
+| `unstorage/drivers/netlify-blobs`           | Netlify Blobs                         |
+| `unstorage/drivers/fs` / `memory` / `redis` | filesystem / memory / Redis           |
+
+```ts
+import { createUnstorageStorage } from "@xtandard/flags/storage/unstorage";
+import { createStorage } from "unstorage";
+import upstash from "unstorage/drivers/upstash";
+
+const storage = createUnstorageStorage({
+  storage: createStorage({
+    driver: upstash({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    }),
+  }),
+});
+```
+
+A common production pattern: GitHub/file as **source** storage (GitOps, reviewable)
+and Upstash/Redis as **runtime** storage (fast edge reads).

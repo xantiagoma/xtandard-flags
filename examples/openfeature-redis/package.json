@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@openfeature/server-sdk": "^1.16.0",
-    "@xtandard/flags": "^0.1.0",
+    "@xtandard/flags": "file:../..",
     "redis": "^5.0.0"
   }
 }

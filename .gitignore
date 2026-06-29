@@ -24,3 +24,6 @@ playwright-report
 
 # scratch docs (provided briefs)
 tmp
+
+# example install artifacts
+examples/*/bun.lock
