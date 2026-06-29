@@ -60,6 +60,7 @@ const conditionOperators = [
   "semverLessThan",
   "exists",
   "notExists",
+  "inSegment",
 ];
 
 const schemas = {
@@ -104,6 +105,16 @@ const schemas = {
       name: { type: "string" },
       email: { type: "string" },
       team: { type: "string" },
+    },
+  },
+  Segment: {
+    type: "object",
+    required: ["key", "conditions"],
+    properties: {
+      key: { type: "string", pattern: "^[a-zA-Z0-9._-]+$" },
+      name: { type: "string" },
+      description: { type: "string" },
+      conditions: { type: "array", items: { $ref: "#/components/schemas/Condition" } },
     },
   },
   Flag: {
@@ -272,6 +283,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
       { name: "projects" },
       { name: "environments" },
       { name: "flags" },
+      { name: "segments" },
       { name: "snapshots" },
       { name: "audit" },
     ],
@@ -545,6 +557,52 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
               type: "object",
               properties: { results: { type: "array", items: ref("EvaluationResult") } },
             }),
+          },
+        },
+      },
+      [`${envPath}/segments`]: {
+        parameters: [PROJECT, ENV],
+        get: {
+          tags: ["segments"],
+          summary: "List reusable segments",
+          responses: { "200": jsonRes("Segments", { type: "array", items: ref("Segment") }) },
+        },
+        post: {
+          tags: ["segments"],
+          summary: "Create or replace a segment",
+          requestBody: jsonBody("#/components/schemas/Segment"),
+          responses: {
+            "201": jsonRes("Created", ref("Segment")),
+            "422": errorRes("Validation error"),
+          },
+        },
+      },
+      [`${envPath}/segments/{segmentKey}`]: {
+        parameters: [
+          PROJECT,
+          ENV,
+          { name: "segmentKey", in: "path", required: true, schema: { type: "string" } },
+        ],
+        get: {
+          tags: ["segments"],
+          summary: "Get a segment",
+          responses: { "200": jsonRes("Segment", ref("Segment")), "404": errorRes("Not found") },
+        },
+        put: {
+          tags: ["segments"],
+          summary: "Update a segment",
+          requestBody: jsonBody("#/components/schemas/Segment"),
+          responses: {
+            "200": jsonRes("Updated", ref("Segment")),
+            "422": errorRes("Validation error"),
+          },
+        },
+        delete: {
+          tags: ["segments"],
+          summary: "Delete a segment",
+          responses: {
+            "200": jsonRes("Deleted", { type: "object" }),
+            "404": errorRes("Not found"),
           },
         },
       },

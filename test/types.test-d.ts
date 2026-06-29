@@ -56,6 +56,7 @@ export type _ConditionOperator = Expect<
     | "semverLessThan"
     | "exists"
     | "notExists"
+    | "inSegment"
   >
 >;
 

@@ -44,6 +44,7 @@ export type {
   Override,
   ProjectMeta,
   Rule,
+  Segment,
   Serve,
   Snapshot,
   SplitEntry,
@@ -80,8 +81,19 @@ export {
   flagSchema,
   validateDraft,
   validateFlag,
+  validateSegment,
 } from "./validation.ts";
 export type { ValidationError, ValidationResult } from "./validation.ts";
+
+// Reusable segments (resolved at compile time; not request-path)
+export {
+  inlineSegments,
+  inlineSegmentsInFlag,
+  referencedSegmentKeys,
+  SegmentResolutionError,
+  validateSegmentReferences,
+} from "./segments.ts";
+export type { SegmentReferenceError } from "./segments.ts";
 
 // Storage contracts
 export { isCompareAndSwap, isTransactional, isWatchable, requirePeer } from "./storage/contract.ts";

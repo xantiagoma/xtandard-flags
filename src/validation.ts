@@ -10,7 +10,7 @@
  */
 
 import * as v from "valibot";
-import type { Draft, Flag, FlagType, Serve } from "./schema.ts";
+import type { Condition, Draft, Flag, FlagType, Segment, Serve } from "./schema.ts";
 
 const conditionOperatorSchema = v.picklist([
   "equals",
@@ -30,6 +30,7 @@ const conditionOperatorSchema = v.picklist([
   "semverLessThan",
   "exists",
   "notExists",
+  "inSegment",
 ]);
 
 const jsonValueSchema: v.GenericSchema<unknown> = v.lazy(() =>
@@ -47,6 +48,13 @@ const conditionSchema = v.object({
   attribute: v.pipe(v.string(), v.minLength(1)),
   operator: conditionOperatorSchema,
   value: v.optional(jsonValueSchema),
+});
+
+const segmentSchema = v.object({
+  key: v.pipe(v.string(), v.minLength(1), v.regex(/^[a-zA-Z0-9._-]+$/)),
+  name: v.optional(v.string()),
+  description: v.optional(v.string()),
+  conditions: v.array(conditionSchema),
 });
 
 const splitEntrySchema = v.object({
@@ -130,6 +138,18 @@ function valueMatchesType(value: unknown, type: FlagType): boolean {
     default:
       return false;
   }
+}
+
+/** `inSegment` conditions must carry a non-empty string segment key. */
+function checkConditions(conditions: Condition[], path: string, errors: ValidationError[]): void {
+  conditions.forEach((c, i) => {
+    if (c.operator === "inSegment" && (typeof c.value !== "string" || c.value.length === 0)) {
+      errors.push({
+        path: `${path}[${i}].value`,
+        message: "inSegment requires a non-empty segment key",
+      });
+    }
+  });
 }
 
 function checkServe(
@@ -223,6 +243,7 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
     }
   });
   (flag.rules ?? []).forEach((rule, i) => {
+    checkConditions(rule.conditions, `${basePath}.rules[${i}].conditions`, errors);
     checkServe(rule.serve, variantKeys, `${basePath}.rules[${i}].serve`, errors);
   });
   checkServe(flag.fallthrough, variantKeys, `${basePath}.fallthrough`, errors);
@@ -268,6 +289,38 @@ export function validateDraft(draft: Draft): ValidationResult {
     const result = validateFlag(flag, `flags.${key}`);
     errors.push(...result.errors);
   }
+  return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Validate a single reusable {@link Segment}: structure + `inSegment` value checks.
+ * Cross-entity reference/cycle checks live in {@link ./segments.validateSegmentReferences}.
+ *
+ * @example
+ * ```ts
+ * import { validateSegment } from "@xtandard/flags";
+ *
+ * const result = validateSegment({
+ *   key: "eu-beta",
+ *   conditions: [{ attribute: "country", operator: "in", value: ["FR", "DE"] }],
+ * });
+ * // result.valid === true
+ * ```
+ */
+export function validateSegment(input: unknown, basePath = "segment"): ValidationResult {
+  const parsed = v.safeParse(segmentSchema, input);
+  if (!parsed.success) {
+    return {
+      valid: false,
+      errors: parsed.issues.map((issue) => ({
+        path: `${basePath}.${(issue.path ?? []).map((p) => String(p.key)).join(".")}`,
+        message: issue.message,
+      })),
+    };
+  }
+  const segment = parsed.output as Segment;
+  const errors: ValidationError[] = [];
+  checkConditions(segment.conditions, `${basePath}.conditions`, errors);
   return { valid: errors.length === 0, errors };
 }
 

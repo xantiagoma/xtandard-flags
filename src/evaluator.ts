@@ -202,6 +202,10 @@ export function evaluateCondition(condition: Condition, context: EvaluationConte
       if (op === "semverGreaterThan") return cmp > 0;
       return cmp < 0;
     }
+    case "inSegment":
+      // Segments are inlined at compile time, so the evaluator should never see
+      // this. If an unresolved reference slips through, it simply does not match.
+      return false;
     default: {
       // Exhaustiveness guard: unknown operators never match.
       const _never: never = op;

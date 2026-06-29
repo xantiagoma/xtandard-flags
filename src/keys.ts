@@ -8,6 +8,7 @@
  * flags/{project}/{env}/active_version   -> "v43"
  * flags/{project}/{env}/snapshots/{ver}  -> Snapshot JSON
  * flags/{project}/{env}/draft            -> Draft JSON
+ * flags/{project}/{env}/segments         -> Record<key, Segment> JSON
  * flags/{project}/{env}/audit/{ver}      -> AuditEntry JSON
  * flags/{project}/{env}/metadata         -> EnvironmentMeta JSON
  * flags/{project}/metadata               -> ProjectMeta JSON
@@ -51,6 +52,10 @@ export const snapshotKey = (projectKey: string, environmentKey: string, version:
 /** The mutable working draft. */
 export const draftKey = (projectKey: string, environmentKey: string) =>
   `${env(projectKey, environmentKey)}/draft`;
+
+/** Reusable segments for an environment, stored as a `Record<key, Segment>`. */
+export const segmentsKey = (projectKey: string, environmentKey: string) =>
+  `${env(projectKey, environmentKey)}/segments`;
 
 /** Prefix under which audit entries live. */
 export const auditPrefix = (projectKey: string, environmentKey: string) =>

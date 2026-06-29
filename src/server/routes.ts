@@ -12,10 +12,16 @@ import type {
   FlagsAction,
   FlagsResource,
 } from "../authorization/contract.ts";
-import { FlagValidationError, NotFoundError, ReadonlyError, type FlagsCore } from "../core.ts";
+import {
+  FlagValidationError,
+  NotFoundError,
+  ReadonlyError,
+  SegmentValidationError,
+  type FlagsCore,
+} from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
 import { buildOpenApiDocument } from "./openapi.ts";
-import type { Draft, Flag } from "../schema.ts";
+import type { Draft, Flag, Segment } from "../schema.ts";
 
 /** Everything the API router needs. */
 export interface ApiContext {
@@ -245,6 +251,64 @@ export async function handleApiRequest(
       return json(await ctx.core.restoreFlag(flagKey!, projectKey, environmentKey));
     }
 
+    // --- Segments collection (reusable audiences) ---
+    m = match(`${base}/segments`, path);
+    if (m) {
+      const { projectKey, environmentKey } = m.params;
+      const envResource: FlagsResource = {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      };
+      if (method === "GET") {
+        const denied = await authorize("flag:read", envResource);
+        if (denied) return denied;
+        return json(await ctx.core.listSegments(projectKey, environmentKey));
+      }
+      if (method === "POST") {
+        // Segments reuse flag-level permissions (env-scoped authoring data).
+        const denied = await authorize("flag:create", envResource);
+        if (denied) return denied;
+        const segment = await body<Segment>();
+        return json(await ctx.core.upsertSegment(segment, projectKey, environmentKey), 201);
+      }
+    }
+
+    // --- Single segment ---
+    m = match(`${base}/segments/:segmentKey`, path);
+    if (m) {
+      const { projectKey, environmentKey, segmentKey } = m.params;
+      const envResource: FlagsResource = {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      };
+      if (method === "GET") {
+        const denied = await authorize("flag:read", envResource);
+        if (denied) return denied;
+        const segment = await ctx.core.getSegment(segmentKey!, projectKey, environmentKey);
+        return segment ? json(segment) : error(404, `segment "${segmentKey}" not found`);
+      }
+      if (method === "PUT") {
+        const denied = await authorize("flag:update", envResource);
+        if (denied) return denied;
+        const segment = await body<Segment>();
+        return json(
+          await ctx.core.upsertSegment(
+            { ...segment, key: segmentKey! },
+            projectKey,
+            environmentKey,
+          ),
+        );
+      }
+      if (method === "DELETE") {
+        const denied = await authorize("flag:delete", envResource);
+        if (denied) return denied;
+        await ctx.core.deleteSegment(segmentKey!, projectKey, environmentKey);
+        return json({ ok: true });
+      }
+    }
+
     // --- Draft ---
     m = match(`${base}/draft`, path);
     if (m) {
@@ -434,6 +498,9 @@ function mapError(err: unknown): Response {
   if (err instanceof ReadonlyError) return error(403, err.message, { code: "READONLY" });
   if (err instanceof NotFoundError) return error(404, err.message);
   if (err instanceof FlagValidationError) {
+    return error(422, err.message, { code: "VALIDATION", errors: err.errors });
+  }
+  if (err instanceof SegmentValidationError) {
     return error(422, err.message, { code: "VALIDATION", errors: err.errors });
   }
   if (err instanceof DraftValidationError) {

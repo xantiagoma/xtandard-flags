@@ -103,6 +103,30 @@ export function flagsElysia(options: FlagsElysiaOptions) {
     .delete(`${env}/flags/:flagKey`, pass, { params: flagParams })
     .post(`${env}/flags/:flagKey/archive`, pass, { params: flagParams })
     .post(`${env}/flags/:flagKey/restore`, pass, { params: flagParams })
+    .get(`${env}/segments`, pass, { params: envParams })
+    .post(`${env}/segments`, pass, { params: envParams, body: t.Any() })
+    .get(`${env}/segments/:segmentKey`, pass, {
+      params: t.Object({
+        projectKey: t.String(),
+        environmentKey: t.String(),
+        segmentKey: t.String(),
+      }),
+    })
+    .put(`${env}/segments/:segmentKey`, pass, {
+      params: t.Object({
+        projectKey: t.String(),
+        environmentKey: t.String(),
+        segmentKey: t.String(),
+      }),
+      body: t.Any(),
+    })
+    .delete(`${env}/segments/:segmentKey`, pass, {
+      params: t.Object({
+        projectKey: t.String(),
+        environmentKey: t.String(),
+        segmentKey: t.String(),
+      }),
+    })
     .get(`${env}/draft`, pass, { params: envParams })
     .put(`${env}/draft`, pass, { params: envParams, body: t.Any() })
     .post(`${env}/publish`, pass, {

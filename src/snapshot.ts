@@ -19,7 +19,8 @@ import {
   snapshotsPrefix,
 } from "./keys.ts";
 import { SNAPSHOT_SCHEMA_VERSION } from "./schema.ts";
-import type { Actor, AuditEntry, Draft, Flag, Snapshot } from "./schema.ts";
+import type { Actor, AuditEntry, Draft, Flag, Segment, Snapshot } from "./schema.ts";
+import { inlineSegments } from "./segments.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 
 /** Options for {@link compileDraft}. */
@@ -27,6 +28,11 @@ export interface CompileOptions {
   version: string;
   createdAt?: string;
   createdBy?: Actor | null;
+  /**
+   * Reusable segments to inline into rule conditions (`inSegment` operators).
+   * Resolved at compile time so the snapshot is segment-free. Defaults to none.
+   */
+  segments?: Record<string, Segment>;
 }
 
 /**
@@ -58,6 +64,8 @@ function freezeFlags(flags: Record<string, Flag>): Record<string, Flag> {
  * ```
  */
 export function compileDraft(draft: Draft, options: CompileOptions): Snapshot {
+  const frozen = freezeFlags(draft.flags);
+  const flags = options.segments ? inlineSegments(frozen, options.segments) : frozen;
   return {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
     version: options.version,
@@ -65,7 +73,7 @@ export function compileDraft(draft: Draft, options: CompileOptions): Snapshot {
     environmentKey: draft.environmentKey,
     createdAt: options.createdAt ?? new Date().toISOString(),
     createdBy: options.createdBy ?? null,
-    flags: freezeFlags(draft.flags),
+    flags,
   };
 }
 

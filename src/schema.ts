@@ -54,7 +54,13 @@ export type ConditionOperator =
   | "semverGreaterThan"
   | "semverLessThan"
   | "exists"
-  | "notExists";
+  | "notExists"
+  /**
+   * Membership in a reusable {@link Segment}. `value` is the segment's key.
+   * Resolved (inlined) at **compile time** — the runtime evaluator and compiled
+   * snapshots never contain this operator (see {@link ./snapshot.compileDraft}).
+   */
+  | "inSegment";
 
 /**
  * A single predicate evaluated against the {@link EvaluationContext}.
@@ -66,6 +72,20 @@ export interface Condition {
   attribute: string;
   operator: ConditionOperator;
   value?: JsonValue;
+}
+
+/**
+ * A named, reusable audience — a set of conditions (logical AND) referenced by
+ * targeting rules via the `inSegment` operator. Segments are an **authoring**
+ * convenience: they are resolved (inlined) into rules at compile time and never
+ * appear in the runtime snapshot, so the evaluator stays segment-agnostic.
+ */
+export interface Segment {
+  key: string;
+  name?: string;
+  description?: string;
+  /** All conditions must pass (logical AND). May reference other segments via `inSegment`. */
+  conditions: Condition[];
 }
 
 /** One leg of a weighted split. Weights need not sum to 100. */

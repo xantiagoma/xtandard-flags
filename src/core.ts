@@ -11,7 +11,13 @@
  * @module
  */
 
-import { environmentMetaKey, environmentsKey, projectMetaKey, projectsKey } from "./keys.ts";
+import {
+  environmentMetaKey,
+  environmentsKey,
+  projectMetaKey,
+  projectsKey,
+  segmentsKey,
+} from "./keys.ts";
 import { compileDraft, nextVersion, SnapshotStore } from "./snapshot.ts";
 import type {
   Actor,
@@ -22,12 +28,19 @@ import type {
   Flag,
   FlagValue,
   ProjectMeta,
+  Segment,
   Snapshot,
 } from "./schema.ts";
 import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
 import { evaluateFlag } from "./evaluator.ts";
+import { inlineSegmentsInFlag, validateSegmentReferences } from "./segments.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
-import { assertValidDraft, validateFlag } from "./validation.ts";
+import {
+  assertValidDraft,
+  DraftValidationError,
+  validateFlag,
+  validateSegment,
+} from "./validation.ts";
 
 /** One flag's outcome from {@link FlagsCore.evaluate}. */
 export interface FlagEvaluationResult {
@@ -119,6 +132,16 @@ export interface FlagsCore {
   archiveFlag(flagKey: string, projectKey?: string, environmentKey?: string): Promise<Flag>;
   /** Restore an archived flag by clearing {@link Flag.archivedAt}. */
   restoreFlag(flagKey: string, projectKey?: string, environmentKey?: string): Promise<Flag>;
+
+  // Reusable segments
+  listSegments(projectKey?: string, environmentKey?: string): Promise<Segment[]>;
+  getSegment(
+    segmentKey: string,
+    projectKey?: string,
+    environmentKey?: string,
+  ): Promise<Segment | null>;
+  upsertSegment(segment: Segment, projectKey?: string, environmentKey?: string): Promise<Segment>;
+  deleteSegment(segmentKey: string, projectKey?: string, environmentKey?: string): Promise<void>;
   replaceDraft(draft: Draft): Promise<Draft>;
 
   // Publish / rollback / history
@@ -243,6 +266,17 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
     return { projectKey, environmentKey, flags: {} };
   }
 
+  async function loadSegments(
+    projectKey: string,
+    environmentKey: string,
+  ): Promise<Record<string, Segment>> {
+    return (
+      (await sourceStorage.getItem<Record<string, Segment>>(
+        segmentsKey(projectKey, environmentKey),
+      )) ?? {}
+    );
+  }
+
   return {
     options: {
       sourceStorage,
@@ -355,6 +389,46 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       return this.upsertFlag(restored, p, e);
     },
 
+    async listSegments(projectKey, environmentKey) {
+      const segments = await loadSegments(pk(projectKey), ek(environmentKey));
+      return Object.values(segments);
+    },
+
+    async getSegment(segmentKey, projectKey, environmentKey) {
+      const segments = await loadSegments(pk(projectKey), ek(environmentKey));
+      return segments[segmentKey] ?? null;
+    },
+
+    async upsertSegment(segment, projectKey, environmentKey) {
+      guard("modify segments");
+      const result = validateSegment(segment);
+      if (!result.valid) {
+        throw new SegmentValidationError(
+          segment.key,
+          result.errors.map((e) => `${e.path}: ${e.message}`),
+        );
+      }
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      await ensureEnvironment(p, e);
+      const segments = await loadSegments(p, e);
+      segments[segment.key] = segment;
+      await sourceStorage.setItem(segmentsKey(p, e), segments);
+      return segment;
+    },
+
+    async deleteSegment(segmentKey, projectKey, environmentKey) {
+      guard("delete segments");
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      const segments = await loadSegments(p, e);
+      if (!(segmentKey in segments)) {
+        throw new NotFoundError(`segment "${segmentKey}" not found`);
+      }
+      delete segments[segmentKey];
+      await sourceStorage.setItem(segmentsKey(p, e), segments);
+    },
+
     async deleteFlag(flagKey, projectKey, environmentKey) {
       guard("delete flags");
       const p = pk(projectKey);
@@ -380,9 +454,14 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const draft = await loadDraft(p, e);
       assertValidDraft(draft);
 
+      // Resolve reusable segments: fail on dangling/cyclic references, then inline.
+      const segments = await loadSegments(p, e);
+      const refErrors = validateSegmentReferences(draft.flags, segments);
+      if (refErrors.length > 0) throw new DraftValidationError(refErrors);
+
       const existing = await source.listVersions(p, e);
       const version = nextVersion(existing);
-      const snapshot = compileDraft(draft, { version, createdBy: input.by ?? null });
+      const snapshot = compileDraft(draft, { version, createdBy: input.by ?? null, segments });
 
       // Write to both stores, then flip active_version in both.
       await Promise.all([source.putSnapshot(snapshot), runtime.putSnapshot(snapshot)]);
@@ -475,11 +554,15 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const p = pk(input.projectKey);
       const e = ek(input.environmentKey);
       let flags: Record<string, Flag>;
+      // The active snapshot is already segment-inlined; the draft is not, so
+      // resolve segments on the fly for accurate pre-publish test targeting.
+      let segments: Record<string, Segment> | null = null;
       if (input.source === "active") {
         const snap = await source.getActiveSnapshot(p, e);
         flags = snap?.flags ?? {};
       } else {
         flags = (await loadDraft(p, e)).flags;
+        segments = await loadSegments(p, e);
       }
       const entries = input.flagKey
         ? flags[input.flagKey]
@@ -487,7 +570,16 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
           : []
         : Object.entries(flags);
       return entries.map(([key, flag]) => {
-        const r = evaluateFlag(flag!, input.context);
+        let resolved = flag!;
+        if (segments) {
+          try {
+            resolved = inlineSegmentsInFlag(flag!, segments);
+          } catch {
+            // Dangling/cyclic segment ref in the draft → report as an error result.
+            return { key, value: undefined, variant: undefined, reason: "ERROR" as const };
+          }
+        }
+        const r = evaluateFlag(resolved, input.context);
         return {
           key,
           value: r.value,
@@ -508,6 +600,18 @@ export class FlagValidationError extends Error {
     super(`Flag "${flagKey}" is invalid:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
     this.name = "FlagValidationError";
     this.flagKey = flagKey;
+    this.errors = errors;
+  }
+}
+
+/** Thrown by {@link FlagsCore.upsertSegment} when a segment fails validation. */
+export class SegmentValidationError extends Error {
+  readonly segmentKey: string;
+  readonly errors: string[];
+  constructor(segmentKey: string, errors: string[]) {
+    super(`Segment "${segmentKey}" is invalid:\n${errors.map((e) => `  - ${e}`).join("\n")}`);
+    this.name = "SegmentValidationError";
+    this.segmentKey = segmentKey;
     this.errors = errors;
   }
 }
