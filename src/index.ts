@@ -68,6 +68,10 @@ export { hashToUnitInterval, murmur3 } from "./hash.ts";
 export { compileDraft, nextVersion, SnapshotStore } from "./snapshot.ts";
 export type { CompileOptions } from "./snapshot.ts";
 
+// Lifecycle / staleness (organizational; not request-path)
+export { flagStaleness, summarizeLifecycle } from "./lifecycle.ts";
+export type { FlagStaleness, LifecycleSummary, StalenessOptions } from "./lifecycle.ts";
+
 // Validation (admin path)
 export {
   assertValidDraft,

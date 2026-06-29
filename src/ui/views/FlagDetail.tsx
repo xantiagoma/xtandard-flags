@@ -622,6 +622,22 @@ export function FlagDetail({
                   disabled={readonly}
                 />
               </Field>
+              <Field
+                label="Expected lifetime (days)"
+                hint="Flags older than this and idle are flagged as stale. Leave blank for permanent flags."
+              >
+                <TextInput
+                  type="number"
+                  min={0}
+                  value={form.expectedLifetimeDays ?? ""}
+                  placeholder="e.g. 90"
+                  disabled={readonly}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    patch("expectedLifetimeDays", raw === "" ? undefined : Number(raw));
+                  }}
+                />
+              </Field>
               {isCreate && (
                 <Field label="Type">
                   <Dropdown

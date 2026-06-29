@@ -7,6 +7,7 @@ import { useToast } from "../components/Toast.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import { ToggleSwitch } from "../components/primitives.tsx";
 import { cn } from "../lib/utils.ts";
+import { isStale, staleCount } from "../lib/lifecycle.ts";
 import { FlagDetail } from "./FlagDetail.tsx";
 import { CreateFlagModal } from "./CreateFlagModal.tsx";
 
@@ -125,6 +126,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
   const flags = query.data ?? [];
   const activeFlags = flags.filter((f) => !f.archivedAt);
   const archivedFlags = flags.filter((f) => f.archivedAt);
+  const stale = staleCount(activeFlags);
   const visible = showArchived ? archivedFlags : activeFlags;
   const filtered = search
     ? visible.filter((f) => {
@@ -192,6 +194,11 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
             {activeFlags.length} flag{activeFlags.length !== 1 ? "s" : ""}
             {activeFlags.length > 0 ? " — roll out features safely across every environment." : ""}
           </p>
+          {stale > 0 && (
+            <p className="mt-1 text-xs font-medium text-warning">
+              {stale} flag{stale !== 1 ? "s" : ""} past expected lifetime — consider cleaning up.
+            </p>
+          )}
         </div>
         {!readonly && (
           <Button
@@ -302,6 +309,11 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                           <span className="truncate font-mono text-[13px] font-medium text-foreground">
                             {flag.key}
                           </span>
+                          {isStale(flag) && (
+                            <span className="rounded-md border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
+                              Stale
+                            </span>
+                          )}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {valueSummary(flag)}

@@ -93,6 +93,9 @@ export const flagSchema = v.object({
   salt: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
   archivedAt: v.optional(v.nullable(v.string())),
+  createdAt: v.optional(v.string()),
+  updatedAt: v.optional(v.string()),
+  expectedLifetimeDays: v.optional(v.pipe(v.number(), v.minValue(0))),
 });
 
 /** A single validation problem with a dotted path into the offending data. */

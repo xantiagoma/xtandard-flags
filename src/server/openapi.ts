@@ -117,6 +117,16 @@ const schemas = {
         nullable: true,
         description: "ISO-8601 archive timestamp; archived flags are excluded from snapshots.",
       },
+      createdAt: { type: "string", description: "ISO-8601 creation timestamp (server-stamped)." },
+      updatedAt: {
+        type: "string",
+        description: "ISO-8601 last-update timestamp (server-stamped).",
+      },
+      expectedLifetimeDays: {
+        type: "number",
+        minimum: 0,
+        description: "Expected lifetime in days; drives stale-flag detection.",
+      },
     },
   },
   Draft: {

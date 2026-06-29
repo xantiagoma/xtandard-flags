@@ -321,9 +321,16 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const e = ek(environmentKey);
       await ensureEnvironment(p, e);
       const draft = await loadDraft(p, e);
-      draft.flags[flag.key] = flag;
+      const existing = draft.flags[flag.key];
+      const now = new Date().toISOString();
+      const stamped: Flag = {
+        ...flag,
+        createdAt: flag.createdAt ?? existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      draft.flags[flag.key] = stamped;
       await source.putDraft(draft);
-      return flag;
+      return stamped;
     },
 
     async archiveFlag(flagKey, projectKey, environmentKey) {

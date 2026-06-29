@@ -155,6 +155,16 @@ export interface Flag {
    * history/restore. The evaluator never sees this field.
    */
   archivedAt?: string | null;
+  /** ISO-8601 timestamp set when the flag is first created (stamped by {@link ./core.FlagsCore.upsertFlag}). */
+  createdAt?: string;
+  /** ISO-8601 timestamp updated on every change (stamped by {@link ./core.FlagsCore.upsertFlag}). */
+  updatedAt?: string;
+  /**
+   * Expected lifetime in days. When set, a flag older than this and idle for a
+   * while is flagged as **stale** (see {@link ./lifecycle.flagStaleness}) — a hint
+   * to clean it up. Purely organizational; does not affect evaluation.
+   */
+  expectedLifetimeDays?: number;
 }
 
 /** Identity captured on snapshot/audit records. */

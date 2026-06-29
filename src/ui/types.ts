@@ -53,6 +53,9 @@ export interface Flag {
   salt?: string;
   tags?: string[];
   archivedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  expectedLifetimeDays?: number;
 }
 
 export interface FlagsConfig {
