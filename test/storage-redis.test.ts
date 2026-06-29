@@ -54,12 +54,26 @@ describe.skipIf(!REDIS_URL)("createRedisStorage (live)", () => {
   });
 
   test("watch delivers update and remove events (keyspace notifications)", async () => {
+    // Keyspace notifications are off by default (e.g. the CI redis service); enable
+    // them so this works regardless of the server's startup config.
+    const { createClient } = (await import("redis")) as unknown as {
+      createClient: (opts: Record<string, unknown>) => {
+        connect(): Promise<unknown>;
+        configSet(p: string, v: string): Promise<unknown>;
+        quit(): Promise<unknown>;
+      };
+    };
+    const cfg = createClient({ url: REDIS_URL });
+    await cfg.connect();
+    await cfg.configSet("notify-keyspace-events", "KEA");
+    await cfg.quit();
+
     const events: { type: string; key: string }[] = [];
     const off = await storage.watch("flags/watch/", (e) => events.push(e));
     await storage.setItem("flags/watch/e/k", { v: 1 });
     await storage.removeItem("flags/watch/e/k");
     // Give pub/sub a moment to deliver.
-    await new Promise((r) => setTimeout(r, 300));
+    await new Promise((r) => setTimeout(r, 500));
     off();
     expect(events.some((e) => e.type === "update" && e.key === "flags/watch/e/k")).toBe(true);
     expect(events.some((e) => e.type === "remove" && e.key === "flags/watch/e/k")).toBe(true);
