@@ -93,9 +93,7 @@ describe("cli", () => {
   test("eval with --key, --context, and default source", async () => {
     await writeFlag("dark-mode", true);
     out.length = 0;
-    expect(
-      await run(["eval", "--key", "dark-mode", "--context", '{"targetingKey":"u1"}']),
-    ).toBe(0);
+    expect(await run(["eval", "--key", "dark-mode", "--context", '{"targetingKey":"u1"}'])).toBe(0);
     expect(out.join("")).toContain("dark-mode = true");
   });
 

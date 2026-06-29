@@ -1,9 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  assertValidDraft,
-  DraftValidationError,
-  validateFlag,
-} from "../src/validation.ts";
+import { assertValidDraft, DraftValidationError, validateFlag } from "../src/validation.ts";
 import { booleanFlag, draft, jsonFlag, numberFlag, themeFlag } from "./fixtures.ts";
 
 describe("validateFlag — value/type agreement per type", () => {
@@ -25,7 +21,9 @@ describe("validateFlag — value/type agreement per type", () => {
   });
 
   test("boolean flag rejects a number value", () => {
-    const r = validateFlag(booleanFlag({ variants: { on: { value: 1 }, off: { value: 0 } } } as never));
+    const r = validateFlag(
+      booleanFlag({ variants: { on: { value: 1 }, off: { value: 0 } } } as never),
+    );
     expect(r.valid).toBe(false);
   });
 

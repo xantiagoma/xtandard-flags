@@ -1,10 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  booleanFlag,
-  createTestPanel,
-  publishFlags,
-  variantFlag,
-} from "../src/testing.ts";
+import { booleanFlag, createTestPanel, publishFlags, variantFlag } from "../src/testing.ts";
 
 describe("createTestPanel", () => {
   test("creates a core with separate source/runtime stores by default", () => {

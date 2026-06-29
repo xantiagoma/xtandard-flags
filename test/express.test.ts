@@ -67,9 +67,7 @@ describe("express adapter", () => {
       body: JSON.stringify(themeFlag()),
     });
     expect(res.status).toBe(201);
-    const list = await fetch(
-      `${base}/parsed/api/projects/default/environments/production/flags`,
-    );
+    const list = await fetch(`${base}/parsed/api/projects/default/environments/production/flags`);
     expect((await list.json()).length).toBe(1);
   });
 

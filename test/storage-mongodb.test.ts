@@ -113,7 +113,9 @@ describe("createMongoStorage shape", () => {
 
   test("throws a clear error when neither client nor url is supplied", async () => {
     const storage = createMongoStorage({});
-    await expect(storage.getItem("flags/p/e/k")).rejects.toThrow(/requires either a "client" or a "url"/);
+    await expect(storage.getItem("flags/p/e/k")).rejects.toThrow(
+      /requires either a "client" or a "url"/,
+    );
   });
 
   test("a connection failure is not cached: a later call retries", async () => {

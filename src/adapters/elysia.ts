@@ -70,7 +70,11 @@ export function flagsElysia(options: FlagsElysiaOptions) {
     const r = ctx.request;
     if (ctx.body != null && (r.method === "POST" || r.method === "PUT")) {
       return handler.fetch(
-        new Request(r.url, { method: r.method, headers: r.headers, body: JSON.stringify(ctx.body) }),
+        new Request(r.url, {
+          method: r.method,
+          headers: r.headers,
+          body: JSON.stringify(ctx.body),
+        }),
       );
     }
     return handler.fetch(r);
@@ -82,7 +86,9 @@ export function flagsElysia(options: FlagsElysiaOptions) {
     .get("/config", pass)
     .get("/api/openapi.json", pass)
     .get("/api/projects", pass)
-    .post("/api/projects", pass, { body: t.Object({ key: t.String(), name: t.Optional(t.String()) }) })
+    .post("/api/projects", pass, {
+      body: t.Object({ key: t.String(), name: t.Optional(t.String()) }),
+    })
     .get("/api/projects/:projectKey/environments", pass, {
       params: t.Object({ projectKey: t.String() }),
     })

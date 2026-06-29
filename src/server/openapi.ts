@@ -158,11 +158,19 @@ const schemas = {
   },
   ProjectMeta: {
     type: "object",
-    properties: { key: { type: "string" }, name: { type: "string" }, createdAt: { type: "string" } },
+    properties: {
+      key: { type: "string" },
+      name: { type: "string" },
+      createdAt: { type: "string" },
+    },
   },
   EnvironmentMeta: {
     type: "object",
-    properties: { key: { type: "string" }, name: { type: "string" }, createdAt: { type: "string" } },
+    properties: {
+      key: { type: "string" },
+      name: { type: "string" },
+      createdAt: { type: "string" },
+    },
   },
   EvaluationResult: {
     type: "object",
@@ -270,7 +278,11 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
             required: true,
             content: {
               "application/json": {
-                schema: { type: "object", required: ["key"], properties: { key: { type: "string" }, name: { type: "string" } } },
+                schema: {
+                  type: "object",
+                  required: ["key"],
+                  properties: { key: { type: "string" }, name: { type: "string" } },
+                },
               },
             },
           },
@@ -282,7 +294,9 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
         get: {
           tags: ["environments"],
           summary: "List environments",
-          responses: { "200": jsonRes("Environments", { type: "array", items: ref("EnvironmentMeta") }) },
+          responses: {
+            "200": jsonRes("Environments", { type: "array", items: ref("EnvironmentMeta") }),
+          },
         },
         post: {
           tags: ["environments"],
@@ -291,7 +305,11 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
             required: true,
             content: {
               "application/json": {
-                schema: { type: "object", required: ["key"], properties: { key: { type: "string" }, name: { type: "string" } } },
+                schema: {
+                  type: "object",
+                  required: ["key"],
+                  properties: { key: { type: "string" }, name: { type: "string" } },
+                },
               },
             },
           },
@@ -309,11 +327,18 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           tags: ["flags"],
           summary: "Create a flag",
           requestBody: jsonBody("#/components/schemas/Flag"),
-          responses: { "201": jsonRes("Created", ref("Flag")), "422": errorRes("Validation error") },
+          responses: {
+            "201": jsonRes("Created", ref("Flag")),
+            "422": errorRes("Validation error"),
+          },
         },
       },
       [`${envPath}/flags/{flagKey}`]: {
-        parameters: [PROJECT, ENV, { name: "flagKey", in: "path", required: true, schema: { type: "string" } }],
+        parameters: [
+          PROJECT,
+          ENV,
+          { name: "flagKey", in: "path", required: true, schema: { type: "string" } },
+        ],
         get: {
           tags: ["flags"],
           summary: "Get a flag",
@@ -323,17 +348,27 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           tags: ["flags"],
           summary: "Update a flag",
           requestBody: jsonBody("#/components/schemas/Flag"),
-          responses: { "200": jsonRes("Updated", ref("Flag")), "422": errorRes("Validation error") },
+          responses: {
+            "200": jsonRes("Updated", ref("Flag")),
+            "422": errorRes("Validation error"),
+          },
         },
         delete: {
           tags: ["flags"],
           summary: "Delete a flag",
-          responses: { "200": jsonRes("Deleted", { type: "object" }), "404": errorRes("Not found") },
+          responses: {
+            "200": jsonRes("Deleted", { type: "object" }),
+            "404": errorRes("Not found"),
+          },
         },
       },
       [`${envPath}/draft`]: {
         parameters: [PROJECT, ENV],
-        get: { tags: ["flags"], summary: "Get the working draft", responses: { "200": jsonRes("Draft", ref("Draft")) } },
+        get: {
+          tags: ["flags"],
+          summary: "Get the working draft",
+          responses: { "200": jsonRes("Draft", ref("Draft")) },
+        },
         put: {
           tags: ["flags"],
           summary: "Replace the working draft",
@@ -347,9 +382,16 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           tags: ["snapshots"],
           summary: "Compile the draft into a new snapshot and activate it",
           requestBody: {
-            content: { "application/json": { schema: { type: "object", properties: { message: { type: "string" } } } } },
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { message: { type: "string" } } },
+              },
+            },
           },
-          responses: { "201": jsonRes("Published snapshot", ref("Snapshot")), "422": errorRes("Validation error") },
+          responses: {
+            "201": jsonRes("Published snapshot", ref("Snapshot")),
+            "422": errorRes("Validation error"),
+          },
         },
       },
       [`${envPath}/rollback`]: {
@@ -361,11 +403,18 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
             required: true,
             content: {
               "application/json": {
-                schema: { type: "object", required: ["version"], properties: { version: { type: "string" }, message: { type: "string" } } },
+                schema: {
+                  type: "object",
+                  required: ["version"],
+                  properties: { version: { type: "string" }, message: { type: "string" } },
+                },
               },
             },
           },
-          responses: { "200": jsonRes("Active snapshot", ref("Snapshot")), "404": errorRes("Not found") },
+          responses: {
+            "200": jsonRes("Active snapshot", ref("Snapshot")),
+            "404": errorRes("Not found"),
+          },
         },
       },
       [`${envPath}/snapshots`]: {
@@ -376,13 +425,20 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           responses: {
             "200": jsonRes("Versions + active", {
               type: "object",
-              properties: { versions: { type: "array", items: ref("SnapshotSummary") }, active: { type: "string", nullable: true } },
+              properties: {
+                versions: { type: "array", items: ref("SnapshotSummary") },
+                active: { type: "string", nullable: true },
+              },
             }),
           },
         },
       },
       [`${envPath}/snapshots/{version}`]: {
-        parameters: [PROJECT, ENV, { name: "version", in: "path", required: true, schema: { type: "string" } }],
+        parameters: [
+          PROJECT,
+          ENV,
+          { name: "version", in: "path", required: true, schema: { type: "string" } },
+        ],
         get: {
           tags: ["snapshots"],
           summary: "Get a snapshot by version",
@@ -394,7 +450,11 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
         get: {
           tags: ["snapshots"],
           summary: "Get the active snapshot",
-          responses: { "200": jsonRes("Active snapshot (or null)", { oneOf: [ref("Snapshot"), { type: "null" }] }) },
+          responses: {
+            "200": jsonRes("Active snapshot (or null)", {
+              oneOf: [ref("Snapshot"), { type: "null" }],
+            }),
+          },
         },
       },
       [`${envPath}/audit`]: {

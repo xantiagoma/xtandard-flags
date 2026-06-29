@@ -240,7 +240,12 @@ import { flagsElysia } from "@xtandard/flags/elysia";
 import { createRedisStorage } from "@xtandard/flags/storage/redis";
 
 const app = new Elysia()
-  .use(flagsElysia({ prefix: "/flags", sourceStorage: createRedisStorage({ url: process.env.REDIS_URL! }) }))
+  .use(
+    flagsElysia({
+      prefix: "/flags",
+      sourceStorage: createRedisStorage({ url: process.env.REDIS_URL! }),
+    }),
+  )
   .listen(3000);
 
 export type App = typeof app;
@@ -254,7 +259,9 @@ import type { App } from "./server";
 const client = treaty<App>("localhost:3000");
 
 await client.flags.config.get();
-const env = client.flags.api.projects({ projectKey: "default" }).environments({ environmentKey: "production" });
+const env = client.flags.api
+  .projects({ projectKey: "default" })
+  .environments({ environmentKey: "production" });
 await env.flags.get();
 await env.publish.post({ message: "ship it" });
 ```
@@ -264,8 +271,8 @@ await env.publish.post({ message: "ship it" });
 Every adapter exposes the admin API as an OpenAPI 3.1 document:
 
 ```ts
-const panel = flagsPanel({ sourceStorage });   // or flagsElysia(...), hono, express
-panel.openapi();                                // → OpenAPI 3.1 object
+const panel = flagsPanel({ sourceStorage }); // or flagsElysia(...), hono, express
+panel.openapi(); // → OpenAPI 3.1 object
 ```
 
 It's also served at `{basePath}/api/openapi.json`. Merge it into your host app's

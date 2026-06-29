@@ -191,9 +191,7 @@ describe("routes — evaluate", () => {
     const { fetch } = panel();
     await fetch(req("POST", `${BASE}/flags`, themeFlag()));
     await fetch(req("POST", `${BASE}/flags`, booleanFlag()));
-    const res = await fetch(
-      req("POST", `${BASE}/evaluate`, { flagKey: "theme", context: {} }),
-    );
+    const res = await fetch(req("POST", `${BASE}/evaluate`, { flagKey: "theme", context: {} }));
     const { results } = await res.json();
     expect(results.length).toBe(1);
     expect(results[0].key).toBe("theme");
