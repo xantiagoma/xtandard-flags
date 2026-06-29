@@ -21,6 +21,7 @@ import {
 } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
 import { buildOpenApiDocument } from "./openapi.ts";
+import { toOfrepBulkResponse, toOfrepEvaluation } from "./ofrep.ts";
 import type { Draft, Flag, Segment } from "../schema.ts";
 
 /** Everything the API router needs. */
@@ -74,7 +75,8 @@ export async function handleApiRequest(
     path === "/config" ||
     path === "/api/config" ||
     path === "/openapi.json" ||
-    path.startsWith("/api/");
+    path.startsWith("/api/") ||
+    path.startsWith("/ofrep/");
   if (!isApi) return null;
 
   const method = request.method.toUpperCase();
@@ -485,6 +487,62 @@ export async function handleApiRequest(
         flags[r.key] = { value: r.value, variant: r.variant, reason: r.reason };
       }
       return json({ flags });
+    }
+
+    // --- OFREP: OpenFeature Remote Evaluation Protocol (opt-in; see ADR 0004) ---
+    // Project/env aren't in the OFREP path; default to the handler's configured
+    // pair, overridable via ?projectKey=&environmentKey=.
+    if (path.startsWith("/ofrep/v1/evaluate/flags")) {
+      const url = new URL(request.url);
+      const projectKey = url.searchParams.get("projectKey") ?? undefined;
+      const environmentKey = url.searchParams.get("environmentKey") ?? undefined;
+      const ofrepContext = async (): Promise<Record<string, unknown>> => {
+        const parsed = await body<{ context?: Record<string, unknown> }>().catch(
+          () => ({}) as { context?: Record<string, unknown> },
+        );
+        return parsed.context ?? {};
+      };
+
+      // Single flag: /ofrep/v1/evaluate/flags/:key
+      const single = match("/ofrep/v1/evaluate/flags/:key", path);
+      if (single && method === "POST") {
+        const denied = await authorize("flag:read", {
+          type: "environment",
+          projectKey: projectKey ?? ctx.core.options.defaultProjectKey,
+          environmentKey: environmentKey ?? ctx.core.options.defaultEnvironmentKey,
+        });
+        if (denied) return denied;
+        const { key } = single.params;
+        const results = await ctx.core.evaluate({
+          context: await ofrepContext(),
+          flagKey: key,
+          source: "active",
+          projectKey,
+          environmentKey,
+        });
+        const result = results[0];
+        if (!result) {
+          return error(404, `flag "${key}" not found`, { key, errorCode: "FLAG_NOT_FOUND" });
+        }
+        return json(toOfrepEvaluation(result));
+      }
+
+      // Bulk: /ofrep/v1/evaluate/flags
+      if (path === "/ofrep/v1/evaluate/flags" && method === "POST") {
+        const denied = await authorize("flag:read", {
+          type: "environment",
+          projectKey: projectKey ?? ctx.core.options.defaultProjectKey,
+          environmentKey: environmentKey ?? ctx.core.options.defaultEnvironmentKey,
+        });
+        if (denied) return denied;
+        const results = await ctx.core.evaluate({
+          context: await ofrepContext(),
+          source: "active",
+          projectKey,
+          environmentKey,
+        });
+        return json(toOfrepBulkResponse(results));
+      }
     }
 
     return error(404, "Not found");

@@ -224,6 +224,19 @@ const schemas = {
       errorCode: { type: "string" },
     },
   },
+  OfrepEvaluation: {
+    type: "object",
+    required: ["key"],
+    properties: {
+      key: { type: "string" },
+      value: {},
+      variant: { type: "string" },
+      reason: { type: "string" },
+      errorCode: { type: "string" },
+      errorDetails: { type: "string" },
+      metadata: { type: "object", additionalProperties: true },
+    },
+  },
   Config: {
     type: "object",
     properties: {
@@ -292,6 +305,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
       { name: "segments" },
       { name: "snapshots" },
       { name: "audit" },
+      { name: "ofrep" },
     ],
     paths: {
       "/config": {
@@ -648,6 +662,61 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
                 },
               },
             }),
+          },
+        },
+      },
+      "/ofrep/v1/evaluate/flags": {
+        post: {
+          tags: ["ofrep"],
+          summary: "OFREP bulk evaluation (OpenFeature Remote Evaluation Protocol)",
+          description:
+            "Opt-in remote evaluation for client/edge SDKs. Project/env default to the handler's configured pair; override with ?projectKey=&environmentKey=.",
+          parameters: [
+            { name: "projectKey", in: "query", required: false, schema: { type: "string" } },
+            { name: "environmentKey", in: "query", required: false, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: { context: { type: "object", additionalProperties: true } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonRes("OFREP bulk result", {
+              type: "object",
+              properties: { flags: { type: "array", items: ref("OfrepEvaluation") } },
+            }),
+          },
+        },
+      },
+      "/ofrep/v1/evaluate/flags/{key}": {
+        parameters: [{ name: "key", in: "path", required: true, schema: { type: "string" } }],
+        post: {
+          tags: ["ofrep"],
+          summary: "OFREP single-flag evaluation",
+          parameters: [
+            { name: "projectKey", in: "query", required: false, schema: { type: "string" } },
+            { name: "environmentKey", in: "query", required: false, schema: { type: "string" } },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: { context: { type: "object", additionalProperties: true } },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonRes("OFREP evaluation", ref("OfrepEvaluation")),
+            "404": errorRes("Flag not found"),
           },
         },
       },
