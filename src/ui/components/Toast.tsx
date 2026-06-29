@@ -1,4 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useId, useReducer } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useReducer } from "react";
+import { X } from "lucide-react";
+import { cn } from "../lib/utils.ts";
 
 export type ToastKind = "success" | "error" | "info" | "warning";
 
@@ -38,94 +40,54 @@ export function useToast(): ToastContextValue {
   return ctx;
 }
 
+const kindAccent: Record<ToastKind, string> = {
+  success: "bg-success",
+  error: "bg-destructive",
+  warning: "bg-warning",
+  info: "bg-accent",
+};
+
+const kindBorder: Record<ToastKind, string> = {
+  success: "border-l-[var(--success)]",
+  error: "border-l-[var(--destructive)]",
+  warning: "border-l-[var(--warning)]",
+  info: "border-l-[var(--accent)]",
+};
+
 function ToastItem({ toast, onRemove }: { toast: Toast; onRemove: (id: string) => void }) {
   useEffect(() => {
     const t = setTimeout(() => onRemove(toast.id), 4500);
     return () => clearTimeout(t);
   }, [toast.id, onRemove]);
 
-  const kindColor: Record<ToastKind, string> = {
-    success: "var(--color-success)",
-    error: "var(--color-danger)",
-    warning: "var(--color-warning)",
-    info: "var(--color-info)",
-  };
-  const accent = kindColor[toast.kind];
-
   return (
     <div
       role="alert"
+      className={cn(
+        "flex min-w-[280px] max-w-sm items-start gap-2.5 rounded-lg border border-border bg-card px-3.5 py-3 shadow-lg",
+        "border-l-[3px]",
+        kindBorder[toast.kind],
+      )}
       style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border-strong)",
-        borderLeft: `3px solid ${accent}`,
-        borderRadius: "var(--radius-md)",
-        padding: "12px 14px",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "10px",
-        minWidth: "280px",
-        maxWidth: "380px",
-        boxShadow: "var(--shadow-lg)",
         animation: "toastIn 160ms ease-out",
       }}
     >
       <span
-        style={{
-          width: "8px",
-          height: "8px",
-          borderRadius: "50%",
-          flexShrink: 0,
-          marginTop: "5px",
-          background: accent,
-        }}
+        className={cn("mt-1 size-2 shrink-0 rounded-full", kindAccent[toast.kind])}
+        aria-hidden
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p
-          style={{
-            margin: 0,
-            fontSize: "13px",
-            fontWeight: 500,
-            color: "var(--color-text)",
-            lineHeight: "1.4",
-          }}
-        >
-          {toast.message}
-        </p>
+      <div className="flex-1 min-w-0">
+        <p className="m-0 text-[13px] font-medium text-foreground leading-snug">{toast.message}</p>
         {toast.detail && (
-          <p
-            style={{
-              margin: "3px 0 0",
-              fontSize: "12px",
-              color: "var(--color-muted)",
-              lineHeight: "1.4",
-            }}
-          >
-            {toast.detail}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground leading-snug">{toast.detail}</p>
         )}
       </div>
       <button
         aria-label="Dismiss"
         onClick={() => onRemove(toast.id)}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          color: "var(--color-faint)",
-          padding: "2px",
-          lineHeight: 1,
-          flexShrink: 0,
-        }}
+        className="shrink-0 rounded-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring outline-none"
       >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path
-            d="M2 2l10 10M12 2L2 12"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
+        <X className="size-3.5" />
       </button>
 
       <style>{`
@@ -156,15 +118,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div
         aria-live="polite"
         aria-atomic="false"
-        style={{
-          position: "fixed",
-          bottom: "24px",
-          right: "24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-          zIndex: 9999,
-        }}
+        className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2"
       >
         {state.toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onRemove={remove} />

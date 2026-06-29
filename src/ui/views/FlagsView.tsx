@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Flag, FlagType } from "../types.ts";
+import { Search, Plus, ChevronRight, Flag } from "lucide-react";
+import type { Flag as FlagType, FlagType as FlagKind } from "../types.ts";
 import { listFlags, updateFlag } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
-import { TypeBadge, StatusBadge } from "../components/Badge.tsx";
-import { Button } from "../components/Button.tsx";
-import { SearchIcon, PlusIcon, FlagIcon } from "../components/Icons.tsx";
-import { FlagEditor } from "./FlagEditor.tsx";
+import { Button, Badge } from "../components/ui-bits.tsx";
+import { ToggleSwitch } from "../components/primitives.tsx";
+import { cn } from "../lib/utils.ts";
+import { FlagDetail } from "./FlagDetail.tsx";
 import { CreateFlagModal } from "./CreateFlagModal.tsx";
 
 interface Props {
@@ -15,51 +16,35 @@ interface Props {
   readonly: boolean;
 }
 
+const TYPE_BADGE: Record<FlagKind, string> = {
+  boolean: "border-chart-1/30 bg-chart-1/10 text-chart-1",
+  string: "border-chart-2/30 bg-chart-2/10 text-chart-2",
+  number: "border-chart-3/30 bg-chart-3/10 text-chart-3",
+  json: "border-chart-5/30 bg-chart-5/10 text-chart-5",
+};
+
+function valueSummary(flag: FlagType): string {
+  const variantKeys = Object.keys(flag.variants);
+  const ruleCount = flag.rules?.length ?? 0;
+  const base = flag.defaultVariant || (variantKeys[0] ?? "—");
+  if (!flag.enabled) return "Off";
+  return ruleCount > 0 ? `${base} · ${ruleCount} rule${ruleCount > 1 ? "s" : ""}` : `Default: ${base}`;
+}
+
 function EmptyState({ readonly, onCreateClick }: { readonly: boolean; onCreateClick: () => void }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "80px 24px",
-        gap: "16px",
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          width: "56px",
-          height: "56px",
-          background: "var(--color-elevated)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-lg)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--color-accent)",
-        }}
-      >
-        <FlagIcon size={24} />
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+      <div className="flex size-14 items-center justify-center rounded-xl border border-border bg-secondary/60 text-accent">
+        <Flag className="size-6" />
       </div>
       <div>
-        <p
-          style={{
-            margin: "0 0 6px",
-            fontSize: "15px",
-            fontWeight: 600,
-            color: "var(--color-text)",
-          }}
-        >
-          No feature flags yet
-        </p>
-        <p style={{ margin: 0, fontSize: "13px", color: "var(--color-muted)" }}>
+        <p className="text-[15px] font-semibold text-foreground mb-1.5">No feature flags yet</p>
+        <p className="text-[13px] text-muted-foreground">
           Feature flags let you ship safely and roll out incrementally.
         </p>
       </div>
       {!readonly && (
-        <Button variant="primary" icon={<PlusIcon />} onClick={onCreateClick}>
+        <Button variant="primary" icon={<Plus className="size-4" />} onClick={onCreateClick}>
           Create your first flag
         </Button>
       )}
@@ -67,30 +52,28 @@ function EmptyState({ readonly, onCreateClick }: { readonly: boolean; onCreateCl
   );
 }
 
-function RuleCount({ count }: { count: number }) {
-  if (count === 0) return <span style={{ color: "var(--color-faint)", fontSize: "12px" }}>—</span>;
-  return (
-    <span
-      style={{
-        background: "var(--color-elevated)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "20px",
-        padding: "1px 8px",
-        fontSize: "11px",
-        color: "var(--color-muted)",
-        fontVariantNumeric: "tabular-nums",
-      }}
-    >
-      {count} rule{count !== 1 ? "s" : ""}
-    </span>
-  );
+function defaultVariants(type: FlagKind): Record<string, { value: unknown }> {
+  switch (type) {
+    case "boolean":
+      return { on: { value: true }, off: { value: false } };
+    case "string":
+      return { control: { value: "control" }, treatment: { value: "treatment" } };
+    case "number":
+      return { zero: { value: 0 }, one: { value: 1 } };
+    case "json":
+      return { control: { value: {} }, treatment: { value: {} } };
+  }
+}
+
+function defaultFallthrough(type: FlagKind) {
+  return type === "boolean" ? { variant: "off" } : { variant: "control" };
 }
 
 export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingFlag, setEditingFlag] = useState<Flag | null | "new">(null);
-  const [createSeed, setCreateSeed] = useState<{ key: string; type: FlagType } | null>(null);
+  const [selectedFlagKey, setSelectedFlagKey] = useState<string | "new" | null>(null);
+  const [createSeed, setCreateSeed] = useState<{ key: string; type: FlagKind } | null>(null);
 
   const toast = useToast();
   const qc = useQueryClient();
@@ -102,12 +85,12 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ flag, enabled }: { flag: Flag; enabled: boolean }) =>
+    mutationFn: ({ flag, enabled }: { flag: FlagType; enabled: boolean }) =>
       updateFlag(projectKey, environmentKey, flag.key, { ...flag, enabled }),
     onMutate: async ({ flag, enabled }) => {
       await qc.cancelQueries({ queryKey: ["flags", projectKey, environmentKey] });
-      const prev = qc.getQueryData<Flag[]>(["flags", projectKey, environmentKey]);
-      qc.setQueryData<Flag[]>(
+      const prev = qc.getQueryData<FlagType[]>(["flags", projectKey, environmentKey]);
+      qc.setQueryData<FlagType[]>(
         ["flags", projectKey, environmentKey],
         (old) => old?.map((f) => (f.key === flag.key ? { ...f, enabled } : f)) ?? old,
       );
@@ -131,96 +114,66 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
       )
     : flags;
 
-  const handleCreateSeed = (key: string, type: FlagType) => {
+  // Handle create: seed from modal → open FlagDetail in create mode
+  const handleCreateSeed = (key: string, type: FlagKind) => {
     setCreateSeed({ key, type });
-    setEditingFlag("new");
+    setSelectedFlagKey("new");
   };
 
-  const seedFlag: Flag | null =
-    editingFlag === "new" && createSeed
+  // Build seed flag for create mode
+  const seedFlag: FlagType | null =
+    selectedFlagKey === "new" && createSeed
       ? {
           key: createSeed.key,
           type: createSeed.type,
           enabled: false,
           defaultVariant: createSeed.type === "boolean" ? "off" : "control",
-          variants:
-            createSeed.type === "boolean"
-              ? { on: { value: true }, off: { value: false } }
-              : createSeed.type === "string"
-                ? { control: { value: "control" }, treatment: { value: "treatment" } }
-                : createSeed.type === "number"
-                  ? { zero: { value: 0 }, one: { value: 1 } }
-                  : { control: { value: {} }, treatment: { value: {} } },
-          fallthrough: { variant: createSeed.type === "boolean" ? "off" : "control" },
+          variants: defaultVariants(createSeed.type),
+          fallthrough: defaultFallthrough(createSeed.type),
+          rules: [],
+          overrides: [],
         }
       : null;
 
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-      }}
-    >
-      {/* Toolbar */}
-      <div
-        style={{
-          padding: "16px 24px",
-          borderBottom: "1px solid var(--color-border)",
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          flexShrink: 0,
+  const selectedFlag =
+    selectedFlagKey !== null && selectedFlagKey !== "new"
+      ? (flags.find((f) => f.key === selectedFlagKey) ?? null)
+      : selectedFlagKey === "new"
+        ? seedFlag
+        : null;
+
+  // Show full-page detail when a flag is selected or creating
+  if (selectedFlagKey !== null) {
+    return (
+      <FlagDetail
+        flag={selectedFlag}
+        isCreate={selectedFlagKey === "new"}
+        onBack={() => {
+          setSelectedFlagKey(null);
+          setCreateSeed(null);
         }}
-      >
-        <div style={{ position: "relative", flex: 1, maxWidth: "360px" }}>
-          <span
-            style={{
-              position: "absolute",
-              left: "10px",
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--color-faint)",
-              pointerEvents: "none",
-            }}
-          >
-            <SearchIcon />
-          </span>
-          <input
-            type="search"
-            placeholder="Search flags…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              background: "var(--color-elevated)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-sm)",
-              color: "var(--color-text)",
-              fontSize: "13px",
-              padding: "6px 10px 6px 32px",
-              height: "32px",
-              width: "100%",
-              outline: "none",
-              fontFamily: "var(--font-sans)",
-            }}
-          />
+        projectKey={projectKey}
+        environmentKey={environmentKey}
+        readonly={readonly}
+      />
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Feature Flags</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {flags.length} flag{flags.length !== 1 ? "s" : ""}
+            {flags.length > 0 ? " — roll out features safely across every environment." : ""}
+          </p>
         </div>
-        <div style={{ flex: 1 }} />
-        <span
-          style={{
-            fontSize: "12px",
-            color: "var(--color-faint)",
-            fontVariantNumeric: "tabular-nums",
-          }}
-        >
-          {flags.length} flag{flags.length !== 1 ? "s" : ""}
-        </span>
         {!readonly && (
           <Button
             variant="primary"
-            size="sm"
-            icon={<PlusIcon />}
+            icon={<Plus className="size-4" />}
             onClick={() => setCreateOpen(true)}
           >
             New flag
@@ -228,25 +181,27 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
         )}
       </div>
 
-      {/* Loading / Error / Content */}
+      {/* Search */}
+      <div className="mt-6 relative w-full sm:w-72">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter flags…"
+          className="h-9 w-full rounded-md border border-input bg-secondary/40 pl-9 pr-3 text-[13px] outline-none placeholder:text-muted-foreground hover:bg-secondary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </div>
+
+      {/* Content */}
       {query.isLoading ? (
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "var(--color-faint)",
-            fontSize: "13px",
-            gap: "8px",
-          }}
-        >
+        <div className="mt-8 flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
           <svg
             width="16"
             height="16"
             viewBox="0 0 16 16"
             fill="none"
-            style={{ animation: "spin 0.8s linear infinite" }}
+            className="animate-spin"
           >
             <circle
               cx="8"
@@ -258,22 +213,12 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
               strokeDashoffset="12"
               strokeLinecap="round"
             />
-            <style>{`@keyframes spin { to { transform: rotate(360deg); transform-origin: 50% 50%; } }`}</style>
           </svg>
           Loading flags…
         </div>
       ) : query.isError ? (
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            gap: "8px",
-          }}
-        >
-          <p style={{ fontSize: "13px", color: "var(--color-danger)" }}>Failed to load flags</p>
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <p className="text-[13px] text-destructive">Failed to load flags</p>
           <Button size="sm" variant="secondary" onClick={() => query.refetch()}>
             Retry
           </Button>
@@ -281,134 +226,75 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
       ) : filtered.length === 0 && flags.length === 0 ? (
         <EmptyState readonly={readonly} onCreateClick={() => setCreateOpen(true)} />
       ) : (
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
           {filtered.length === 0 ? (
-            <p
-              style={{
-                padding: "40px 24px",
-                fontSize: "13px",
-                color: "var(--color-faint)",
-                textAlign: "center",
-              }}
-            >
-              No flags match "{search}"
-            </p>
+            <div className="px-4 py-16 text-center text-sm text-muted-foreground">
+              No flags match &quot;{search}&quot;.
+            </div>
           ) : (
-            <table
-              style={{
-                width: "100%",
-                borderCollapse: "collapse",
-              }}
-            >
-              <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid var(--color-border)",
-                  }}
-                >
-                  {["Key", "Type", "Enabled", "Default variant", "Rules"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        padding: "8px 14px",
-                        textAlign: "left",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "var(--color-faint)",
-                        userSelect: "none",
-                        whiteSpace: "nowrap",
-                        background: "var(--color-base)",
-                        position: "sticky",
-                        top: 0,
-                      }}
+            <ul className="divide-y divide-border">
+              {filtered.map((flag) => (
+                <li key={flag.key}>
+                  <div className="group flex w-full items-center gap-3 px-4 py-3.5 hover:bg-secondary/30 transition-colors">
+                    {/* Status dot */}
+                    <button
+                      className="flex flex-1 items-center gap-3 text-left min-w-0 cursor-pointer"
+                      onClick={() => setSelectedFlagKey(flag.key)}
                     >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((flag) => (
-                  <tr
-                    key={flag.key}
-                    onClick={() => setEditingFlag(flag)}
-                    style={{
-                      cursor: "pointer",
-                      borderBottom: "1px solid var(--color-border)",
-                      transition: "background 0.08s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = "var(--color-elevated)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = "transparent";
-                    }}
-                  >
-                    <td
-                      style={{
-                        padding: "11px 14px",
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "13px",
-                        color: "var(--color-text)",
-                        fontWeight: 500,
-                        maxWidth: "280px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {flag.key}
-                      </div>
-                      {flag.description && (
-                        <div
-                          style={{
-                            fontSize: "11px",
-                            color: "var(--color-faint)",
-                            fontFamily: "var(--font-sans)",
-                            marginTop: "2px",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {flag.description}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: "11px 14px" }}>
-                      <TypeBadge type={flag.type} />
-                    </td>
-                    <td style={{ padding: "11px 14px" }} onClick={(e) => e.stopPropagation()}>
-                      <StatusBadge
-                        enabled={flag.enabled}
-                        readonly={readonly}
-                        onChange={(v) => toggleMutation.mutate({ flag, enabled: v })}
-                      />
-                    </td>
-                    <td style={{ padding: "11px 14px" }}>
                       <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "12px",
-                          color: "var(--color-accent-light)",
-                        }}
-                      >
-                        {flag.defaultVariant}
-                      </span>
-                    </td>
-                    <td style={{ padding: "11px 14px" }}>
-                      <RuleCount count={flag.rules?.length ?? 0} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          flag.enabled
+                            ? "bg-success"
+                            : "bg-muted-foreground/40",
+                        )}
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate font-mono text-[13px] font-medium text-foreground">
+                            {flag.key}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          {valueSummary(flag)}
+                          {flag.description && (
+                            <span className="ml-1 text-muted-foreground/60">· {flag.description}</span>
+                          )}
+                        </p>
+                      </div>
+                    </button>
+
+                    {/* Type badge */}
+                    <Badge className={TYPE_BADGE[flag.type]}>{flag.type}</Badge>
+
+                    {/* Enabled toggle */}
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0"
+                    >
+                      <ToggleSwitch
+                        checked={flag.enabled}
+                        onCheckedChange={(enabled) =>
+                          !readonly && toggleMutation.mutate({ flag, enabled })
+                        }
+                        disabled={readonly}
+                        aria-label={`Toggle ${flag.key}`}
+                      />
+                    </div>
+
+                    {/* Chevron */}
+                    <button
+                      onClick={() => setSelectedFlagKey(flag.key)}
+                      className="shrink-0"
+                      aria-label={`Open ${flag.key}`}
+                    >
+                      <ChevronRight className="size-4 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}
@@ -418,20 +304,6 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreate={handleCreateSeed}
-      />
-
-      {/* Flag editor */}
-      <FlagEditor
-        open={editingFlag !== null}
-        flag={editingFlag === "new" ? null : editingFlag}
-        seed={seedFlag}
-        onClose={() => {
-          setEditingFlag(null);
-          setCreateSeed(null);
-        }}
-        projectKey={projectKey}
-        environmentKey={environmentKey}
-        readonly={readonly}
       />
     </div>
   );

@@ -1,24 +1,18 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Flag, CloudUpload, Lock } from "lucide-react";
 import type { FlagsConfig } from "./types.ts";
 import { FlagsApiError } from "./types.ts";
 import { getConfig, publish, listProjects, listEnvironments } from "./api.ts";
 import { useToast } from "./components/Toast.tsx";
-import { Button } from "./components/Button.tsx";
-import { Pill } from "./components/Badge.tsx";
-import {
-  FlagIcon,
-  SparkIcon,
-  CloudUpIcon,
-  HistoryIcon,
-  AuditIcon,
-  LockIcon,
-  ChevronDownIcon,
-} from "./components/Icons.tsx";
+import { Button } from "./components/ui-bits.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { FlagsView } from "./views/FlagsView.tsx";
 import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
+import { cn } from "./lib/utils.ts";
+import { Dialog } from "@base-ui-components/react/dialog";
+import { TextInput } from "./components/primitives.tsx";
 
 type View = "flags" | "snapshots" | "audit";
 
@@ -31,6 +25,12 @@ declare global {
 function getBootstrap(): Partial<FlagsConfig> {
   return window.__FLAGS_CONFIG__ ?? {};
 }
+
+const NAV_TABS: { id: View; label: string }[] = [
+  { id: "flags", label: "Flags" },
+  { id: "snapshots", label: "Snapshots" },
+  { id: "audit", label: "Audit" },
+];
 
 function PublishDialog({
   open,
@@ -45,238 +45,53 @@ function PublishDialog({
 }) {
   const [message, setMessage] = useState("");
 
-  if (!open) return null;
-
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(2px)",
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border-strong)",
-          borderRadius: "var(--radius-lg)",
-          width: "100%",
-          maxWidth: "440px",
-          boxShadow: "0 24px 64px rgba(0,0,0,0.7)",
-        }}
-      >
-        <div
-          style={{
-            padding: "18px 20px 16px",
-            borderBottom: "1px solid var(--color-border)",
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              fontSize: "15px",
-              fontWeight: 600,
-              color: "var(--color-text)",
-            }}
-          >
-            Publish flags
-          </h2>
-        </div>
-        <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
-          <p style={{ margin: 0, fontSize: "13px", color: "var(--color-muted)" }}>
-            Publishing creates a new versioned snapshot of all flags and activates it. This will
-            affect live evaluations immediately.
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-            <label
-              htmlFor="publish-msg"
-              style={{
-                fontSize: "12px",
-                fontWeight: 500,
-                color: "var(--color-muted)",
-                letterSpacing: "0.02em",
-              }}
-            >
-              Message (optional)
-            </label>
-            <input
-              id="publish-msg"
-              type="text"
-              placeholder="Describe what changed…"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !loading) {
-                  onPublish(message || undefined);
-                }
-                if (e.key === "Escape") onClose();
-              }}
-              style={{
-                background: "var(--color-elevated)",
-                border: "1px solid var(--color-border-strong)",
-                borderRadius: "var(--radius-sm)",
-                color: "var(--color-text)",
-                fontSize: "13px",
-                padding: "6px 10px",
-                height: "32px",
-                width: "100%",
-                outline: "none",
-                fontFamily: "var(--font-sans)",
-              }}
-              autoFocus
-            />
+    <Dialog.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
+          <div className="border-b border-border px-5 py-4">
+            <Dialog.Title className="text-[15px] font-semibold text-foreground">
+              Publish flags
+            </Dialog.Title>
           </div>
-        </div>
-        <div
-          style={{
-            padding: "14px 20px",
-            borderTop: "1px solid var(--color-border)",
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: "8px",
-          }}
-        >
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            loading={loading}
-            onClick={() => onPublish(message || undefined)}
-          >
-            Publish
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NavItem({
-  label,
-  icon,
-  active,
-  onClick,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        padding: "7px 10px",
-        borderRadius: "var(--radius-sm)",
-        border: "none",
-        background: active ? "var(--color-accent-dim)" : "transparent",
-        color: active ? "var(--color-accent-light)" : "var(--color-muted)",
-        fontSize: "13px",
-        fontWeight: active ? 600 : 400,
-        cursor: "pointer",
-        width: "100%",
-        textAlign: "left",
-        transition: "background 0.1s, color 0.1s",
-        fontFamily: "var(--font-sans)",
-      }}
-      onMouseEnter={(e) => {
-        if (!active) (e.currentTarget as HTMLElement).style.background = "var(--color-elevated)";
-      }}
-      onMouseLeave={(e) => {
-        if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
-      }}
-    >
-      <span
-        style={{
-          color: active ? "var(--color-accent)" : "var(--color-faint)",
-          display: "flex",
-          alignItems: "center",
-        }}
-      >
-        {icon}
-      </span>
-      {label}
-    </button>
-  );
-}
-
-function ProjectEnvPicker({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-      <span
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          letterSpacing: "0.07em",
-          textTransform: "uppercase",
-          color: "var(--color-faint)",
-          padding: "0 4px",
-        }}
-      >
-        {label}
-      </span>
-      <div style={{ position: "relative" }}>
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            background: "var(--color-elevated)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-sm)",
-            color: "var(--color-text)",
-            fontSize: "12px",
-            padding: "5px 28px 5px 8px",
-            height: "30px",
-            width: "100%",
-            appearance: "none",
-            cursor: "pointer",
-            outline: "none",
-            fontFamily: "var(--font-mono)",
-          }}
-        >
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-          {!options.includes(value) && <option value={value}>{value}</option>}
-        </select>
-        <span
-          style={{
-            position: "absolute",
-            right: "8px",
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "var(--color-faint)",
-            pointerEvents: "none",
-          }}
-        >
-          <ChevronDownIcon size={12} />
-        </span>
-      </div>
-    </div>
+          <div className="flex flex-col gap-4 px-5 py-5">
+            <p className="text-[13px] text-muted-foreground">
+              Publishing creates a new versioned snapshot of all flags and activates it. This will
+              affect live evaluations immediately.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="publish-msg" className="text-xs font-medium text-muted-foreground">
+                Message (optional)
+              </label>
+              <TextInput
+                id="publish-msg"
+                placeholder="Describe what changed…"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) onPublish(message || undefined);
+                  if (e.key === "Escape") onClose();
+                }}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+            <Button variant="secondary" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={loading}
+              onClick={() => onPublish(message || undefined)}
+            >
+              Publish
+            </Button>
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
@@ -335,272 +150,129 @@ export function App() {
     },
   });
 
+  const selectClass =
+    "h-8 rounded-md border border-border bg-secondary/40 px-2.5 text-[13px] text-foreground outline-none hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring cursor-pointer appearance-none pr-7";
+
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        background: "var(--color-base)",
-        overflow: "hidden",
-      }}
-    >
-      {/* Sidebar */}
-      <aside
-        style={{
-          width: "220px",
-          flexShrink: 0,
-          background: "var(--color-surface)",
-          borderRight: "1px solid var(--color-border)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        {/* Wordmark */}
-        <div
-          style={{
-            padding: "16px 14px 14px",
-            borderBottom: "1px solid var(--color-border)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-            }}
-          >
-            <div
-              style={{
-                width: "26px",
-                height: "26px",
-                background:
-                  "linear-gradient(135deg, var(--color-accent), var(--color-accent-hover))",
-                borderRadius: "7px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-on-accent)",
-                flexShrink: 0,
-                boxShadow: "var(--shadow-sm)",
-              }}
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
+      {/* ── Top Nav ──────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+          {/* Logo + wordmark */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
+              <Flag className="size-4" strokeWidth={2.5} />
+            </div>
+            <span className="text-sm font-semibold tracking-tight">Xtandard Flags</span>
+          </div>
+
+          <span className="text-border select-none">/</span>
+
+          {/* Project select */}
+          <div className="relative">
+            <select
+              value={projectKey}
+              onChange={(e) => setProjectKey(e.target.value)}
+              className={selectClass}
+              aria-label="Project"
             >
-              <SparkIcon size={14} />
-            </div>
-            <div>
-              <div
-                style={{
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: "var(--color-text)",
-                  letterSpacing: "-0.02em",
-                  lineHeight: 1.2,
-                }}
+              {projectOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+              {!projectOptions.includes(projectKey) && (
+                <option value={projectKey}>{projectKey}</option>
+              )}
+            </select>
+          </div>
+
+          <span className="text-border select-none">/</span>
+
+          {/* Environment select */}
+          <div className="relative">
+            <select
+              value={environmentKey}
+              onChange={(e) => setEnvironmentKey(e.target.value)}
+              className={selectClass}
+              aria-label="Environment"
+            >
+              {envOptions.map((e) => (
+                <option key={e} value={e}>
+                  {e}
+                </option>
+              ))}
+              {!envOptions.includes(environmentKey) && (
+                <option value={environmentKey}>{environmentKey}</option>
+              )}
+            </select>
+          </div>
+
+          <div className="ml-auto flex items-center gap-2">
+            {readonly && (
+              <span className="flex items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                <Lock className="size-3" />
+                Read-only
+              </span>
+            )}
+            {!readonly && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<CloudUpload className="size-3.5" />}
+                onClick={() => setPublishOpen(true)}
               >
-                Xtandard
-              </div>
-              <div
-                style={{
-                  fontSize: "10px",
-                  fontWeight: 500,
-                  color: "var(--color-faint)",
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Flags
-              </div>
-            </div>
+                Publish
+              </Button>
+            )}
+            <ThemeToggle />
           </div>
         </div>
 
-        {/* Project / Env pickers */}
-        <div
-          style={{
-            padding: "12px 12px",
-            borderBottom: "1px solid var(--color-border)",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-          }}
-        >
-          <ProjectEnvPicker
-            label="Project"
-            value={projectKey}
-            options={projectOptions}
-            onChange={setProjectKey}
-          />
-          <ProjectEnvPicker
-            label="Environment"
-            value={environmentKey}
-            options={envOptions}
-            onChange={setEnvironmentKey}
-          />
-        </div>
-
-        {/* Nav */}
+        {/* Nav tabs */}
         <nav
-          style={{
-            padding: "10px 8px",
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: "2px",
-          }}
+          className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-2 sm:px-4"
           aria-label="Main navigation"
         >
-          <NavItem
-            label="Flags"
-            icon={<FlagIcon size={15} />}
-            active={view === "flags"}
-            onClick={() => setView("flags")}
-          />
-          <NavItem
-            label="Snapshots"
-            icon={<HistoryIcon size={15} />}
-            active={view === "snapshots"}
-            onClick={() => setView("snapshots")}
-          />
-          <NavItem
-            label="Audit log"
-            icon={<AuditIcon size={15} />}
-            active={view === "audit"}
-            onClick={() => setView("audit")}
-          />
+          {NAV_TABS.map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              className={cn(
+                "whitespace-nowrap px-3 py-2.5 text-[13px] font-medium transition-colors",
+                view === id
+                  ? "relative text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          ))}
         </nav>
+      </header>
 
-        {/* Bottom: theme switch + info */}
-        <div
-          style={{
-            padding: "12px 14px",
-            borderTop: "1px solid var(--color-border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "8px",
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontSize: "11px",
-              color: "var(--color-faint)",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {config?.title ?? "Xtandard Flags"}
-          </p>
-          <ThemeToggle />
-        </div>
-      </aside>
+      {/* ── Main content ─────────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+        {view === "flags" && (
+          <FlagsView
+            projectKey={projectKey}
+            environmentKey={environmentKey}
+            readonly={readonly}
+          />
+        )}
+        {view === "snapshots" && (
+          <SnapshotsView
+            projectKey={projectKey}
+            environmentKey={environmentKey}
+            readonly={readonly}
+          />
+        )}
+        {view === "audit" && (
+          <AuditView projectKey={projectKey} environmentKey={environmentKey} />
+        )}
+      </main>
 
-      {/* Main */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {/* Top bar */}
-        <header
-          style={{
-            height: "52px",
-            flexShrink: 0,
-            borderBottom: "1px solid var(--color-border)",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 20px",
-            gap: "12px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "12px",
-              color: "var(--color-muted)",
-            }}
-          >
-            <span
-              style={{
-                background: "var(--color-info-tint)",
-                border: "1px solid var(--color-info-border)",
-                color: "var(--color-info)",
-                borderRadius: "20px",
-                padding: "2px 10px",
-                fontSize: "11px",
-                fontWeight: 600,
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {environmentKey}
-            </span>
-            <span style={{ color: "var(--color-faint)" }}>·</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: "12px" }}>{projectKey}</span>
-          </div>
-
-          <div style={{ flex: 1 }} />
-
-          {readonly && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                background: "rgba(245,158,11,0.08)",
-                border: "1px solid var(--color-warning-border)",
-                color: "var(--color-warning)",
-                borderRadius: "var(--radius-sm)",
-                padding: "4px 10px",
-                fontSize: "11px",
-                fontWeight: 600,
-                letterSpacing: "0.03em",
-              }}
-            >
-              <LockIcon size={12} />
-              Read-only
-            </div>
-          )}
-
-          {!readonly && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<CloudUpIcon size={14} />}
-              onClick={() => setPublishOpen(true)}
-            >
-              Publish
-            </Button>
-          )}
-        </header>
-
-        {/* View content */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            overflowX: "hidden",
-          }}
-        >
-          {view === "flags" && (
-            <FlagsView
-              projectKey={projectKey}
-              environmentKey={environmentKey}
-              readonly={readonly}
-            />
-          )}
-          {view === "snapshots" && (
-            <SnapshotsView
-              projectKey={projectKey}
-              environmentKey={environmentKey}
-              readonly={readonly}
-            />
-          )}
-          {view === "audit" && (
-            <AuditView projectKey={projectKey} environmentKey={environmentKey} />
-          )}
-        </main>
-      </div>
-
-      {/* Publish dialog */}
+      {/* ── Publish dialog ───────────────────────────────────────────────── */}
       <PublishDialog
         open={publishOpen}
         onClose={() => setPublishOpen(false)}

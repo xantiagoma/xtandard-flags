@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Dialog } from "@base-ui-components/react/dialog";
 import { listSnapshots, getSnapshot, rollback } from "../api.ts";
 import type { SnapshotSummary } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
 import { useToast } from "../components/Toast.tsx";
-import { Button } from "../components/Button.tsx";
-import { Pill } from "../components/Badge.tsx";
-import { Modal } from "../components/Modal.tsx";
+import { Button } from "../components/ui-bits.tsx";
+import { TextInput } from "../components/primitives.tsx";
 
 interface Props {
   projectKey: string;
@@ -17,323 +17,134 @@ interface Props {
 function formatDate(str: string | undefined): string {
   if (!str) return "—";
   try {
-    return new Intl.DateTimeFormat(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(str));
-  } catch {
-    return str;
-  }
+    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(str));
+  } catch { return str; }
 }
 
-function SnapshotDetailModal({
-  open,
-  onClose,
-  projectKey,
-  environmentKey,
-  version,
-  isActive,
-  readonly,
-  onRollback,
-}: {
-  open: boolean;
-  onClose: () => void;
-  projectKey: string;
-  environmentKey: string;
-  version: string | null;
-  isActive: boolean;
-  readonly: boolean;
-  onRollback: (version: string) => void;
-}) {
-  const query = useQuery({
-    queryKey: ["snapshot", projectKey, environmentKey, version],
-    queryFn: () => getSnapshot(projectKey, environmentKey, version!),
-    enabled: open && version !== null,
-  });
-
+function SnapshotDetailDialog({ open, onClose, projectKey, environmentKey, version, isActive, readonly, onRollback }: { open: boolean; onClose: () => void; projectKey: string; environmentKey: string; version: string | null; isActive: boolean; readonly: boolean; onRollback: (version: string, msg?: string) => void }) {
+  const query = useQuery({ queryKey: ["snapshot", projectKey, environmentKey, version], queryFn: () => getSnapshot(projectKey, environmentKey, version!), enabled: open && version !== null });
   const [confirmRollback, setConfirmRollback] = useState(false);
   const [rollbackMsg, setRollbackMsg] = useState("");
 
   if (!open || !version) return null;
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Snapshot ${version}`}
-      size="lg"
-      footer={
-        <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
-          {!isActive && !readonly && !confirmRollback && (
-            <Button variant="danger" size="sm" onClick={() => setConfirmRollback(true)}>
-              Roll back to this version
-            </Button>
-          )}
-          {confirmRollback && (
-            <>
-              <input
-                placeholder="Rollback reason (optional)"
-                value={rollbackMsg}
-                onChange={(e) => setRollbackMsg(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: "var(--color-elevated)",
-                  border: "1px solid var(--color-border-strong)",
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--color-text)",
-                  fontSize: "13px",
-                  padding: "5px 10px",
-                  height: "32px",
-                  outline: "none",
-                  fontFamily: "var(--font-sans)",
-                }}
-              />
-              <Button variant="danger" size="sm" onClick={() => onRollback(version)}>
-                Confirm rollback
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setConfirmRollback(false)}>
-                Cancel
-              </Button>
-            </>
-          )}
-          <div style={{ flex: 1 }} />
-          <Button variant="secondary" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      }
-    >
-      {query.isLoading && <p style={{ color: "var(--color-muted)", fontSize: "13px" }}>Loading…</p>}
-      {query.isError && (
-        <p style={{ color: "var(--color-danger)", fontSize: "13px" }}>Failed to load snapshot</p>
-      )}
-      {query.data && (
-        <div style={{ overflowX: "auto" }}>
-          <pre
-            style={{
-              margin: 0,
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              color: "var(--color-text)",
-              lineHeight: 1.6,
-              background: "var(--color-elevated)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "var(--radius-md)",
-              padding: "14px",
-              overflowX: "auto",
-              whiteSpace: "pre",
-            }}
-          >
-            {JSON.stringify(query.data, null, 2)}
-          </pre>
-        </div>
-      )}
-    </Modal>
+    <Dialog.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) { setConfirmRollback(false); setRollbackMsg(""); onClose(); } }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 max-h-[85vh] flex flex-col rounded-xl border border-border bg-card shadow-2xl outline-none">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
+            <Dialog.Title className="text-[15px] font-semibold text-foreground font-mono">Snapshot {version}</Dialog.Title>
+            {isActive && <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">active</span>}
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-4">
+            {query.isLoading && <p className="text-[13px] text-muted-foreground">Loading…</p>}
+            {query.isError && <p className="text-[13px] text-destructive">Failed to load snapshot</p>}
+            {query.data && (
+              <pre className="overflow-x-auto whitespace-pre rounded-lg border border-border bg-secondary/40 p-4 font-mono text-[11px] text-foreground leading-relaxed">{JSON.stringify(query.data, null, 2)}</pre>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3 shrink-0">
+            {!isActive && !readonly && !confirmRollback && (
+              <Button variant="danger" size="sm" onClick={() => setConfirmRollback(true)}>Roll back to this version</Button>
+            )}
+            {confirmRollback && (
+              <>
+                <TextInput placeholder="Rollback reason (optional)" value={rollbackMsg} onChange={(e) => setRollbackMsg(e.target.value)} className="flex-1 min-w-40" />
+                <Button variant="danger" size="sm" onClick={() => onRollback(version, rollbackMsg || undefined)}>Confirm rollback</Button>
+                <Button variant="secondary" size="sm" onClick={() => setConfirmRollback(false)}>Cancel</Button>
+              </>
+            )}
+            <div className="flex-1" />
+            <Button variant="secondary" onClick={onClose}>Close</Button>
+          </div>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }
 
 export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
   const toast = useToast();
   const qc = useQueryClient();
-
-  const query = useQuery({
-    queryKey: ["snapshots", projectKey, environmentKey],
-    queryFn: () => listSnapshots(projectKey, environmentKey),
-    staleTime: 15_000,
-  });
-
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
+  const query = useQuery({ queryKey: ["snapshots", projectKey, environmentKey], queryFn: () => listSnapshots(projectKey, environmentKey), staleTime: 15_000 });
+
   const rollbackMutation = useMutation({
-    mutationFn: (version: string) => rollback(projectKey, environmentKey, version),
-    onSuccess: (_data, version) => {
+    mutationFn: ({ version, message }: { version: string; message?: string }) => rollback(projectKey, environmentKey, version, message),
+    onSuccess: (_data, { version }) => {
       qc.invalidateQueries({ queryKey: ["snapshots", projectKey, environmentKey] });
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
       toast.add("success", `Rolled back to version ${version}`);
       setSelectedVersion(null);
     },
     onError: (err: unknown) => {
-      if (err instanceof FlagsApiError) {
-        toast.add("error", err.body.error);
-      } else {
-        toast.add("error", "Rollback failed");
-      }
+      if (err instanceof FlagsApiError) toast.add("error", err.body.error);
+      else toast.add("error", "Rollback failed");
     },
   });
 
   const data = query.data;
   const versions = data?.versions ?? [];
   const active = data?.active ?? null;
-
   const selectedIsActive = selectedVersion !== null && selectedVersion === active;
 
   return (
-    <div style={{ padding: "24px", maxWidth: "860px" }}>
-      <div style={{ marginBottom: "20px" }}>
-        <h2
-          style={{
-            margin: "0 0 4px",
-            fontSize: "16px",
-            fontWeight: 600,
-            color: "var(--color-text)",
-          }}
-        >
-          Snapshots
-        </h2>
-        <p style={{ margin: 0, fontSize: "13px", color: "var(--color-muted)" }}>
-          Published versions of the flag configuration. Roll back to any previous state.
-        </p>
+    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Snapshots</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Published versions of the flag configuration. Roll back to any previous state.</p>
       </div>
 
-      {query.isLoading && (
-        <p style={{ color: "var(--color-faint)", fontSize: "13px" }}>Loading snapshots…</p>
-      )}
-      {query.isError && (
-        <p style={{ color: "var(--color-danger)", fontSize: "13px" }}>Failed to load snapshots</p>
-      )}
+      {query.isLoading && <p className="text-[13px] text-muted-foreground">Loading snapshots…</p>}
+      {query.isError && <p className="text-[13px] text-destructive">Failed to load snapshots</p>}
 
       {versions.length === 0 && !query.isLoading && (
-        <div
-          style={{
-            padding: "48px 24px",
-            textAlign: "center",
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-lg)",
-          }}
-        >
-          <p style={{ margin: 0, fontSize: "13px", color: "var(--color-faint)" }}>
-            No snapshots yet. Publish your flags to create the first version.
-          </p>
+        <div className="rounded-xl border border-border bg-card px-4 py-16 text-center">
+          <p className="text-[13px] text-muted-foreground">No snapshots yet. Publish your flags to create the first version.</p>
         </div>
       )}
 
       {versions.length > 0 && (
-        <div
-          style={{
-            background: "var(--color-surface)",
-            border: "1px solid var(--color-border)",
-            borderRadius: "var(--radius-lg)",
-            overflow: "hidden",
-          }}
-        >
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                {["Version", "Published", "By", "Message", ""].map((h) => (
-                  <th
-                    key={h}
-                    style={{
-                      padding: "8px 16px",
-                      textAlign: "left",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      color: "var(--color-faint)",
-                    }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {versions.map((v: SnapshotSummary) => (
-                <tr
-                  key={v.version}
-                  style={{
-                    borderBottom: "1px solid var(--color-border)",
-                    cursor: "pointer",
-                    transition: "background 0.08s",
-                  }}
-                  onClick={() => setSelectedVersion(v.version)}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--color-elevated)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "transparent";
-                  }}
-                >
-                  <td
-                    style={{
-                      padding: "11px 16px",
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "13px",
-                      color: "var(--color-accent-light)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      {v.version}
-                      {v.version === active && <Pill variant="success">active</Pill>}
-                    </div>
-                  </td>
-                  <td
-                    style={{
-                      padding: "11px 16px",
-                      fontSize: "12px",
-                      color: "var(--color-muted)",
-                      fontVariantNumeric: "tabular-nums",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {formatDate(v.publishedAt)}
-                  </td>
-                  <td
-                    style={{
-                      padding: "11px 16px",
-                      fontSize: "12px",
-                      color: "var(--color-muted)",
-                    }}
-                  >
-                    {v.by ?? "—"}
-                  </td>
-                  <td
-                    style={{
-                      padding: "11px 16px",
-                      fontSize: "12px",
-                      color: "var(--color-faint)",
-                      maxWidth: "200px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        display: "block",
-                      }}
-                    >
-                      {v.message || "—"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "11px 16px" }} onClick={(e) => e.stopPropagation()}>
-                    {v.version !== active && !readonly && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedVersion(v.version);
-                        }}
-                        style={{ color: "var(--color-warning)" }}
-                      >
-                        Roll back
-                      </Button>
-                    )}
-                  </td>
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  {["Version", "Published", "By", "Message", ""].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {versions.map((v: SnapshotSummary) => (
+                  <tr key={v.version} className="cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => setSelectedVersion(v.version)}>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[13px] font-semibold text-accent">{v.version}</span>
+                        {v.version === active && (
+                          <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">active</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(v.publishedAt)}</td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground">{v.by ?? "—"}</td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground max-w-[200px]"><span className="block overflow-hidden text-ellipsis whitespace-nowrap">{v.message || "—"}</span></td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      {v.version !== active && !readonly && (
+                        <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={(e) => { e.stopPropagation(); setSelectedVersion(v.version); }}>Roll back</Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      <SnapshotDetailModal
+      <SnapshotDetailDialog
         open={selectedVersion !== null}
         onClose={() => setSelectedVersion(null)}
         projectKey={projectKey}
@@ -341,7 +152,7 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
         version={selectedVersion}
         isActive={selectedIsActive}
         readonly={readonly}
-        onRollback={(v) => rollbackMutation.mutate(v)}
+        onRollback={(version, message) => rollbackMutation.mutate({ version, message })}
       />
     </div>
   );
