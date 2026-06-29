@@ -4,6 +4,22 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — optional backlog Phases A–D (archiving, lifecycle, owner, bootstrap, segments, prerequisites, OFREP)
+
+Worked the handoff's optional backlog in order; each phase a small PR-sized, CI-green commit (commits `f4d6172`…`d1304e5`). 440 vitest (44 new) + 6 browser e2e, all green incl. coverage with live Redis/Mongo/Postgres.
+
+- **A1 — Flag archiving** (`archivedAt`): excluded from compiled snapshots (leaves SDK payloads), kept in the draft for restore. `core.archiveFlag/restoreFlag` + `POST …/flags/:key/archive|restore`. UI: Active/Archived filter + per-row archive/restore.
+- **A2 — Stale / lifecycle**: `upsertFlag` stamps `createdAt`/`updatedAt`; optional `expectedLifetimeDays`. Pure `flagStaleness`/`summarizeLifecycle` in `src/lifecycle.ts` (root-exported). UI: stale badge + health warning + lifetime field; UI mirror in `src/ui/lib/lifecycle.ts`.
+- **A3 — Owner metadata**: optional `owner {name,email?,team?}`; UI fields + searchable + shown on rows.
+- **A4 — Bootstrap endpoint**: `POST …/bootstrap` → `{ flags: { key: {value,variant,reason} } }` (active snapshot), for client prefetch.
+- **B — Reusable segments** (effort M): `Segment {key,name?,conditions[]}` referenced via new `inSegment` operator (value = segment key). `src/segments.ts` inlines them into rule conditions at **compile time** (nested + cycle detection) → evaluator/snapshot stay segment-free (no evaluator signature change). CRUD API + segment refs validated at publish (dangling/cyclic → 422). UI: Segments tab + builder (reuses extracted `ConditionRow`) + `inSegment` picker in the rule editor. (Relaxed `conditionSchema.attribute` to allow empty for `inSegment`; attribute-required moved to the per-operator semantic check.)
+- **C — Prerequisites** (effort M): `prerequisites {flagKey,variant}[]`. Evaluator signature now `evaluateFlag(flag, context, allFlags?)` (back-compat); checked after the enabled gate, before overrides/rules; unmet/missing/cyclic → default with new reason `PREREQUISITE_FAILED`. Provider passes `snapshot.flags`; `core.evaluate` builds the resolved (segment-inlined) map and threads it. `validatePrerequisiteGraph` (dangling + DFS cycle) runs in `validateDraft`. UI: Prerequisites editor (flag + required-variant pickers).
+- **D — OFREP**: `POST /ofrep/v1/evaluate/flags` (+ `/{key}`) reusing `core.evaluate(active)`; OpenFeature-shaped JSON; same auth + `flag:read`; project/env default w/ query override. `src/server/ofrep.ts` payload shaping. ADR `0004-ofrep-endpoint.md` documents the request-path caveat (opt-in; in-process provider stays recommended).
+
+Every phase: OpenAPI schema/paths updated, Eden-typed Elysia surface updated where applicable. Learning: run `bun run typecheck` (it checks `test/*.ts`) *after* writing tests — a test type error slipped the A3 commit red and was fixed in A4.
+
+**Next (Phase E, only if asked):** scheduling, approval workflows, experiment analytics — large (scheduler/state/reviewer-auth/analytics infra).
+
 ## 2026-06-29 — /loop: TSDoc, coverage 96.7%, OpenAPI, Eden-typed Elysia
 
 - **Docs/TSDoc:** `@example` blocks across the public API (they ship in the `.d.ts`, so consumer IDE hover shows usage); TypeDoc API reference via `bun run docs:api`.
