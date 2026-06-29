@@ -548,6 +548,45 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           },
         },
       },
+      [`${envPath}/bootstrap`]: {
+        parameters: [PROJECT, ENV],
+        post: {
+          tags: ["flags"],
+          summary: "Prefetch all flags as a keyed map (for client SDKs)",
+          requestBody: {
+            required: false,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    context: { type: "object", additionalProperties: true },
+                    source: { type: "string", enum: ["draft", "active"], default: "active" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": jsonRes("Resolved flag map", {
+              type: "object",
+              properties: {
+                flags: {
+                  type: "object",
+                  additionalProperties: {
+                    type: "object",
+                    properties: {
+                      value: {},
+                      variant: { type: "string" },
+                      reason: { type: "string" },
+                    },
+                  },
+                },
+              },
+            }),
+          },
+        },
+      },
     },
     components: {
       schemas,

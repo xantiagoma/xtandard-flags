@@ -17,9 +17,8 @@ describe("owner — validation", () => {
   });
 
   test("rejects an owner without a name", () => {
-    expect(validateFlag(booleanFlag({ owner: { email: "x@y.z" } as { name: string } })).valid).toBe(
-      false,
-    );
+    const flag = { ...booleanFlag(), owner: { email: "x@y.z" } };
+    expect(validateFlag(flag).valid).toBe(false);
   });
 
   test("rejects an empty owner name", () => {

@@ -127,6 +127,15 @@ export function flagsElysia(options: FlagsElysiaOptions) {
         source: t.Optional(t.Union([t.Literal("draft"), t.Literal("active")])),
       }),
     })
+    .post(`${env}/bootstrap`, pass, {
+      params: envParams,
+      body: t.Optional(
+        t.Object({
+          context: t.Optional(t.Record(t.String(), t.Unknown())),
+          source: t.Optional(t.Union([t.Literal("draft"), t.Literal("active")])),
+        }),
+      ),
+    })
     .all("/*", pass); // bundled UI assets + SPA fallback
 }
 

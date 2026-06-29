@@ -395,6 +395,34 @@ export async function handleApiRequest(
       return json({ results });
     }
 
+    // --- Bootstrap (prefetch all flags as a keyed map for client SDKs) ---
+    m = match(`${base}/bootstrap`, path);
+    if (m && method === "POST") {
+      const { projectKey, environmentKey } = m.params;
+      const denied = await authorize("flag:read", {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      });
+      if (denied) return denied;
+      const input = await body<{
+        context?: Record<string, unknown>;
+        source?: "draft" | "active";
+      }>().catch(() => ({}) as { context?: Record<string, unknown>; source?: "draft" | "active" });
+      const results = await ctx.core.evaluate({
+        context: input.context ?? {},
+        // Client SDKs prefetch the published snapshot by default.
+        source: input.source ?? "active",
+        projectKey,
+        environmentKey,
+      });
+      const flags: Record<string, { value: unknown; variant?: string; reason: string }> = {};
+      for (const r of results) {
+        flags[r.key] = { value: r.value, variant: r.variant, reason: r.reason };
+      }
+      return json({ flags });
+    }
+
     return error(404, "Not found");
   } catch (err) {
     return mapError(err);
