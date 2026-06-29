@@ -27,3 +27,7 @@ tmp
 
 # example install artifacts
 examples/*/bun.lock
+
+# CLI/standalone file-storage dirs
+.flags
+data

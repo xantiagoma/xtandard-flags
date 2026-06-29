@@ -150,3 +150,32 @@ Consider mounting the admin panel on an internal-only port or path:
 - Use `BASE_PATH` to namespace the panel under a non-obvious route.
 - Place a reverse proxy in front and restrict access by IP or mTLS.
 - Run the standalone container on a non-public network and only expose the OpenFeature provider's runtime storage (Redis) to applications.
+
+## Storage driver env vars (Postgres & MongoDB)
+
+The standalone app and CLI accept `postgres` and `mongodb` for
+`SOURCE_STORAGE_DRIVER` / `RUNTIME_STORAGE_DRIVER` (alongside `redis`, `unstorage`,
+`file`, `memory`). Source and runtime share one connection but are isolated by a
+distinct table/collection.
+
+| Driver     | Env vars                                                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `postgres` | `DATABASE_URL` (or `POSTGRES_URL`); optional `SOURCE_PG_TABLE` / `RUNTIME_PG_TABLE` (default `xtandard_flags_{source,runtime}`)                        |
+| `mongodb`  | `MONGO_URL`; optional `MONGO_DB` (default `xtandard_flags`), `SOURCE_MONGO_COLLECTION` / `RUNTIME_MONGO_COLLECTION` (default `flags_{source,runtime}`) |
+
+```bash
+# Postgres source + runtime
+docker run -p 3000:3000 \
+  -e SOURCE_STORAGE_DRIVER=postgres -e RUNTIME_STORAGE_DRIVER=postgres \
+  -e DATABASE_URL=postgres://user:pass@db:5432/flags \
+  ghcr.io/xantiagoma/xtandard-flags:latest
+
+# MongoDB source + runtime
+docker run -p 3000:3000 \
+  -e SOURCE_STORAGE_DRIVER=mongodb -e RUNTIME_STORAGE_DRIVER=mongodb \
+  -e MONGO_URL=mongodb://db:27017 \
+  ghcr.io/xantiagoma/xtandard-flags:latest
+```
+
+A common production split: Postgres as `source` (durable, transactional history)
+and Redis/Upstash as `runtime` (fast reads).

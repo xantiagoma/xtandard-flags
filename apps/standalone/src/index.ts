@@ -19,6 +19,8 @@ import { createMemoryStorage } from "../../../src/storage/memory.ts";
 import { createFileStorage } from "../../../src/storage/file.ts";
 import { createRedisStorage } from "../../../src/storage/redis.ts";
 import { createUnstorageStorage } from "../../../src/storage/unstorage.ts";
+import { createPostgresStorage } from "../../../src/storage/postgres.ts";
+import { createMongoStorage } from "../../../src/storage/mongodb.ts";
 import type { AuthProvider, FlagsStorage } from "../../../src/index.ts";
 
 const env = (key: string, fallback = ""): string => process.env[key] ?? fallback;
@@ -28,16 +30,31 @@ const bool = (key: string, fallback = false): boolean => {
   return v === "1" || v.toLowerCase() === "true";
 };
 
-type Driver = "redis" | "unstorage" | "file" | "memory";
+type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb";
 
 async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
   const driver = (env(`${role}_STORAGE_DRIVER`, "memory") as Driver) || "memory";
-  const prefix = env(`${role}_PREFIX`, `xtandard:flags:${role.toLowerCase()}`);
+  const role_ = role.toLowerCase();
+  const prefix = env(`${role}_PREFIX`, `xtandard:flags:${role_}`);
   switch (driver) {
     case "redis":
       return createRedisStorage({ url: env("REDIS_URL", "redis://localhost:6379"), prefix });
     case "file":
-      return createFileStorage({ dir: env(`${role}_FILE_DIR`, `./data/${role.toLowerCase()}`) });
+      return createFileStorage({ dir: env(`${role}_FILE_DIR`, `./data/${role_}`) });
+    case "postgres":
+      // Same DATABASE_URL for both roles; a separate table keeps them isolated.
+      return createPostgresStorage({
+        connectionString:
+          env("DATABASE_URL") || env("POSTGRES_URL", "postgres://localhost:5432/postgres"),
+        table: env(`${role}_PG_TABLE`, `xtandard_flags_${role_}`),
+      });
+    case "mongodb":
+      // Same MONGO_URL for both roles; a separate collection keeps them isolated.
+      return createMongoStorage({
+        url: env("MONGO_URL", "mongodb://localhost:27017"),
+        dbName: env("MONGO_DB", "xtandard_flags"),
+        collectionName: env(`${role}_MONGO_COLLECTION`, `flags_${role_}`),
+      });
     case "unstorage": {
       const { createStorage } = await import("unstorage");
       return createUnstorageStorage({ storage: createStorage() });

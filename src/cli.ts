@@ -12,7 +12,7 @@ import { createFlagsCore, type FlagsCore } from "./core.ts";
 import { validateDraft } from "./validation.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 
-type Driver = "redis" | "unstorage" | "file" | "memory";
+type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb";
 
 const env = (key: string, fallback = ""): string => process.env[key] ?? fallback;
 
@@ -28,6 +28,22 @@ async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
       const { createUnstorageStorage } = await import("./storage/unstorage.ts");
       const { createStorage } = (await import("unstorage")) as typeof import("unstorage");
       return createUnstorageStorage({ storage: createStorage() });
+    }
+    case "postgres": {
+      const { createPostgresStorage } = await import("./storage/postgres.ts");
+      return createPostgresStorage({
+        connectionString:
+          env("DATABASE_URL") || env("POSTGRES_URL", "postgres://localhost:5432/postgres"),
+        table: env(`${role}_PG_TABLE`, `xtandard_flags_${role.toLowerCase()}`),
+      });
+    }
+    case "mongodb": {
+      const { createMongoStorage } = await import("./storage/mongodb.ts");
+      return createMongoStorage({
+        url: env("MONGO_URL", "mongodb://localhost:27017"),
+        dbName: env("MONGO_DB", "xtandard_flags"),
+        collectionName: env(`${role}_MONGO_COLLECTION`, `flags_${role.toLowerCase()}`),
+      });
     }
     case "memory": {
       const { createMemoryStorage } = await import("./storage/memory.ts");
@@ -90,8 +106,9 @@ Options:
   --env <key>                Environment key (default: $ENVIRONMENT or "production").
 
 Storage (env, same as the standalone app):
-  SOURCE_STORAGE_DRIVER / RUNTIME_STORAGE_DRIVER   redis | unstorage | file | memory  (default: file)
-  REDIS_URL, SOURCE_FILE_DIR, RUNTIME_FILE_DIR, SOURCE_PREFIX, RUNTIME_PREFIX
+  SOURCE_STORAGE_DRIVER / RUNTIME_STORAGE_DRIVER   redis | postgres | mongodb | unstorage | file | memory  (default: file)
+  REDIS_URL · DATABASE_URL/POSTGRES_URL · MONGO_URL/MONGO_DB
+  SOURCE_FILE_DIR, RUNTIME_FILE_DIR, SOURCE_PREFIX, RUNTIME_PREFIX
 `;
 
 /** Entry point. Returns the process exit code. */
