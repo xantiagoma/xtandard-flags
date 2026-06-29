@@ -424,6 +424,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
       <FlagEditor
         open={editingFlag !== null}
         flag={editingFlag === "new" ? null : editingFlag}
+        seed={seedFlag}
         onClose={() => {
           setEditingFlag(null);
           setCreateSeed(null);

@@ -67,6 +67,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] publint + pack dry-run
 
 ## Acceptance criteria (spec §22) — MVP status
+
 - [x] 1. Package installs as `@xtandard/flags`
 - [x] 2. Subpath exports work (publint clean, 27 entries)
 - [x] 3. Elysia app can mount `/flags`

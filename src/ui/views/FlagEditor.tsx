@@ -18,6 +18,8 @@ import {
 
 interface Props {
   flag: Flag | null; // null = create mode
+  /** In create mode, the initial flag seeded from the "New flag" modal (key + type + variants). */
+  seed?: Flag | null;
   open: boolean;
   onClose: () => void;
   projectKey: string;
@@ -166,23 +168,34 @@ function VariantValueInput({
   );
 }
 
-export function FlagEditor({ flag, open, onClose, projectKey, environmentKey, readonly }: Props) {
+export function FlagEditor({
+  flag,
+  seed,
+  open,
+  onClose,
+  projectKey,
+  environmentKey,
+  readonly,
+}: Props) {
   const isCreate = flag === null;
   const drawerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
   const qc = useQueryClient();
 
-  const [form, setForm] = useState<Flag>(() => flag ?? emptyFlag("boolean"));
+  // Edit → the existing flag; create → the modal seed (key + type), else a blank.
+  const initialFlag = () => flag ?? seed ?? emptyFlag("boolean");
+  const [form, setForm] = useState<Flag>(initialFlag);
   const [keyError, setKeyError] = useState<string>("");
   const [apiErrors, setApiErrors] = useState<{ path?: string; message: string }[]>([]);
 
   useEffect(() => {
     if (open) {
-      setForm(flag ?? emptyFlag("boolean"));
+      setForm(flag ?? seed ?? emptyFlag("boolean"));
       setKeyError("");
       setApiErrors([]);
     }
-  }, [open, flag]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, flag, seed]);
 
   useEffect(() => {
     if (!open) return;
@@ -330,7 +343,7 @@ export function FlagEditor({ flag, open, onClose, projectKey, environmentKey, re
                 whiteSpace: "nowrap",
               }}
             >
-              {isCreate ? "Untitled flag" : form.key}
+              {isCreate ? form.key || "Untitled flag" : form.key}
             </p>
           </div>
           {!isCreate && !readonly && (
