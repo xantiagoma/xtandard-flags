@@ -102,3 +102,11 @@ Playwright UI suite in CI, hosted SaaS.
 - [x] unstorage driver ecosystem documented (Upstash, Vercel KV, Cloudflare KV, S3, GitHub, Netlify Blobs)
 - [x] storage-drivers example; examples runnable via file:../.. against local checkout
 - [x] CI: mongo + postgres service containers
+
+## /loop round 2 (done)
+
+- [x] UI redesign to v0 reference (top-nav, full-page detail, shadcn neutral+blue, light/dark/system)
+- [x] @xtandard/flags/react component export (+ examples/react-embed, verified embedded)
+- [x] bun:sqlite storage adapter (+ standalone/CLI driver, bun test, CI)
+- [x] e2e expanded to 5 (create, publish, rollback, theme persistence, shell)
+- [x] CI green incl. live Redis/Mongo/Postgres + bun:sqlite + build:react + 5 browser e2e

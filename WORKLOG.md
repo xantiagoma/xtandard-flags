@@ -4,6 +4,14 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — /loop: v0-style UI redesign, React component export, sqlite, expanded e2e
+
+- **UI redesign to the v0 reference** (`/Users/santi/Downloads/feature-flag-ui`): replaced the sidebar/drawer + emerald look with a **top-nav layout**, **full-page flag detail** (not a drawer), shadcn token system (neutral + single blue accent), light-first with `data-theme` dark, `@base-ui-components/react` + `lucide-react` + `cn()`. Bound to the real API. Kept system/light/dark switcher in the nav. Verified both themes + all screens (list/detail/snapshots/audit) via Playwright. (Earlier emerald theme was the "meh" the user flagged.)
+- **`@xtandard/flags/react`** — embeddable `<FlagsDashboard apiBaseUrl/>` (advanced UI mode). `api.ts` gained `setApiBase()`. Separate vite lib build → `dist/react.js` + `dist/react.css` (react/react-dom external, TanStack Query bundled) + types via `tsconfig.react.json`. **Verified rendering embedded** in a host app (`examples/react-embed`, Vite proxy → standalone) — screenshot in docs/assets.
+- **`bun:sqlite`** storage adapter (Bun-only, externalized, standalone/CLI driver, 6 bun tests, CI `test:bun`).
+- **e2e expanded to 5** (added rollback + theme-persistence).
+- **CI green on GitHub**: build job (Redis+Mongo+Postgres live, bun:sqlite, build lib+ui+react, publint, pack) + browser-e2e (5 passed).
+
 ## 2026-06-29 — /loop: more adapters & storage backends (feature-complete on named scope)
 
 - **Task:** Per /loop — Express adapter; Postgres, MongoDB storage; document unstorage's driver ecosystem (Upstash etc.). Fanned out Postgres + MongoDB subagents; built Express myself.
