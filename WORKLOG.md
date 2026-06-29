@@ -4,6 +4,15 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — /loop: competitor research → evaluation tester + flag tags
+
+- **Researched** flag-management features across LaunchDarkly, Harness FME (Split), Flagsmith, Unleash, GrowthBook, GO Feature Flag, ConfigCat, PostHog, and the OpenFeature/OFREP spec (subagent, with sources). Built a value×effort matrix.
+- **Shipped the top "valuable + easy" wins:**
+  - **Evaluation tester** (#1 by value) — `core.evaluate({context,flagKey?,source})` + `POST /evaluate` + a "Test targeting" UI panel (enter targetingKey/attributes → see served value + reason) + CLI `eval`. Reuses the existing evaluator; no engine changes. Every major platform has this (LD reasons, GrowthBook Evaluation Diagnostics, Split test targeting).
+  - **Flag tags** — optional `tags: string[]`, TagInput in the detail, chips on list rows, search filter. Universal organizational feature.
+- **Researched-but-deferred (menu for later):** flag archiving (S), stale/lifecycle detection (S), owner metadata (S), client bootstrap endpoint (S), OFREP endpoint (M — note: serving eval from the control plane partly conflicts with our "admin never in the request path" promise; in-process/provider stays the recommended path), scheduling (L), approval workflows (L), reusable segments (M), prerequisites (M).
+- All CI-green: tsc/lint clean, build+publint, vitest + bun:sqlite + 5 browser e2e.
+
 ## 2026-06-29 — /loop: v0-style UI redesign, React component export, sqlite, expanded e2e
 
 - **UI redesign to the v0 reference** (`/Users/santi/Downloads/feature-flag-ui`): replaced the sidebar/drawer + emerald look with a **top-nav layout**, **full-page flag detail** (not a drawer), shadcn token system (neutral + single blue accent), light-first with `data-theme` dark, `@base-ui-components/react` + `lucide-react` + `cn()`. Bound to the real API. Kept system/light/dark switcher in the nav. Verified both themes + all screens (list/detail/snapshots/audit) via Playwright. (Earlier emerald theme was the "meh" the user flagged.)
