@@ -253,6 +253,7 @@
     "test": "vp test run",
     "test:coverage": "vp test run --coverage",
     "test:e2e": "playwright test",
+    "e2e:redis": "docker run -d --name flags-e2e-redis -p 6399:6379 redis:7 redis-server --notify-keyspace-events KEA >/dev/null && REDIS_URL=redis://localhost:6399 REDIS_CONTAINER=flags-e2e-redis bun run e2e/resilience.ts; code=$?; docker rm -f flags-e2e-redis >/dev/null; exit $code",
     "lint": "vp lint",
     "format": "vp fmt",
     "format:check": "vp fmt --check",

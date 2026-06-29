@@ -26,6 +26,12 @@ export interface RedisStorageOptions {
   client?: RedisClientType;
   /** Optional key namespace prepended to every key, joined with `:`. */
   prefix?: string;
+  /**
+   * Called on client `error` events (connection drops, reconnect failures).
+   * A handler is always attached internally so a downed Redis never crashes the
+   * process via an unhandled `error` event — this just lets you observe/log them.
+   */
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -41,6 +47,7 @@ export interface RedisFlagsStorage extends WatchableFlagsStorage {
 /** Minimal structural view of the node-redis client surface this adapter uses. */
 interface RedisLike {
   isOpen?: boolean;
+  on?(event: string, listener: (...args: unknown[]) => void): unknown;
   connect(): Promise<unknown>;
   quit(): Promise<unknown>;
   get(key: string): Promise<string | null>;
@@ -68,20 +75,37 @@ export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStor
   let client: RedisLike | undefined = options.client as RedisLike | undefined;
   let connecting: Promise<RedisLike> | undefined;
 
+  // node-redis emits `error` on connection drops and reconnect attempts. Without a
+  // listener Node treats it as an unhandled error and crashes the process — which
+  // would defeat the whole "storage can be down" promise. Always attach one.
+  const attachErrorHandler = (c: RedisLike): void => {
+    c.on?.("error", (err: unknown) => options.onError?.(err));
+  };
+  if (client) attachErrorHandler(client);
+
   /** Resolve a connected client, creating/connecting on first use. */
   async function getClient(): Promise<RedisLike> {
     if (client?.isOpen) return client;
     connecting ??= (async () => {
       if (!client) {
-        let createClient: (opts: { url?: string }) => RedisLike;
+        let createClient: (opts: Record<string, unknown>) => RedisLike;
         try {
           ({ createClient } = (await import("redis")) as unknown as {
-            createClient: (opts: { url?: string }) => RedisLike;
+            createClient: (opts: Record<string, unknown>) => RedisLike;
           });
         } catch {
           requirePeer("redis", "storage/redis");
         }
-        client = createClient({ url });
+        // disableOfflineQueue: commands reject immediately when the socket is down
+        // (instead of queueing forever) so a background snapshot refresh fails fast
+        // and the runtime keeps serving last-known-good from memory. The reconnect
+        // strategy keeps trying with a capped backoff so it recovers automatically.
+        client = createClient({
+          url,
+          disableOfflineQueue: true,
+          socket: { reconnectStrategy: (retries: number) => Math.min(retries * 100, 3000) },
+        });
+        attachErrorHandler(client);
       }
       if (!client.isOpen) await client.connect();
       return client;
@@ -139,6 +163,7 @@ export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStor
       // all key events under our namespaced prefix and translate them.
       const c = await getClient();
       const subscriber = c.duplicate();
+      attachErrorHandler(subscriber);
       await subscriber.connect();
       const pattern = `__keyspace@*__:${toRedisKey(prefix)}*`;
       await subscriber.pSubscribe(pattern, (event: string, channel: string) => {

@@ -4,6 +4,20 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — P7–P10 complete + MVP done (178 tests, real-Redis e2e green)
+
+- **Task:** Bundled UI, standalone+Docker, CLI, docs, examples, CI, and the critical resilience e2e.
+- **Result:**
+  - **UI** (subagent, retried once after a flaky first run): React 19 + Vite + Tailwind v4 dark dashboard → `dist/ui`. Verified via Playwright screenshots against the live server — flags list, full flag editor (variants/rules/conditions/splits/overrides), snapshots+rollback, audit. Zero console errors. Screenshots in `docs/assets/`.
+  - **Standalone**: env-driven Bun server (`/healthcheck`) + multi-stage Dockerfile. Smoke-tested end-to-end (healthcheck/config/create/publish/SPA).
+  - **CLI** `xtandard-flags`: init/list/validate/publish/rollback/inspect (bin + dist/cli). Tested.
+  - **Docs** (subagent): README + 11 guides + 3 ADRs. **Examples**: elysia/hono/openfeature-redis/standalone-docker. **CI**: ci/release/docker workflows + changesets.
+  - **Bug fixed:** snapshots API now returns rich summaries `{version,publishedAt,by,message}` (UI table needed metadata); exposed auth/authz contract types from package root.
+  - **Robustness fix:** Redis adapter attaches an `error` handler (always) + `disableOfflineQueue` + bounded reconnect, so a downed Redis fails fast instead of crashing the process or hanging refresh.
+  - **Critical e2e (`e2e/resilience.ts`, `bun run e2e:redis`)** with REAL Redis + Docker: publish → evaluate → stop Redis → provider STILL serves last-known-good (stale=true) for existing AND new users. **The product promise holds.** (Acceptance §22.18 & §22.19.)
+- **Final state:** `vp lint` clean · `tsc` clean · **178 tests pass with live Redis** (0 skipped) · `vp pack` + UI build green · publint "All good!".
+- **Next:** optional polish — Playwright UI e2e in CI, postgres adapter, `/react` component export (v1 non-goals).
+
 ## 2026-06-29 — P1–P6 complete: headless library builds & passes (167 tests)
 
 - **Task:** Build core, storage, OpenFeature provider, auth/authz, server/API, framework adapters. Fanned out 3 background subagents (storage, auth+authz, openfeature) against the stable contracts; built core+server+adapters myself.

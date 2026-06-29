@@ -65,3 +65,30 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 - [x] examples: elysia, hono, openfeature-redis, standalone-docker
 - [x] .github/workflows: ci.yml, release.yml, docker.yml
 - [x] publint + pack dry-run
+
+## Acceptance criteria (spec §22) — MVP status
+- [x] 1. Package installs as `@xtandard/flags`
+- [x] 2. Subpath exports work (publint clean, 27 entries)
+- [x] 3. Elysia app can mount `/flags`
+- [x] 4. Hono app can mount `/flags`
+- [x] 5. Bundled UI loads without the consuming app installing React
+- [x] 6. Redis storage works (live integration tests + e2e)
+- [x] 7. unstorage adapter works
+- [x] 8. Memory and file storage work
+- [x] 9. Create a string flag with variants (UI + API + tests)
+- [x] 10. Publish a snapshot
+- [x] 11. OpenFeature provider evaluates that snapshot
+- [x] 12. Deterministic split works (distribution tests)
+- [x] 13. User override works
+- [x] 14. Basic auth works
+- [x] 15. Delegated auth works
+- [x] 16. Roles authorization works
+- [x] 17. Delegated authorization works
+- [x] 18. Runtime keeps evaluating from memory when admin is down (e2e)
+- [x] 19. Runtime keeps last-known-good when Redis goes down after load (e2e)
+- [x] 20. CI defined (.github/workflows/ci.yml) — local gate green
+- [x] 21. Docker image boots & serves /healthcheck (standalone smoke-tested; docker.yml smoke job)
+- [x] 22. README explains the product clearly
+
+Later / v1 non-goals: postgres adapter, `/react` component export, experiment analytics,
+Playwright UI suite in CI, hosted SaaS.
