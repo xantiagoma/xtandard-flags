@@ -28,7 +28,9 @@ function valueSummary(flag: FlagType): string {
   const ruleCount = flag.rules?.length ?? 0;
   const base = flag.defaultVariant || (variantKeys[0] ?? "—");
   if (!flag.enabled) return "Off";
-  return ruleCount > 0 ? `${base} · ${ruleCount} rule${ruleCount > 1 ? "s" : ""}` : `Default: ${base}`;
+  return ruleCount > 0
+    ? `${base} · ${ruleCount} rule${ruleCount > 1 ? "s" : ""}`
+    : `Default: ${base}`;
 }
 
 function EmptyState({ readonly, onCreateClick }: { readonly: boolean; onCreateClick: () => void }) {
@@ -196,13 +198,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
       {/* Content */}
       {query.isLoading ? (
         <div className="mt-8 flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            className="animate-spin"
-          >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="animate-spin">
             <circle
               cx="8"
               cy="8"
@@ -244,9 +240,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                       <span
                         className={cn(
                           "size-2 shrink-0 rounded-full",
-                          flag.enabled
-                            ? "bg-success"
-                            : "bg-muted-foreground/40",
+                          flag.enabled ? "bg-success" : "bg-muted-foreground/40",
                         )}
                         aria-hidden
                       />
@@ -259,7 +253,9 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {valueSummary(flag)}
                           {flag.description && (
-                            <span className="ml-1 text-muted-foreground/60">· {flag.description}</span>
+                            <span className="ml-1 text-muted-foreground/60">
+                              · {flag.description}
+                            </span>
                           )}
                         </p>
                       </div>
@@ -269,10 +265,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                     <Badge className={TYPE_BADGE[flag.type]}>{flag.type}</Badge>
 
                     {/* Enabled toggle */}
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      className="shrink-0"
-                    >
+                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
                       <ToggleSwitch
                         checked={flag.enabled}
                         onCheckedChange={(enabled) =>

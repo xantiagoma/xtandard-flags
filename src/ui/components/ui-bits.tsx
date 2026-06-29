@@ -7,14 +7,11 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonSize = "sm" | "md" | "icon";
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    "bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent",
-  secondary:
-    "bg-secondary/60 text-foreground border border-border hover:bg-secondary",
+  primary: "bg-primary text-primary-foreground hover:bg-primary/90 border border-transparent",
+  secondary: "bg-secondary/60 text-foreground border border-border hover:bg-secondary",
   ghost:
     "bg-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground border border-transparent",
-  danger:
-    "bg-transparent text-destructive border border-destructive/30 hover:bg-destructive/10",
+  danger: "bg-transparent text-destructive border border-destructive/30 hover:bg-destructive/10",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
@@ -31,7 +28,16 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant = "secondary", size = "md", loading = false, icon, children, disabled, ...props },
+  {
+    className,
+    variant = "secondary",
+    size = "md",
+    loading = false,
+    icon,
+    children,
+    disabled,
+    ...props
+  },
   ref,
 ) {
   return (
@@ -78,13 +84,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
 
 /* ─── Badge ─────────────────────────────────────────────────────────────────── */
 
-export function Badge({
-  className,
-  children,
-}: {
-  className?: string;
-  children: React.ReactNode;
-}) {
+export function Badge({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
     <span
       className={cn(

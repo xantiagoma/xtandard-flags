@@ -141,7 +141,11 @@ export function Dropdown({
         </Select.Icon>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Positioner sideOffset={6} className="z-50 outline-none" alignItemWithTrigger={false}>
+        <Select.Positioner
+          sideOffset={6}
+          className="z-50 outline-none"
+          alignItemWithTrigger={false}
+        >
           <Select.Popup
             className={cn(
               "max-h-[min(20rem,var(--available-height))] min-w-[var(--anchor-width)] overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl outline-none",

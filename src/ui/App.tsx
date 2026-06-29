@@ -46,7 +46,12 @@ function PublishDialog({
   const [message, setMessage] = useState("");
 
   return (
-    <Dialog.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onClose();
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
@@ -254,11 +259,7 @@ export function App() {
       {/* ── Main content ─────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         {view === "flags" && (
-          <FlagsView
-            projectKey={projectKey}
-            environmentKey={environmentKey}
-            readonly={readonly}
-          />
+          <FlagsView projectKey={projectKey} environmentKey={environmentKey} readonly={readonly} />
         )}
         {view === "snapshots" && (
           <SnapshotsView
@@ -267,9 +268,7 @@ export function App() {
             readonly={readonly}
           />
         )}
-        {view === "audit" && (
-          <AuditView projectKey={projectKey} environmentKey={environmentKey} />
-        )}
+        {view === "audit" && <AuditView projectKey={projectKey} environmentKey={environmentKey} />}
       </main>
 
       {/* ── Publish dialog ───────────────────────────────────────────────── */}

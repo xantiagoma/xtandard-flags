@@ -12,8 +12,17 @@ interface Props {
 function formatDate(str: string | undefined): string {
   if (!str) return "—";
   try {
-    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(str));
-  } catch { return str; }
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date(str));
+  } catch {
+    return str;
+  }
 }
 
 function actionBadge(action: string): string {
@@ -25,14 +34,20 @@ function actionBadge(action: string): string {
 }
 
 export function AuditView({ projectKey, environmentKey }: Props) {
-  const query = useQuery({ queryKey: ["audit", projectKey, environmentKey], queryFn: () => listAudit(projectKey, environmentKey), staleTime: 15_000 });
+  const query = useQuery({
+    queryKey: ["audit", projectKey, environmentKey],
+    queryFn: () => listAudit(projectKey, environmentKey),
+    staleTime: 15_000,
+  });
   const entries = query.data ?? [];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Audit Log</h1>
-        <p className="mt-1 text-sm text-muted-foreground">A record of every change to flags in this environment.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A record of every change to flags in this environment.
+        </p>
       </div>
 
       {query.isLoading && <p className="text-[13px] text-muted-foreground">Loading audit log…</p>}
@@ -51,7 +66,12 @@ export function AuditView({ projectKey, environmentKey }: Props) {
               <thead>
                 <tr className="border-b border-border">
                   {["Action", "Flag", "Version", "By", "At", "Message"].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
+                    <th
+                      key={h}
+                      className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -59,13 +79,32 @@ export function AuditView({ projectKey, environmentKey }: Props) {
                 {entries.map((entry: AuditEntry, i: number) => (
                   <tr key={entry.id ?? i}>
                     <td className="px-4 py-3">
-                      <span className={cn("inline-flex rounded-md border px-1.5 py-0.5 text-[11px] font-medium", actionBadge(entry.action))}>{entry.action}</span>
+                      <span
+                        className={cn(
+                          "inline-flex rounded-md border px-1.5 py-0.5 text-[11px] font-medium",
+                          actionBadge(entry.action),
+                        )}
+                      >
+                        {entry.action}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-[12px] text-accent">{entry.flagKey ?? "—"}</td>
-                    <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">{entry.version ?? "—"}</td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground">{entry.by ?? "—"}</td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(entry.at)}</td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground max-w-[200px]"><span className="block overflow-hidden text-ellipsis whitespace-nowrap">{entry.message ?? "—"}</span></td>
+                    <td className="px-4 py-3 font-mono text-[12px] text-accent">
+                      {entry.flagKey ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">
+                      {entry.version ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground">
+                      {entry.by ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
+                      {formatDate(entry.at)}
+                    </td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground max-w-[200px]">
+                      <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                        {entry.message ?? "—"}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

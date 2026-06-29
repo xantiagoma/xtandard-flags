@@ -179,7 +179,22 @@ implementations of public contracts.
 | `@xtandard/flags/auth/{none,basic,delegated}`                                   | auth providers                                                           |
 | `@xtandard/flags/authorization/{none,roles,delegated}`                          | authorization providers                                                  |
 | `@xtandard/flags/{elysia,hono,bun,express}`                                     | framework adapters                                                       |
+| `@xtandard/flags/react`                                                         | embeddable `<FlagsDashboard/>` component (advanced; React peer)          |
 | `@xtandard/flags/testing`                                                       | in-memory panel + flag builders                                          |
+
+### Embed the dashboard as a React component (advanced)
+
+Most consumers mount the bundled SPA and never install React. To embed the panel
+inside an existing React app instead:
+
+```tsx
+import { FlagsDashboard } from "@xtandard/flags/react";
+import "@xtandard/flags/react/styles.css";
+
+<FlagsDashboard apiBaseUrl="/flags" />;
+```
+
+![Embedded as a React component](docs/assets/ui-react-embed.png)
 
 ## CLI
 

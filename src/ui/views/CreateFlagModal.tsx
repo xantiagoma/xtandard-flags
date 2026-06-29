@@ -31,14 +31,25 @@ export function CreateFlagModal({ open, onClose, onCreate }: Props) {
   };
 
   const handleCreate = () => {
-    if (!key.trim()) { setError("Key is required"); return; }
-    if (!/^[a-zA-Z0-9._-]+$/.test(key)) { setError("Only letters, digits, periods, underscores, and hyphens allowed"); return; }
+    if (!key.trim()) {
+      setError("Key is required");
+      return;
+    }
+    if (!/^[a-zA-Z0-9._-]+$/.test(key)) {
+      setError("Only letters, digits, periods, underscores, and hyphens allowed");
+      return;
+    }
     onCreate(key.trim(), type);
     handleClose();
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) handleClose(); }}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) handleClose();
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
@@ -50,18 +61,27 @@ export function CreateFlagModal({ open, onClose, onCreate }: Props) {
 
           <div className="flex flex-col gap-4 px-5 py-5">
             <p className="text-[13px] text-muted-foreground">
-              Choose a unique key and type. You'll configure variants, rules, and targeting in the editor.
+              Choose a unique key and type. You'll configure variants, rules, and targeting in the
+              editor.
             </p>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="flag-key" className="text-[13px] font-medium">Key</label>
+              <label htmlFor="flag-key" className="text-[13px] font-medium">
+                Key
+              </label>
               <TextInput
                 id="flag-key"
                 value={key}
                 placeholder="my.feature-flag_v2"
                 className={cn("font-mono", error && "border-destructive")}
-                onChange={(e) => { setKey(e.target.value); setError(""); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") handleClose(); }}
+                onChange={(e) => {
+                  setKey(e.target.value);
+                  setError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreate();
+                  if (e.key === "Escape") handleClose();
+                }}
                 autoFocus
               />
               {error && <p className="text-xs text-destructive">{error}</p>}
@@ -91,8 +111,12 @@ export function CreateFlagModal({ open, onClose, onCreate }: Props) {
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-            <Button variant="secondary" onClick={handleClose}>Cancel</Button>
-            <Button variant="primary" onClick={handleCreate}>Continue to editor</Button>
+            <Button variant="secondary" onClick={handleClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleCreate}>
+              Continue to editor
+            </Button>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>

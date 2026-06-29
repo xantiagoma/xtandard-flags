@@ -17,46 +17,112 @@ interface Props {
 function formatDate(str: string | undefined): string {
   if (!str) return "—";
   try {
-    return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(str));
-  } catch { return str; }
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(str));
+  } catch {
+    return str;
+  }
 }
 
-function SnapshotDetailDialog({ open, onClose, projectKey, environmentKey, version, isActive, readonly, onRollback }: { open: boolean; onClose: () => void; projectKey: string; environmentKey: string; version: string | null; isActive: boolean; readonly: boolean; onRollback: (version: string, msg?: string) => void }) {
-  const query = useQuery({ queryKey: ["snapshot", projectKey, environmentKey, version], queryFn: () => getSnapshot(projectKey, environmentKey, version!), enabled: open && version !== null });
+function SnapshotDetailDialog({
+  open,
+  onClose,
+  projectKey,
+  environmentKey,
+  version,
+  isActive,
+  readonly,
+  onRollback,
+}: {
+  open: boolean;
+  onClose: () => void;
+  projectKey: string;
+  environmentKey: string;
+  version: string | null;
+  isActive: boolean;
+  readonly: boolean;
+  onRollback: (version: string, msg?: string) => void;
+}) {
+  const query = useQuery({
+    queryKey: ["snapshot", projectKey, environmentKey, version],
+    queryFn: () => getSnapshot(projectKey, environmentKey, version!),
+    enabled: open && version !== null,
+  });
   const [confirmRollback, setConfirmRollback] = useState(false);
   const [rollbackMsg, setRollbackMsg] = useState("");
 
   if (!open || !version) return null;
 
   return (
-    <Dialog.Root open={open} onOpenChange={(isOpen) => { if (!isOpen) { setConfirmRollback(false); setRollbackMsg(""); onClose(); } }}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          setConfirmRollback(false);
+          setRollbackMsg("");
+          onClose();
+        }
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 max-h-[85vh] flex flex-col rounded-xl border border-border bg-card shadow-2xl outline-none">
           <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
-            <Dialog.Title className="text-[15px] font-semibold text-foreground font-mono">Snapshot {version}</Dialog.Title>
-            {isActive && <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">active</span>}
+            <Dialog.Title className="text-[15px] font-semibold text-foreground font-mono">
+              Snapshot {version}
+            </Dialog.Title>
+            {isActive && (
+              <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">
+                active
+              </span>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {query.isLoading && <p className="text-[13px] text-muted-foreground">Loading…</p>}
-            {query.isError && <p className="text-[13px] text-destructive">Failed to load snapshot</p>}
+            {query.isError && (
+              <p className="text-[13px] text-destructive">Failed to load snapshot</p>
+            )}
             {query.data && (
-              <pre className="overflow-x-auto whitespace-pre rounded-lg border border-border bg-secondary/40 p-4 font-mono text-[11px] text-foreground leading-relaxed">{JSON.stringify(query.data, null, 2)}</pre>
+              <pre className="overflow-x-auto whitespace-pre rounded-lg border border-border bg-secondary/40 p-4 font-mono text-[11px] text-foreground leading-relaxed">
+                {JSON.stringify(query.data, null, 2)}
+              </pre>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3 shrink-0">
             {!isActive && !readonly && !confirmRollback && (
-              <Button variant="danger" size="sm" onClick={() => setConfirmRollback(true)}>Roll back to this version</Button>
+              <Button variant="danger" size="sm" onClick={() => setConfirmRollback(true)}>
+                Roll back to this version
+              </Button>
             )}
             {confirmRollback && (
               <>
-                <TextInput placeholder="Rollback reason (optional)" value={rollbackMsg} onChange={(e) => setRollbackMsg(e.target.value)} className="flex-1 min-w-40" />
-                <Button variant="danger" size="sm" onClick={() => onRollback(version, rollbackMsg || undefined)}>Confirm rollback</Button>
-                <Button variant="secondary" size="sm" onClick={() => setConfirmRollback(false)}>Cancel</Button>
+                <TextInput
+                  placeholder="Rollback reason (optional)"
+                  value={rollbackMsg}
+                  onChange={(e) => setRollbackMsg(e.target.value)}
+                  className="flex-1 min-w-40"
+                />
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => onRollback(version, rollbackMsg || undefined)}
+                >
+                  Confirm rollback
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setConfirmRollback(false)}>
+                  Cancel
+                </Button>
               </>
             )}
             <div className="flex-1" />
-            <Button variant="secondary" onClick={onClose}>Close</Button>
+            <Button variant="secondary" onClick={onClose}>
+              Close
+            </Button>
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
@@ -69,10 +135,15 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
   const qc = useQueryClient();
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
-  const query = useQuery({ queryKey: ["snapshots", projectKey, environmentKey], queryFn: () => listSnapshots(projectKey, environmentKey), staleTime: 15_000 });
+  const query = useQuery({
+    queryKey: ["snapshots", projectKey, environmentKey],
+    queryFn: () => listSnapshots(projectKey, environmentKey),
+    staleTime: 15_000,
+  });
 
   const rollbackMutation = useMutation({
-    mutationFn: ({ version, message }: { version: string; message?: string }) => rollback(projectKey, environmentKey, version, message),
+    mutationFn: ({ version, message }: { version: string; message?: string }) =>
+      rollback(projectKey, environmentKey, version, message),
     onSuccess: (_data, { version }) => {
       qc.invalidateQueries({ queryKey: ["snapshots", projectKey, environmentKey] });
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
@@ -94,7 +165,9 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Snapshots</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Published versions of the flag configuration. Roll back to any previous state.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Published versions of the flag configuration. Roll back to any previous state.
+        </p>
       </div>
 
       {query.isLoading && <p className="text-[13px] text-muted-foreground">Loading snapshots…</p>}
@@ -102,7 +175,9 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
 
       {versions.length === 0 && !query.isLoading && (
         <div className="rounded-xl border border-border bg-card px-4 py-16 text-center">
-          <p className="text-[13px] text-muted-foreground">No snapshots yet. Publish your flags to create the first version.</p>
+          <p className="text-[13px] text-muted-foreground">
+            No snapshots yet. Publish your flags to create the first version.
+          </p>
         </div>
       )}
 
@@ -113,27 +188,56 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
               <thead>
                 <tr className="border-b border-border">
                   {["Version", "Published", "By", "Message", ""].map((h) => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap">{h}</th>
+                    <th
+                      key={h}
+                      className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {versions.map((v: SnapshotSummary) => (
-                  <tr key={v.version} className="cursor-pointer hover:bg-secondary/30 transition-colors" onClick={() => setSelectedVersion(v.version)}>
+                  <tr
+                    key={v.version}
+                    className="cursor-pointer hover:bg-secondary/30 transition-colors"
+                    onClick={() => setSelectedVersion(v.version)}
+                  >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[13px] font-semibold text-accent">{v.version}</span>
+                        <span className="font-mono text-[13px] font-semibold text-accent">
+                          {v.version}
+                        </span>
                         {v.version === active && (
-                          <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">active</span>
+                          <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">
+                            active
+                          </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">{formatDate(v.publishedAt)}</td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
+                      {formatDate(v.publishedAt)}
+                    </td>
                     <td className="px-4 py-3 text-[12px] text-muted-foreground">{v.by ?? "—"}</td>
-                    <td className="px-4 py-3 text-[12px] text-muted-foreground max-w-[200px]"><span className="block overflow-hidden text-ellipsis whitespace-nowrap">{v.message || "—"}</span></td>
+                    <td className="px-4 py-3 text-[12px] text-muted-foreground max-w-[200px]">
+                      <span className="block overflow-hidden text-ellipsis whitespace-nowrap">
+                        {v.message || "—"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       {v.version !== active && !readonly && (
-                        <Button size="sm" variant="ghost" className="text-warning hover:text-warning" onClick={(e) => { e.stopPropagation(); setSelectedVersion(v.version); }}>Roll back</Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-warning hover:text-warning"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedVersion(v.version);
+                          }}
+                        >
+                          Roll back
+                        </Button>
                       )}
                     </td>
                   </tr>

@@ -45,3 +45,44 @@ test("publishes a snapshot and shows it in history", async ({ page }) => {
   await expect(page.getByText("e2e first publish")).toBeVisible();
   await expect(page.getByRole("cell", { name: /v1\s+active/ })).toBeVisible();
 });
+
+test("rolls back to a previous snapshot", async ({ page }) => {
+  await page.goto("/");
+
+  // Create a second flag and publish → v2 (so v1 becomes rollback-able).
+  await page.getByRole("button", { name: "New flag" }).click();
+  await page.getByPlaceholder("my.feature-flag_v2").fill("e2e-second");
+  await page.getByRole("button", { name: "Continue to editor" }).click();
+  await page.getByRole("button", { name: "Create flag" }).click();
+  await expect(page.getByText("e2e-second")).toBeVisible();
+
+  await page.getByRole("button", { name: "Publish" }).first().click();
+  await expect(page.getByText("Publish flags")).toBeVisible();
+  await page.getByRole("button", { name: "Publish", exact: true }).last().click();
+  await expect(page.getByText("Published successfully")).toBeVisible();
+
+  // Snapshots → roll back v1 (the only non-active row).
+  await page.getByText("Snapshots", { exact: true }).first().click();
+  await expect(page.getByRole("cell", { name: /v2\s+active/ })).toBeVisible();
+  await page.getByRole("button", { name: "Roll back", exact: true }).first().click();
+  await page.getByRole("button", { name: "Roll back to this version" }).click();
+  await page.getByRole("button", { name: "Confirm rollback" }).click();
+
+  await expect(page.getByText("Rolled back to version v1")).toBeVisible();
+  await expect(page.getByRole("cell", { name: /v1\s+active/ })).toBeVisible();
+});
+
+test("theme switcher persists across reloads", async ({ page }) => {
+  await page.goto("/");
+  const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);
+
+  await page.getByRole("button", { name: "Dark theme" }).click();
+  await expect.poll(htmlTheme).toBe("dark");
+
+  await page.reload();
+  await expect.poll(htmlTheme).toBe("dark");
+
+  // Restore light for a clean end state.
+  await page.getByRole("button", { name: "Light theme" }).click();
+  await expect.poll(htmlTheme).toBe("light");
+});
