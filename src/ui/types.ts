@@ -51,6 +51,7 @@ export interface Flag {
   rules?: Rule[];
   fallthrough: Serve;
   salt?: string;
+  tags?: string[];
 }
 
 export interface FlagsConfig {

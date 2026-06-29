@@ -91,6 +91,7 @@ export const flagSchema = v.object({
   rules: v.optional(v.array(ruleSchema)),
   fallthrough: serveSchema,
   salt: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
 });
 
 /** A single validation problem with a dotted path into the offending data. */

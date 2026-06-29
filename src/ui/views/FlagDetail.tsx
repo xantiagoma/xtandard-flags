@@ -16,6 +16,7 @@ import { FlagsApiError } from "../types.ts";
 import { createFlag, updateFlag } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
 import { TestTargeting } from "../components/TestTargeting.tsx";
+import { TagInput } from "../components/TagInput.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import {
   ToggleSwitch,
@@ -612,6 +613,13 @@ export function FlagDetail({
                   placeholder="What does this flag control?"
                   disabled={readonly}
                   onChange={(e) => patch("description", e.target.value)}
+                />
+              </Field>
+              <Field label="Tags" className="sm:col-span-2">
+                <TagInput
+                  values={form.tags ?? []}
+                  onChange={(tags) => patch("tags", tags)}
+                  disabled={readonly}
                 />
               </Field>
               {isCreate && (

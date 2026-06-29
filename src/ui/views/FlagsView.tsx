@@ -109,11 +109,14 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
 
   const flags = query.data ?? [];
   const filtered = search
-    ? flags.filter(
-        (f) =>
-          f.key.toLowerCase().includes(search.toLowerCase()) ||
-          (f.description ?? "").toLowerCase().includes(search.toLowerCase()),
-      )
+    ? flags.filter((f) => {
+        const q = search.toLowerCase();
+        return (
+          f.key.toLowerCase().includes(q) ||
+          (f.description ?? "").toLowerCase().includes(q) ||
+          (f.tags ?? []).some((t) => t.toLowerCase().includes(q))
+        );
+      })
     : flags;
 
   // Handle create: seed from modal → open FlagDetail in create mode
@@ -260,6 +263,20 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                         </p>
                       </div>
                     </button>
+
+                    {/* Tags */}
+                    {flag.tags && flag.tags.length > 0 && (
+                      <div className="hidden items-center gap-1.5 lg:flex">
+                        {flag.tags.slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-md bg-secondary/60 px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Type badge */}
                     <Badge className={TYPE_BADGE[flag.type]}>{flag.type}</Badge>

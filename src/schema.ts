@@ -118,6 +118,8 @@ export interface Flag {
   fallthrough: Serve;
   /** Optional per-flag salt that perturbs split bucketing independently of the key. */
   salt?: string;
+  /** Free-form organizational labels (e.g. "beta", "checkout", "permanent"). */
+  tags?: string[];
 }
 
 /** Identity captured on snapshot/audit records. */
