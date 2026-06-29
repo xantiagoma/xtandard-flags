@@ -63,12 +63,7 @@ export {
 export type { ValidationError, ValidationResult } from "./validation.ts";
 
 // Storage contracts
-export {
-  isCompareAndSwap,
-  isTransactional,
-  isWatchable,
-  requirePeer,
-} from "./storage/contract.ts";
+export { isCompareAndSwap, isTransactional, isWatchable, requirePeer } from "./storage/contract.ts";
 export type {
   CompareAndSwapFlagsStorage,
   FlagsStorage,
@@ -80,8 +75,18 @@ export type {
 // Storage key layout (advanced/custom adapters)
 export * as keys from "./keys.ts";
 
+// Auth & authorization contracts (implement your own)
+export type { AuthProvider, Principal } from "./auth/contract.ts";
+export type {
+  AuthorizationProvider,
+  AuthorizeInput,
+  FlagsAction,
+  FlagsResource,
+} from "./authorization/contract.ts";
+export { isMutatingAction, MUTATING_ACTIONS } from "./authorization/contract.ts";
+
 // Admin core + server handler
 export { createFlagsCore } from "./core.ts";
-export type { FlagsCore, FlagsCoreOptions } from "./core.ts";
+export type { FlagsCore, FlagsCoreOptions, SnapshotSummary } from "./core.ts";
 export { createFetchHandler } from "./server/create-fetch-handler.ts";
 export type { CreateFetchHandlerResult, FlagsPanelOptions } from "./server/create-fetch-handler.ts";

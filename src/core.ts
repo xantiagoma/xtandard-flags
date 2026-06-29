@@ -11,12 +11,7 @@
  * @module
  */
 
-import {
-  environmentMetaKey,
-  environmentsKey,
-  projectMetaKey,
-  projectsKey,
-} from "./keys.ts";
+import { environmentMetaKey, environmentsKey, projectMetaKey, projectsKey } from "./keys.ts";
 import { compileDraft, nextVersion, SnapshotStore } from "./snapshot.ts";
 import type {
   Actor,
@@ -42,6 +37,14 @@ export interface FlagsCoreOptions {
   defaultEnvironmentKey?: string;
   /** When true, all mutating operations throw {@link ReadonlyError}. */
   readonly?: boolean;
+}
+
+/** A snapshot version with its publish metadata, for history views. */
+export interface SnapshotSummary {
+  version: string;
+  publishedAt?: string;
+  by?: string;
+  message?: string;
 }
 
 /** Thrown by mutating operations when the core is in readonly mode. */
@@ -73,7 +76,10 @@ export interface FlagsCore {
 
   // Environments
   listEnvironments(projectKey: string): Promise<EnvironmentMeta[]>;
-  createEnvironment(projectKey: string, input: { key: string; name?: string }): Promise<EnvironmentMeta>;
+  createEnvironment(
+    projectKey: string,
+    input: { key: string; name?: string },
+  ): Promise<EnvironmentMeta>;
 
   // Draft + flags
   getDraft(projectKey?: string, environmentKey?: string): Promise<Draft>;
@@ -84,10 +90,26 @@ export interface FlagsCore {
   replaceDraft(draft: Draft): Promise<Draft>;
 
   // Publish / rollback / history
-  publish(input?: { projectKey?: string; environmentKey?: string; by?: Actor | null; message?: string }): Promise<Snapshot>;
-  rollback(input: { version: string; projectKey?: string; environmentKey?: string; by?: Actor | null; message?: string }): Promise<Snapshot>;
+  publish(input?: {
+    projectKey?: string;
+    environmentKey?: string;
+    by?: Actor | null;
+    message?: string;
+  }): Promise<Snapshot>;
+  rollback(input: {
+    version: string;
+    projectKey?: string;
+    environmentKey?: string;
+    by?: Actor | null;
+    message?: string;
+  }): Promise<Snapshot>;
   listSnapshots(projectKey?: string, environmentKey?: string): Promise<string[]>;
-  getSnapshot(version: string, projectKey?: string, environmentKey?: string): Promise<Snapshot | null>;
+  listSnapshotSummaries(projectKey?: string, environmentKey?: string): Promise<SnapshotSummary[]>;
+  getSnapshot(
+    version: string,
+    projectKey?: string,
+    environmentKey?: string,
+  ): Promise<Snapshot | null>;
   getActiveSnapshot(projectKey?: string, environmentKey?: string): Promise<Snapshot | null>;
   getActiveVersion(projectKey?: string, environmentKey?: string): Promise<string | null>;
   listAudit(projectKey?: string, environmentKey?: string): Promise<AuditEntry[]>;
@@ -219,7 +241,10 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       guard("modify flags");
       const result = validateFlag(flag);
       if (!result.valid) {
-        throw new FlagValidationError(flag.key, result.errors.map((e) => `${e.path}: ${e.message}`));
+        throw new FlagValidationError(
+          flag.key,
+          result.errors.map((e) => `${e.path}: ${e.message}`),
+        );
       }
       const p = pk(projectKey);
       const e = ek(environmentKey);
@@ -301,6 +326,33 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
 
     listSnapshots(projectKey, environmentKey) {
       return source.listVersions(pk(projectKey), ek(environmentKey));
+    },
+
+    async listSnapshotSummaries(projectKey, environmentKey) {
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      const [versions, audit] = await Promise.all([
+        source.listVersions(p, e),
+        source.listAudit(p, e),
+      ]);
+      // Most recent publish message per version (audit is newest-first).
+      const messageByVersion = new Map<string, string>();
+      for (const entry of audit) {
+        if (entry.action === "publish" && entry.message && !messageByVersion.has(entry.version)) {
+          messageByVersion.set(entry.version, entry.message);
+        }
+      }
+      const snapshots = await Promise.all(versions.map((v) => source.getSnapshot(p, e, v)));
+      return versions.map((version, i) => {
+        const snap = snapshots[i];
+        const by = snap?.createdBy?.email ?? snap?.createdBy?.name ?? snap?.createdBy?.id;
+        return {
+          version,
+          publishedAt: snap?.createdAt,
+          by,
+          message: messageByVersion.get(version),
+        } satisfies SnapshotSummary;
+      });
     },
 
     getSnapshot(version, projectKey, environmentKey) {

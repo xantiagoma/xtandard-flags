@@ -86,7 +86,10 @@ describe("evaluateFlag — evaluation order", () => {
 
   test("number and json flags resolve their typed values", () => {
     expect(evaluateFlag(numberFlag(), { targetingKey: "u" }).value).toBe(10);
-    expect(evaluateFlag(jsonFlag(), { targetingKey: "u" }).value).toEqual({ color: "blue", limit: 5 });
+    expect(evaluateFlag(jsonFlag(), { targetingKey: "u" }).value).toEqual({
+      color: "blue",
+      limit: 5,
+    });
   });
 });
 

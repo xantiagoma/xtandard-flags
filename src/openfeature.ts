@@ -32,7 +32,15 @@
 
 import { evaluateFlag } from "./evaluator.ts";
 import { activeVersionKey, snapshotsPrefix } from "./keys.ts";
-import type { EvaluationContext, EvaluationReason, Flag, FlagType, FlagValue, JsonValue, Snapshot } from "./schema.ts";
+import type {
+  EvaluationContext,
+  EvaluationReason,
+  Flag,
+  FlagType,
+  FlagValue,
+  JsonValue,
+  Snapshot,
+} from "./schema.ts";
 import { SnapshotStore } from "./snapshot.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 import { isWatchable } from "./storage/contract.ts";
@@ -296,7 +304,10 @@ export function createOpenFeatureProvider(
           `[xtandard/flags] initial snapshot load failed for ${projectKey}/${environmentKey}; serving defaults`,
         );
       } else {
-        logError(`[xtandard/flags] snapshot refresh failed for ${projectKey}/${environmentKey}`, err);
+        logError(
+          `[xtandard/flags] snapshot refresh failed for ${projectKey}/${environmentKey}`,
+          err,
+        );
       }
     }
   }
@@ -466,13 +477,25 @@ export function createOpenFeatureProvider(
       await refresh();
     },
 
-    async resolveBooleanEvaluation(flagKey, defaultValue, context): Promise<OFResolutionDetails<boolean>> {
+    async resolveBooleanEvaluation(
+      flagKey,
+      defaultValue,
+      context,
+    ): Promise<OFResolutionDetails<boolean>> {
       return resolve("boolean", flagKey, defaultValue, context);
     },
-    async resolveStringEvaluation(flagKey, defaultValue, context): Promise<OFResolutionDetails<string>> {
+    async resolveStringEvaluation(
+      flagKey,
+      defaultValue,
+      context,
+    ): Promise<OFResolutionDetails<string>> {
       return resolve("string", flagKey, defaultValue, context);
     },
-    async resolveNumberEvaluation(flagKey, defaultValue, context): Promise<OFResolutionDetails<number>> {
+    async resolveNumberEvaluation(
+      flagKey,
+      defaultValue,
+      context,
+    ): Promise<OFResolutionDetails<number>> {
       return resolve("number", flagKey, defaultValue, context);
     },
     async resolveObjectEvaluation<T extends OFJsonValue>(
@@ -480,7 +503,12 @@ export function createOpenFeatureProvider(
       defaultValue: T,
       context: OFEvaluationContext,
     ): Promise<OFResolutionDetails<T>> {
-      return resolve<JsonValue>("object", flagKey, defaultValue as JsonValue, context) as OFResolutionDetails<T>;
+      return resolve<JsonValue>(
+        "object",
+        flagKey,
+        defaultValue as JsonValue,
+        context,
+      ) as OFResolutionDetails<T>;
     },
 
     get lastUpdatedAt(): string | null {

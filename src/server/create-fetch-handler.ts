@@ -118,7 +118,10 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
       defaultProjectKey: core.options.defaultProjectKey,
       defaultEnvironmentKey: core.options.defaultEnvironmentKey,
     });
-    return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
+    return new Response(html, {
+      status: 200,
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
   }
 
   return { fetch, core };

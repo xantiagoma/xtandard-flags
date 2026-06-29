@@ -82,10 +82,7 @@ export class SnapshotStore {
   }
 
   /** Read the currently active snapshot (active_version → snapshot), or `null`. */
-  async getActiveSnapshot(
-    projectKey: string,
-    environmentKey: string,
-  ): Promise<Snapshot | null> {
+  async getActiveSnapshot(projectKey: string, environmentKey: string): Promise<Snapshot | null> {
     const version = await this.getActiveVersion(projectKey, environmentKey);
     if (!version) return null;
     return this.getSnapshot(projectKey, environmentKey, version);
@@ -121,7 +118,10 @@ export class SnapshotStore {
    * Compile the draft, persist it as the next snapshot, flip active_version, and
    * append an audit entry. Returns the new snapshot.
    */
-  async publish(draft: Draft, options: { createdBy?: Actor | null; message?: string } = {}): Promise<Snapshot> {
+  async publish(
+    draft: Draft,
+    options: { createdBy?: Actor | null; message?: string } = {},
+  ): Promise<Snapshot> {
     const existing = await this.listVersions(draft.projectKey, draft.environmentKey);
     const version = nextVersion(existing);
     const snapshot = compileDraft(draft, { version, createdBy: options.createdBy });
@@ -163,11 +163,7 @@ export class SnapshotStore {
   }
 
   /** Append an audit entry. */
-  async appendAudit(
-    projectKey: string,
-    environmentKey: string,
-    entry: AuditEntry,
-  ): Promise<void> {
+  async appendAudit(projectKey: string, environmentKey: string, entry: AuditEntry): Promise<void> {
     await this.storage.setItem(auditKey(projectKey, environmentKey, entry.version), entry);
   }
 

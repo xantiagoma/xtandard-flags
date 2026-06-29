@@ -11,10 +11,7 @@ import {
 
 const RESOURCE: FlagsResource = { type: "project", projectKey: "p" };
 
-const input = (
-  principal: Principal | null,
-  action: FlagsAction,
-): AuthorizeInput => ({
+const input = (principal: Principal | null, action: FlagsAction): AuthorizeInput => ({
   principal,
   action,
   resource: RESOURCE,

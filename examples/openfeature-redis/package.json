@@ -1,0 +1,13 @@
+{
+  "name": "example-openfeature-redis",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@openfeature/server-sdk": "^1.16.0",
+    "@xtandard/flags": "^0.1.0",
+    "redis": "^5.0.0"
+  }
+}

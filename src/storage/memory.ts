@@ -14,8 +14,7 @@ export interface MemoryStorageOptions {
   initial?: Record<string, unknown>;
 }
 
-const clone = <T>(value: T): T =>
-  value === undefined ? value : (structuredClone(value) as T);
+const clone = <T>(value: T): T => (value === undefined ? value : (structuredClone(value) as T));
 
 /**
  * Create an in-memory {@link FlagsStorage}. Also implements `watch` synchronously

@@ -3,7 +3,7 @@ import { compareSemver, evaluateCondition } from "../src/evaluator.ts";
 import type { Condition, ConditionOperator } from "../src/schema.ts";
 
 const cond = (operator: ConditionOperator, value?: unknown, attribute = "x"): Condition =>
-  ({ attribute, operator, value } as Condition);
+  ({ attribute, operator, value }) as Condition;
 
 describe("condition operators", () => {
   test("equals / notEquals (with cross-type coercion)", () => {

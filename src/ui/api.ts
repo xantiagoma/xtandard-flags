@@ -1,0 +1,135 @@
+import type { Flag, FlagsConfig, SnapshotListResponse, AuditEntry, ApiError } from "./types.ts";
+import { FlagsApiError } from "./types.ts";
+
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+    ...init,
+  });
+
+  if (!res.ok) {
+    let body: ApiError;
+    try {
+      body = (await res.json()) as ApiError;
+    } catch {
+      body = { status: res.status, error: res.statusText };
+    }
+    throw new FlagsApiError(res.status, body);
+  }
+
+  const text = await res.text();
+  if (!text) return undefined as unknown as T;
+  return JSON.parse(text) as T;
+}
+
+function envBase(projectKey: string, environmentKey: string): string {
+  return `api/projects/${encodeURIComponent(projectKey)}/environments/${encodeURIComponent(environmentKey)}`;
+}
+
+export function getConfig(): Promise<FlagsConfig> {
+  return req<FlagsConfig>("config");
+}
+
+export function listFlags(projectKey: string, environmentKey: string): Promise<Flag[]> {
+  return req<Flag[]>(`${envBase(projectKey, environmentKey)}/flags`);
+}
+
+export function createFlag(projectKey: string, environmentKey: string, flag: Flag): Promise<Flag> {
+  return req<Flag>(`${envBase(projectKey, environmentKey)}/flags`, {
+    method: "POST",
+    body: JSON.stringify(flag),
+  });
+}
+
+export function updateFlag(
+  projectKey: string,
+  environmentKey: string,
+  key: string,
+  flag: Flag,
+): Promise<Flag> {
+  return req<Flag>(`${envBase(projectKey, environmentKey)}/flags/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    body: JSON.stringify(flag),
+  });
+}
+
+export function deleteFlag(
+  projectKey: string,
+  environmentKey: string,
+  key: string,
+): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>(
+    `${envBase(projectKey, environmentKey)}/flags/${encodeURIComponent(key)}`,
+    { method: "DELETE" },
+  );
+}
+
+export function publish(
+  projectKey: string,
+  environmentKey: string,
+  message?: string,
+): Promise<unknown> {
+  return req<unknown>(`${envBase(projectKey, environmentKey)}/publish`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
+
+export function rollback(
+  projectKey: string,
+  environmentKey: string,
+  version: string,
+  message?: string,
+): Promise<unknown> {
+  return req<unknown>(`${envBase(projectKey, environmentKey)}/rollback`, {
+    method: "POST",
+    body: JSON.stringify({ version, message }),
+  });
+}
+
+export function listSnapshots(
+  projectKey: string,
+  environmentKey: string,
+): Promise<SnapshotListResponse> {
+  return req<SnapshotListResponse>(`${envBase(projectKey, environmentKey)}/snapshots`);
+}
+
+export interface SnapshotDetail {
+  version: string;
+  flags: Flag[];
+  publishedAt?: string;
+  message?: string;
+  by?: string;
+}
+
+export function getSnapshot(
+  projectKey: string,
+  environmentKey: string,
+  version: string,
+): Promise<SnapshotDetail> {
+  return req<SnapshotDetail>(
+    `${envBase(projectKey, environmentKey)}/snapshots/${encodeURIComponent(version)}`,
+  );
+}
+
+export function listAudit(projectKey: string, environmentKey: string): Promise<AuditEntry[]> {
+  return req<AuditEntry[]>(`${envBase(projectKey, environmentKey)}/audit`);
+}
+
+export function getDraft(projectKey: string, environmentKey: string): Promise<unknown> {
+  return req<unknown>(`${envBase(projectKey, environmentKey)}/draft`);
+}
+
+export function listProjects(): Promise<{ key: string; name?: string }[]> {
+  return req<{ key: string; name?: string }[]>("api/projects");
+}
+
+export function listEnvironments(projectKey: string): Promise<{ key: string; name?: string }[]> {
+  return req<{ key: string; name?: string }[]>(
+    `api/projects/${encodeURIComponent(projectKey)}/environments`,
+  );
+}

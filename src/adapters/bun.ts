@@ -11,7 +11,11 @@
  * @module
  */
 
-import { createFetchHandler, type CreateFetchHandlerResult, type FlagsPanelOptions } from "../server/create-fetch-handler.ts";
+import {
+  createFetchHandler,
+  type CreateFetchHandlerResult,
+  type FlagsPanelOptions,
+} from "../server/create-fetch-handler.ts";
 
 /** Create a Bun-ready panel handler. */
 export function flagsPanel(options: FlagsPanelOptions): CreateFetchHandlerResult {

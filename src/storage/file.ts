@@ -12,11 +12,7 @@ import { watch as fsWatch } from "node:fs";
 import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
-import type {
-  FlagsStorage,
-  StorageChangeEvent,
-  WatchableFlagsStorage,
-} from "./contract.ts";
+import type { StorageChangeEvent, WatchableFlagsStorage } from "./contract.ts";
 
 /** Options for {@link createFileStorage}. */
 export interface FileStorageOptions {

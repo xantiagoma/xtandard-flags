@@ -5,12 +5,12 @@
   "keywords": [
     "feature-flags",
     "feature-toggle",
-    "openfeature",
     "flags",
-    "self-hosted",
+    "openfeature",
     "redis",
-    "unstorage",
+    "self-hosted",
     "typescript",
+    "unstorage",
     "xtandard"
   ],
   "homepage": "https://github.com/xantiagoma/xtandard-flags#readme",
@@ -23,11 +23,12 @@
     "type": "git",
     "url": "git+https://github.com/xantiagoma/xtandard-flags.git"
   },
-  "engines": {
-    "node": ">=20"
+  "bin": {
+    "xtandard-flags": "./bin/xtandard-flags.mjs"
   },
   "files": [
     "dist",
+    "bin",
     "docs",
     "LICENSE",
     "README.md"
@@ -39,84 +40,204 @@
   "types": "dist/index.d.mts",
   "exports": {
     ".": {
-      "import": { "types": "./dist/index.d.mts", "default": "./dist/index.mjs" },
-      "require": { "types": "./dist/index.d.cts", "default": "./dist/index.cjs" }
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./core": {
-      "import": { "types": "./dist/core.d.mts", "default": "./dist/core.mjs" },
-      "require": { "types": "./dist/core.d.cts", "default": "./dist/core.cjs" }
+      "import": {
+        "types": "./dist/core.d.mts",
+        "default": "./dist/core.mjs"
+      },
+      "require": {
+        "types": "./dist/core.d.cts",
+        "default": "./dist/core.cjs"
+      }
     },
     "./schema": {
-      "import": { "types": "./dist/schema.d.mts", "default": "./dist/schema.mjs" },
-      "require": { "types": "./dist/schema.d.cts", "default": "./dist/schema.cjs" }
+      "import": {
+        "types": "./dist/schema.d.mts",
+        "default": "./dist/schema.mjs"
+      },
+      "require": {
+        "types": "./dist/schema.d.cts",
+        "default": "./dist/schema.cjs"
+      }
     },
     "./evaluator": {
-      "import": { "types": "./dist/evaluator.d.mts", "default": "./dist/evaluator.mjs" },
-      "require": { "types": "./dist/evaluator.d.cts", "default": "./dist/evaluator.cjs" }
+      "import": {
+        "types": "./dist/evaluator.d.mts",
+        "default": "./dist/evaluator.mjs"
+      },
+      "require": {
+        "types": "./dist/evaluator.d.cts",
+        "default": "./dist/evaluator.cjs"
+      }
     },
     "./snapshot": {
-      "import": { "types": "./dist/snapshot.d.mts", "default": "./dist/snapshot.mjs" },
-      "require": { "types": "./dist/snapshot.d.cts", "default": "./dist/snapshot.cjs" }
+      "import": {
+        "types": "./dist/snapshot.d.mts",
+        "default": "./dist/snapshot.mjs"
+      },
+      "require": {
+        "types": "./dist/snapshot.d.cts",
+        "default": "./dist/snapshot.cjs"
+      }
     },
     "./openfeature": {
-      "import": { "types": "./dist/openfeature.d.mts", "default": "./dist/openfeature.mjs" },
-      "require": { "types": "./dist/openfeature.d.cts", "default": "./dist/openfeature.cjs" }
+      "import": {
+        "types": "./dist/openfeature.d.mts",
+        "default": "./dist/openfeature.mjs"
+      },
+      "require": {
+        "types": "./dist/openfeature.d.cts",
+        "default": "./dist/openfeature.cjs"
+      }
     },
     "./testing": {
-      "import": { "types": "./dist/testing.d.mts", "default": "./dist/testing.mjs" },
-      "require": { "types": "./dist/testing.d.cts", "default": "./dist/testing.cjs" }
+      "import": {
+        "types": "./dist/testing.d.mts",
+        "default": "./dist/testing.mjs"
+      },
+      "require": {
+        "types": "./dist/testing.d.cts",
+        "default": "./dist/testing.cjs"
+      }
     },
     "./storage/memory": {
-      "import": { "types": "./dist/entry-storage-memory.d.mts", "default": "./dist/entry-storage-memory.mjs" },
-      "require": { "types": "./dist/entry-storage-memory.d.cts", "default": "./dist/entry-storage-memory.cjs" }
+      "import": {
+        "types": "./dist/entry-storage-memory.d.mts",
+        "default": "./dist/entry-storage-memory.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-memory.d.cts",
+        "default": "./dist/entry-storage-memory.cjs"
+      }
     },
     "./storage/file": {
-      "import": { "types": "./dist/entry-storage-file.d.mts", "default": "./dist/entry-storage-file.mjs" },
-      "require": { "types": "./dist/entry-storage-file.d.cts", "default": "./dist/entry-storage-file.cjs" }
+      "import": {
+        "types": "./dist/entry-storage-file.d.mts",
+        "default": "./dist/entry-storage-file.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-file.d.cts",
+        "default": "./dist/entry-storage-file.cjs"
+      }
     },
     "./storage/redis": {
-      "import": { "types": "./dist/entry-storage-redis.d.mts", "default": "./dist/entry-storage-redis.mjs" },
-      "require": { "types": "./dist/entry-storage-redis.d.cts", "default": "./dist/entry-storage-redis.cjs" }
+      "import": {
+        "types": "./dist/entry-storage-redis.d.mts",
+        "default": "./dist/entry-storage-redis.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-redis.d.cts",
+        "default": "./dist/entry-storage-redis.cjs"
+      }
     },
     "./storage/unstorage": {
-      "import": { "types": "./dist/entry-storage-unstorage.d.mts", "default": "./dist/entry-storage-unstorage.mjs" },
-      "require": { "types": "./dist/entry-storage-unstorage.d.cts", "default": "./dist/entry-storage-unstorage.cjs" }
+      "import": {
+        "types": "./dist/entry-storage-unstorage.d.mts",
+        "default": "./dist/entry-storage-unstorage.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-unstorage.d.cts",
+        "default": "./dist/entry-storage-unstorage.cjs"
+      }
     },
     "./auth/none": {
-      "import": { "types": "./dist/entry-auth-none.d.mts", "default": "./dist/entry-auth-none.mjs" },
-      "require": { "types": "./dist/entry-auth-none.d.cts", "default": "./dist/entry-auth-none.cjs" }
+      "import": {
+        "types": "./dist/entry-auth-none.d.mts",
+        "default": "./dist/entry-auth-none.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-auth-none.d.cts",
+        "default": "./dist/entry-auth-none.cjs"
+      }
     },
     "./auth/basic": {
-      "import": { "types": "./dist/entry-auth-basic.d.mts", "default": "./dist/entry-auth-basic.mjs" },
-      "require": { "types": "./dist/entry-auth-basic.d.cts", "default": "./dist/entry-auth-basic.cjs" }
+      "import": {
+        "types": "./dist/entry-auth-basic.d.mts",
+        "default": "./dist/entry-auth-basic.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-auth-basic.d.cts",
+        "default": "./dist/entry-auth-basic.cjs"
+      }
     },
     "./auth/delegated": {
-      "import": { "types": "./dist/entry-auth-delegated.d.mts", "default": "./dist/entry-auth-delegated.mjs" },
-      "require": { "types": "./dist/entry-auth-delegated.d.cts", "default": "./dist/entry-auth-delegated.cjs" }
+      "import": {
+        "types": "./dist/entry-auth-delegated.d.mts",
+        "default": "./dist/entry-auth-delegated.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-auth-delegated.d.cts",
+        "default": "./dist/entry-auth-delegated.cjs"
+      }
     },
     "./authorization/none": {
-      "import": { "types": "./dist/entry-authorization-none.d.mts", "default": "./dist/entry-authorization-none.mjs" },
-      "require": { "types": "./dist/entry-authorization-none.d.cts", "default": "./dist/entry-authorization-none.cjs" }
+      "import": {
+        "types": "./dist/entry-authorization-none.d.mts",
+        "default": "./dist/entry-authorization-none.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-authorization-none.d.cts",
+        "default": "./dist/entry-authorization-none.cjs"
+      }
     },
     "./authorization/roles": {
-      "import": { "types": "./dist/entry-authorization-roles.d.mts", "default": "./dist/entry-authorization-roles.mjs" },
-      "require": { "types": "./dist/entry-authorization-roles.d.cts", "default": "./dist/entry-authorization-roles.cjs" }
+      "import": {
+        "types": "./dist/entry-authorization-roles.d.mts",
+        "default": "./dist/entry-authorization-roles.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-authorization-roles.d.cts",
+        "default": "./dist/entry-authorization-roles.cjs"
+      }
     },
     "./authorization/delegated": {
-      "import": { "types": "./dist/entry-authorization-delegated.d.mts", "default": "./dist/entry-authorization-delegated.mjs" },
-      "require": { "types": "./dist/entry-authorization-delegated.d.cts", "default": "./dist/entry-authorization-delegated.cjs" }
+      "import": {
+        "types": "./dist/entry-authorization-delegated.d.mts",
+        "default": "./dist/entry-authorization-delegated.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-authorization-delegated.d.cts",
+        "default": "./dist/entry-authorization-delegated.cjs"
+      }
     },
     "./elysia": {
-      "import": { "types": "./dist/entry-elysia.d.mts", "default": "./dist/entry-elysia.mjs" },
-      "require": { "types": "./dist/entry-elysia.d.cts", "default": "./dist/entry-elysia.cjs" }
+      "import": {
+        "types": "./dist/entry-elysia.d.mts",
+        "default": "./dist/entry-elysia.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-elysia.d.cts",
+        "default": "./dist/entry-elysia.cjs"
+      }
     },
     "./hono": {
-      "import": { "types": "./dist/entry-hono.d.mts", "default": "./dist/entry-hono.mjs" },
-      "require": { "types": "./dist/entry-hono.d.cts", "default": "./dist/entry-hono.cjs" }
+      "import": {
+        "types": "./dist/entry-hono.d.mts",
+        "default": "./dist/entry-hono.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-hono.d.cts",
+        "default": "./dist/entry-hono.cjs"
+      }
     },
     "./bun": {
-      "import": { "types": "./dist/entry-bun.d.mts", "default": "./dist/entry-bun.mjs" },
-      "require": { "types": "./dist/entry-bun.d.cts", "default": "./dist/entry-bun.cjs" }
+      "import": {
+        "types": "./dist/entry-bun.d.mts",
+        "default": "./dist/entry-bun.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-bun.d.cts",
+        "default": "./dist/entry-bun.cjs"
+      }
     },
     "./ui/*": "./dist/ui/*",
     "./package.json": "./package.json"
@@ -142,20 +263,6 @@
   "dependencies": {
     "valibot": "^1.0.0"
   },
-  "peerDependencies": {
-    "@openfeature/server-sdk": "^1.0.0",
-    "elysia": "^1.0.0 || ^2.0.0",
-    "hono": "^4.0.0",
-    "redis": "^4.0.0 || ^5.0.0",
-    "unstorage": "^1.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@openfeature/server-sdk": { "optional": true },
-    "elysia": { "optional": true },
-    "hono": { "optional": true },
-    "redis": { "optional": true },
-    "unstorage": { "optional": true }
-  },
   "devDependencies": {
     "@openfeature/server-sdk": "^1.16.0",
     "@playwright/test": "^1.49.0",
@@ -180,5 +287,32 @@
     "unstorage": "^1.13.0",
     "vite": "^6.0.0",
     "vite-plus": "^0.1.22"
+  },
+  "peerDependencies": {
+    "@openfeature/server-sdk": "^1.0.0",
+    "elysia": "^1.0.0 || ^2.0.0",
+    "hono": "^4.0.0",
+    "redis": "^4.0.0 || ^5.0.0",
+    "unstorage": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@openfeature/server-sdk": {
+      "optional": true
+    },
+    "elysia": {
+      "optional": true
+    },
+    "hono": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    },
+    "unstorage": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

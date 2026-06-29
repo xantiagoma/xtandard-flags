@@ -1,0 +1,34 @@
+# Standalone @xtandard/flags admin panel backed by Redis.
+#
+#   docker compose up --build
+#   open http://localhost:3000
+#
+# Generate a password hash for AUTH_PASSWORD_HASH with:
+#   bunx @xtandard/flags ...  (or) node -e "import('@xtandard/flags/auth/basic').then(m=>m.hashPassword('secret').then(console.log))"
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--notify-keyspace-events", "KEA"]
+
+  flags:
+    build:
+      context: ../..
+      dockerfile: apps/standalone/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      TITLE: "Acme Flags"
+      SOURCE_STORAGE_DRIVER: redis
+      RUNTIME_STORAGE_DRIVER: redis
+      REDIS_URL: redis://redis:6379
+      SOURCE_PREFIX: "xtandard:flags:source"
+      RUNTIME_PREFIX: "xtandard:flags:runtime"
+      AUTH_MODE: basic
+      AUTH_USERNAME: admin
+      # Replace with a real scrypt hash (scrypt$<saltHex>$<hashHex>); plaintext AUTH_PASSWORD works for dev only.
+      AUTH_PASSWORD: changeme
+    depends_on:
+      - redis

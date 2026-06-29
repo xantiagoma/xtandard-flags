@@ -31,7 +31,13 @@ export function createTestPanel(
 /** Build a boolean flag (variants `on`/`off`). */
 export function booleanFlag(
   key: string,
-  config: { enabled?: boolean; default?: boolean; fallthrough?: Serve; rules?: Flag["rules"]; overrides?: Flag["overrides"] } = {},
+  config: {
+    enabled?: boolean;
+    default?: boolean;
+    fallthrough?: Serve;
+    rules?: Flag["rules"];
+    overrides?: Flag["overrides"];
+  } = {},
 ): Flag {
   const def = config.default ?? false;
   return {

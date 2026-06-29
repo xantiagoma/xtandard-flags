@@ -48,7 +48,10 @@ interface RedisLike {
   del(key: string): Promise<unknown>;
   scanIterator(options?: { MATCH?: string; COUNT?: number }): AsyncIterable<string | string[]>;
   duplicate(): RedisLike;
-  pSubscribe(pattern: string, listener: (message: string, channel: string) => void): Promise<unknown>;
+  pSubscribe(
+    pattern: string,
+    listener: (message: string, channel: string) => void,
+  ): Promise<unknown>;
   disconnect(): Promise<unknown>;
 }
 

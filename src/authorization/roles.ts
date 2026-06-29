@@ -13,11 +13,7 @@
  * @module
  */
 
-import type {
-  AuthorizationProvider,
-  AuthorizeInput,
-  FlagsAction,
-} from "./contract.ts";
+import type { AuthorizationProvider, AuthorizeInput, FlagsAction } from "./contract.ts";
 import { isMutatingAction } from "./contract.ts";
 
 /** Every action in the system, used to expand non-wildcard "all actions" presets. */
@@ -41,9 +37,7 @@ export const ALL_ACTIONS: readonly FlagsAction[] = [
 ];
 
 /** Every read-only action (the `*:read` subset of {@link ALL_ACTIONS}). */
-export const READ_ACTIONS: readonly FlagsAction[] = ALL_ACTIONS.filter((a) =>
-  a.endsWith(":read"),
-);
+export const READ_ACTIONS: readonly FlagsAction[] = ALL_ACTIONS.filter((a) => a.endsWith(":read"));
 
 /** A role policy: each role maps to an explicit action list or the `"*"` wildcard. */
 export type RolePolicy = Record<string, FlagsAction[] | "*">;
@@ -102,9 +96,7 @@ export interface RolesAuthorizationOptions {
  * });
  * ```
  */
-export function rolesAuthorization(
-  options: RolesAuthorizationOptions = {},
-): AuthorizationProvider {
+export function rolesAuthorization(options: RolesAuthorizationOptions = {}): AuthorizationProvider {
   const policy = options.policy ?? DEFAULT_ROLE_POLICY;
   const readonly = options.readonly ?? false;
 

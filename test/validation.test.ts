@@ -14,7 +14,9 @@ describe("validateFlag", () => {
   });
 
   test("rejects value/type mismatch", () => {
-    const r = validateFlag(booleanFlag({ variants: { on: { value: "yes" }, off: { value: false } } }));
+    const r = validateFlag(
+      booleanFlag({ variants: { on: { value: "yes" }, off: { value: false } } }),
+    );
     expect(r.valid).toBe(false);
     expect(r.errors.some((e) => e.message.includes("flag type"))).toBe(true);
   });

@@ -27,6 +27,7 @@ export default defineConfig({
       "src/snapshot.ts",
       "src/openfeature.ts",
       "src/testing.ts",
+      "src/cli.ts",
       "src/entry-storage-memory.ts",
       "src/entry-storage-file.ts",
       "src/entry-storage-redis.ts",

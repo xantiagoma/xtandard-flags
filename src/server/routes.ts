@@ -12,12 +12,7 @@ import type {
   FlagsAction,
   FlagsResource,
 } from "../authorization/contract.ts";
-import {
-  FlagValidationError,
-  NotFoundError,
-  ReadonlyError,
-  type FlagsCore,
-} from "../core.ts";
+import { FlagValidationError, NotFoundError, ReadonlyError, type FlagsCore } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
 import type { Draft, Flag } from "../schema.ts";
 
@@ -88,7 +83,9 @@ export async function handleApiRequest(
       basePath: ctx.basePath,
       readonly: ctx.readonly,
       authenticated: principal !== null,
-      principal: principal ? { id: principal.id, email: principal.email, name: principal.name, roles: principal.roles } : null,
+      principal: principal
+        ? { id: principal.id, email: principal.email, name: principal.name, roles: principal.roles }
+        : null,
       defaultProjectKey: ctx.core.options.defaultProjectKey,
       defaultEnvironmentKey: ctx.core.options.defaultEnvironmentKey,
     });
@@ -99,7 +96,10 @@ export async function handleApiRequest(
     return challenge ?? error(401, "Unauthorized");
   }
 
-  const authorize = async (action: FlagsAction, resource: FlagsResource): Promise<Response | null> => {
+  const authorize = async (
+    action: FlagsAction,
+    resource: FlagsResource,
+  ): Promise<Response | null> => {
     const ok = await ctx.authorization.authorize({ principal, action, resource, request });
     return ok ? null : error(403, "Forbidden", { action });
   };
@@ -116,7 +116,10 @@ export async function handleApiRequest(
       }
       if (method === "POST") {
         const input = await body<{ key: string; name?: string }>();
-        const denied = await authorize("project:create", { type: "project", projectKey: input.key });
+        const denied = await authorize("project:create", {
+          type: "project",
+          projectKey: input.key,
+        });
         if (denied) return denied;
         return json(await ctx.core.createProject(input), 201);
       }
@@ -126,7 +129,10 @@ export async function handleApiRequest(
     if (m) {
       const { projectKey } = m.params;
       if (method === "GET") {
-        const denied = await authorize("environment:read", { type: "project", projectKey: projectKey! });
+        const denied = await authorize("environment:read", {
+          type: "project",
+          projectKey: projectKey!,
+        });
         if (denied) return denied;
         return json(await ctx.core.listEnvironments(projectKey!));
       }
@@ -190,7 +196,9 @@ export async function handleApiRequest(
         const flag = await body<Flag>();
         const denied = await authorize("flag:update", resource);
         if (denied) return denied;
-        return json(await ctx.core.upsertFlag({ ...flag, key: flagKey! }, projectKey, environmentKey));
+        return json(
+          await ctx.core.upsertFlag({ ...flag, key: flagKey! }, projectKey, environmentKey),
+        );
       }
       if (method === "DELETE") {
         const denied = await authorize("flag:delete", resource);
@@ -218,7 +226,13 @@ export async function handleApiRequest(
         const draft = await body<Draft>();
         const denied = await authorize("flag:update", resource);
         if (denied) return denied;
-        return json(await ctx.core.replaceDraft({ ...draft, projectKey: projectKey!, environmentKey: environmentKey! }));
+        return json(
+          await ctx.core.replaceDraft({
+            ...draft,
+            projectKey: projectKey!,
+            environmentKey: environmentKey!,
+          }),
+        );
       }
     }
 
@@ -274,7 +288,7 @@ export async function handleApiRequest(
         environmentKey: environmentKey!,
       });
       if (denied) return denied;
-      const versions = await ctx.core.listSnapshots(projectKey, environmentKey);
+      const versions = await ctx.core.listSnapshotSummaries(projectKey, environmentKey);
       const active = await ctx.core.getActiveVersion(projectKey, environmentKey);
       return json({ versions, active });
     }

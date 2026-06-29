@@ -8,7 +8,7 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 - **Task:** Build core, storage, OpenFeature provider, auth/authz, server/API, framework adapters. Fanned out 3 background subagents (storage, auth+authz, openfeature) against the stable contracts; built core+server+adapters myself.
 - **Result:** `vp pack` builds the full exports map (27 entries × ESM/CJS/DTS = 75 files). `tsc --noEmit` clean. `vp test` → 167 passed, 5 skipped (Redis-live, run when `REDIS_URL` set). publint clean except `./ui/*` (UI not built yet).
-- **Files:** src/{schema,keys,hash,evaluator,validation,snapshot,core,testing,index}.ts; src/storage/{contract,memory,file,unstorage,redis}.ts; src/auth/{contract,none,basic,delegated}.ts; src/authorization/{contract,none,roles,delegated}.ts; src/server/{base-path,routes,render-index-html,static-assets,create-fetch-handler}.ts; src/adapters/{bun,elysia,hono}.ts; all entry-*.ts; test/* (18 files).
+- **Files:** src/{schema,keys,hash,evaluator,validation,snapshot,core,testing,index}.ts; src/storage/{contract,memory,file,unstorage,redis}.ts; src/auth/{contract,none,basic,delegated}.ts; src/authorization/{contract,none,roles,delegated}.ts; src/server/{base-path,routes,render-index-html,static-assets,create-fetch-handler}.ts; src/adapters/{bun,elysia,hono}.ts; all entry-_.ts; test/_ (18 files).
 - **Discoveries:**
   - `vp pack` emits `dist/<basename>.{mjs,cjs,d.mts,d.cts}` for each pack entry + shared chunks. Flat `entry-*.ts` naming maps cleanly to the exports map.
   - murmur3 impl verified against Bun's `Bun.hash.murmur32v3` oracle — exact match.

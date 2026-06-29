@@ -130,12 +130,18 @@ function checkServe(
     let positive = 0;
     serve.split.forEach((leg, i) => {
       if (!variantKeys.has(leg.variant)) {
-        errors.push({ path: `${path}.split[${i}].variant`, message: `unknown variant "${leg.variant}"` });
+        errors.push({
+          path: `${path}.split[${i}].variant`,
+          message: `unknown variant "${leg.variant}"`,
+        });
       }
       if (leg.weight > 0) positive++;
     });
     if (positive === 0) {
-      errors.push({ path: `${path}.split`, message: "at least one split leg must have a positive weight" });
+      errors.push({
+        path: `${path}.split`,
+        message: "at least one split leg must have a positive weight",
+      });
     }
   } else if (!variantKeys.has(serve.variant)) {
     errors.push({ path: `${path}.variant`, message: `unknown variant "${serve.variant}"` });
@@ -160,7 +166,10 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
   const variantKeys = new Set(Object.keys(flag.variants));
 
   if (variantKeys.size === 0) {
-    errors.push({ path: `${basePath}.variants`, message: "a flag must define at least one variant" });
+    errors.push({
+      path: `${basePath}.variants`,
+      message: "a flag must define at least one variant",
+    });
   }
   if (!variantKeys.has(flag.defaultVariant)) {
     errors.push({
@@ -178,7 +187,10 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
   }
   (flag.overrides ?? []).forEach((o, i) => {
     if (!variantKeys.has(o.variant)) {
-      errors.push({ path: `${basePath}.overrides[${i}].variant`, message: `unknown variant "${o.variant}"` });
+      errors.push({
+        path: `${basePath}.overrides[${i}].variant`,
+        message: `unknown variant "${o.variant}"`,
+      });
     }
   });
   (flag.rules ?? []).forEach((rule, i) => {
@@ -194,7 +206,10 @@ export function validateDraft(draft: Draft): ValidationResult {
   const errors: ValidationError[] = [];
   for (const [key, flag] of Object.entries(draft.flags)) {
     if (flag.key !== key) {
-      errors.push({ path: `flags.${key}.key`, message: `flag key "${flag.key}" does not match its map key "${key}"` });
+      errors.push({
+        path: `flags.${key}.key`,
+        message: `flag key "${flag.key}" does not match its map key "${key}"`,
+      });
     }
     const result = validateFlag(flag, `flags.${key}`);
     errors.push(...result.errors);
@@ -212,7 +227,9 @@ export function assertValidDraft(draft: Draft): void {
 export class DraftValidationError extends Error {
   readonly errors: ValidationError[];
   constructor(errors: ValidationError[]) {
-    super(`Draft validation failed:\n${errors.map((e) => `  - ${e.path}: ${e.message}`).join("\n")}`);
+    super(
+      `Draft validation failed:\n${errors.map((e) => `  - ${e.path}: ${e.message}`).join("\n")}`,
+    );
     this.name = "DraftValidationError";
     this.errors = errors;
   }

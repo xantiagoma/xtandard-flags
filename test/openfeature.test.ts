@@ -1,6 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
 import { createOpenFeatureProvider, toOpenFeatureReason } from "../src/openfeature.ts";
-import type { Snapshot } from "../src/schema.ts";
 import { SnapshotStore } from "../src/snapshot.ts";
 import type { FlagsStorage } from "../src/storage/contract.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
@@ -108,7 +107,10 @@ describe("createOpenFeatureProvider — error semantics", () => {
   });
 
   test("no snapshot at all (empty storage) → caller default with reason DEFAULT", async () => {
-    const provider = createOpenFeatureProvider({ storage: createMemoryStorage(), refreshIntervalMs: 0 });
+    const provider = createOpenFeatureProvider({
+      storage: createMemoryStorage(),
+      refreshIntervalMs: 0,
+    });
     await provider.initialize();
 
     const r = await provider.resolveStringEvaluation("theme", "fallback", {});
@@ -119,7 +121,10 @@ describe("createOpenFeatureProvider — error semantics", () => {
   });
 
   test("constructing and resolving without initialize() never throws (serves defaults)", async () => {
-    const provider = createOpenFeatureProvider({ storage: createMemoryStorage(), refreshIntervalMs: 0 });
+    const provider = createOpenFeatureProvider({
+      storage: createMemoryStorage(),
+      refreshIntervalMs: 0,
+    });
     const r = await provider.resolveBooleanEvaluation("anything", true, {});
     expect(r.value).toBe(true);
     expect(r.reason).toBe("DEFAULT");
@@ -154,7 +159,9 @@ describe("createOpenFeatureProvider — memory-first / failure resilience", () =
 
     // Resolve many times; storage must not be touched again.
     for (let i = 0; i < 50; i++) {
-      const r = await provider.resolveBooleanEvaluation("new-dashboard", true, { targetingKey: `u${i}` });
+      const r = await provider.resolveBooleanEvaluation("new-dashboard", true, {
+        targetingKey: `u${i}`,
+      });
       expect(r.value).toBe(false);
     }
     expect(getItemCalls + getKeysCalls).toBe(afterInit);
@@ -294,16 +301,25 @@ describe("createOpenFeatureProvider — splits & lifecycle", () => {
   test("deterministic split resolves consistently for the same targetingKey", async () => {
     const splitFlag = booleanFlag({
       key: "rollout",
-      fallthrough: { split: [{ variant: "on", weight: 50 }, { variant: "off", weight: 50 }] },
+      fallthrough: {
+        split: [
+          { variant: "on", weight: 50 },
+          { variant: "off", weight: 50 },
+        ],
+      },
     });
     const storage = await publish([splitFlag]);
     const provider = createOpenFeatureProvider({ storage, refreshIntervalMs: 0 });
     await provider.initialize();
 
-    const first = await provider.resolveBooleanEvaluation("rollout", false, { targetingKey: "stable-user" });
+    const first = await provider.resolveBooleanEvaluation("rollout", false, {
+      targetingKey: "stable-user",
+    });
     expect(first.reason).toBe("SPLIT");
     for (let i = 0; i < 20; i++) {
-      const r = await provider.resolveBooleanEvaluation("rollout", false, { targetingKey: "stable-user" });
+      const r = await provider.resolveBooleanEvaluation("rollout", false, {
+        targetingKey: "stable-user",
+      });
       expect(r.value).toBe(first.value);
       expect(r.variant).toBe(first.variant);
     }

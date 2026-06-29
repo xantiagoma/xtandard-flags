@@ -37,11 +37,12 @@ describe("hashToUnitInterval", () => {
   });
 
   test("is roughly uniform", () => {
-    const buckets = new Array(10).fill(0);
+    const buckets = Array.from({ length: 10 }, () => 0);
     const N = 50000;
     for (let i = 0; i < N; i++) {
       const u = hashToUnitInterval(`subject-${i}`);
-      buckets[Math.floor(u * 10)]++;
+      const idx = Math.floor(u * 10);
+      buckets[idx] = (buckets[idx] ?? 0) + 1;
     }
     for (const count of buckets) {
       // Each decile should hold ~10% ± 1.5%.

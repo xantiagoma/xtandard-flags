@@ -24,11 +24,7 @@
  * @module
  */
 
-import {
-  randomBytes,
-  scrypt as scryptCb,
-  timingSafeEqual,
-} from "node:crypto";
+import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import type { AuthProvider, Principal } from "./contract.ts";
 
 /** scrypt key length (bytes) used by {@link hashPassword}. */

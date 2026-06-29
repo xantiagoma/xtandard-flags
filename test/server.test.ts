@@ -5,8 +5,12 @@ import { rolesAuthorization } from "../src/authorization/roles.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
 import { booleanFlag, themeFlag } from "./fixtures.ts";
 
-const panel = (opts: Parameters<typeof createFetchHandler>[0] extends infer O ? Partial<O> : never = {}) =>
-  createFetchHandler({ sourceStorage: createMemoryStorage(), ...opts } as Parameters<typeof createFetchHandler>[0]);
+const panel = (
+  opts: Parameters<typeof createFetchHandler>[0] extends infer O ? Partial<O> : never = {},
+) =>
+  createFetchHandler({ sourceStorage: createMemoryStorage(), ...opts } as Parameters<
+    typeof createFetchHandler
+  >[0]);
 
 const req = (method: string, path: string, body?: unknown, headers: Record<string, string> = {}) =>
   new Request(`http://localhost${path}`, {
@@ -59,7 +63,9 @@ describe("server — flags CRUD & publish", () => {
     expect((await active.json()).flags.theme).toBeDefined();
 
     const snaps = await fetch(req("GET", `${base}/snapshots`));
-    expect(await snaps.json()).toMatchObject({ versions: ["v1"], active: "v1" });
+    const snapBody = await snaps.json();
+    expect(snapBody.active).toBe("v1");
+    expect(snapBody.versions[0]).toMatchObject({ version: "v1", message: "first" });
   });
 
   test("rollback re-points active version", async () => {
