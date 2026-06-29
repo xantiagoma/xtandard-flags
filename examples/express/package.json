@@ -1,0 +1,12 @@
+{
+  "name": "example-express",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@xtandard/flags": "^0.1.0",
+    "express": "^5.0.0"
+  }
+}

@@ -149,6 +149,26 @@
         "default": "./dist/entry-storage-unstorage.cjs"
       }
     },
+    "./storage/postgres": {
+      "import": {
+        "types": "./dist/entry-storage-postgres.d.mts",
+        "default": "./dist/entry-storage-postgres.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-postgres.d.cts",
+        "default": "./dist/entry-storage-postgres.cjs"
+      }
+    },
+    "./storage/mongodb": {
+      "import": {
+        "types": "./dist/entry-storage-mongodb.d.mts",
+        "default": "./dist/entry-storage-mongodb.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-mongodb.d.cts",
+        "default": "./dist/entry-storage-mongodb.cjs"
+      }
+    },
     "./auth/none": {
       "import": {
         "types": "./dist/entry-auth-none.d.mts",
@@ -239,6 +259,16 @@
         "default": "./dist/entry-bun.cjs"
       }
     },
+    "./express": {
+      "import": {
+        "types": "./dist/entry-express.d.mts",
+        "default": "./dist/entry-express.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-express.d.cts",
+        "default": "./dist/entry-express.cjs"
+      }
+    },
     "./ui/*": "./dist/ui/*",
     "./package.json": "./package.json"
   },
@@ -265,19 +295,25 @@
     "valibot": "^1.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.2.0",
     "@openfeature/server-sdk": "^1.16.0",
     "@playwright/test": "^1.49.0",
     "@tailwindcss/vite": "^4.0.0",
     "@tanstack/react-query": "^5.62.0",
     "@types/bun": "^1.1.14",
+    "@types/express": "^5.0.0",
+    "@types/pg": "^8.11.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.1.6",
     "changelogen": "^0.6.2",
     "elysia": "^1.2.0",
+    "express": "^5.0.0",
     "hono": "^4.6.0",
     "husky": "^9.1.7",
+    "mongodb": "^6.10.0",
+    "pg": "^8.13.0",
     "playwright": "^1.49.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -292,7 +328,10 @@
   "peerDependencies": {
     "@openfeature/server-sdk": "^1.0.0",
     "elysia": "^1.0.0 || ^2.0.0",
+    "express": "^4.0.0 || ^5.0.0",
     "hono": "^4.0.0",
+    "mongodb": "^5.0.0 || ^6.0.0",
+    "pg": "^8.0.0",
     "redis": "^4.0.0 || ^5.0.0",
     "unstorage": "^1.0.0"
   },
@@ -303,7 +342,16 @@
     "elysia": {
       "optional": true
     },
+    "express": {
+      "optional": true
+    },
     "hono": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    },
+    "pg": {
       "optional": true
     },
     "redis": {
