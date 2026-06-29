@@ -333,6 +333,31 @@ export async function handleApiRequest(
       return json(await ctx.core.listAudit(projectKey, environmentKey));
     }
 
+    // --- Evaluate (test targeting against a context) ---
+    m = match(`${base}/evaluate`, path);
+    if (m && method === "POST") {
+      const { projectKey, environmentKey } = m.params;
+      const denied = await authorize("flag:read", {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      });
+      if (denied) return denied;
+      const input = await body<{
+        context?: Record<string, unknown>;
+        flagKey?: string;
+        source?: "draft" | "active";
+      }>();
+      const results = await ctx.core.evaluate({
+        context: input.context ?? {},
+        flagKey: input.flagKey,
+        source: input.source,
+        projectKey,
+        environmentKey,
+      });
+      return json({ results });
+    }
+
     return error(404, "Not found");
   } catch (err) {
     return mapError(err);

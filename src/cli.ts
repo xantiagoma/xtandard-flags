@@ -107,6 +107,8 @@ Commands:
   publish [--message <m>]    Compile the draft into a new snapshot and activate it.
   rollback <version>         Re-point the active version to an existing snapshot.
   inspect [--version <v>]    Print the active (or given) snapshot's flags.
+  eval [--key <k>] [--context '<json>'] [--source draft|active]
+                             Test how flags resolve for an evaluation context.
 
 Options:
   --project <key>            Project key (default: $PROJECT or "default").
@@ -183,6 +185,30 @@ export async function run(argv: string[]): Promise<number> {
         const core = await makeCore(flags);
         const snapshot = await core.rollback({ version });
         process.stdout.write(`Rolled back to ${snapshot.version}.\n`);
+        return 0;
+      }
+      case "eval": {
+        const core = await makeCore(flags);
+        let context: Record<string, unknown> = {};
+        if (typeof flags.context === "string") {
+          try {
+            context = JSON.parse(flags.context) as Record<string, unknown>;
+          } catch {
+            process.stderr.write("Invalid --context JSON.\n");
+            return 1;
+          }
+        }
+        const source = flags.source === "active" ? "active" : "draft";
+        const results = await core.evaluate({
+          context,
+          flagKey: typeof flags.key === "string" ? flags.key : undefined,
+          source,
+        });
+        for (const r of results) {
+          process.stdout.write(
+            `${r.key} = ${JSON.stringify(r.value)}  [${r.reason}${r.variant ? ` · ${r.variant}` : ""}]\n`,
+          );
+        }
         return 0;
       }
       case "inspect": {

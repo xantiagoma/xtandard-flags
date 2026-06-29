@@ -18,12 +18,36 @@ import type {
   AuditEntry,
   Draft,
   EnvironmentMeta,
+  EvaluationContext,
   Flag,
+  FlagValue,
   ProjectMeta,
   Snapshot,
 } from "./schema.ts";
+import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
+import { evaluateFlag } from "./evaluator.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 import { assertValidDraft, validateFlag } from "./validation.ts";
+
+/** One flag's outcome from {@link FlagsCore.evaluate}. */
+export interface FlagEvaluationResult {
+  key: string;
+  value: FlagValue | undefined;
+  variant: string | undefined;
+  reason: EvaluationReason;
+  errorCode?: FlagErrorCode;
+}
+
+/** Input to {@link FlagsCore.evaluate}. */
+export interface EvaluateInput {
+  context: EvaluationContext;
+  /** Limit to a single flag; omit to evaluate all flags. */
+  flagKey?: string;
+  /** Evaluate the working `draft` (default — test before publishing) or the `active` snapshot. */
+  source?: "draft" | "active";
+  projectKey?: string;
+  environmentKey?: string;
+}
 
 /** Options for {@link createFlagsCore}. */
 export interface FlagsCoreOptions {
@@ -113,6 +137,9 @@ export interface FlagsCore {
   getActiveSnapshot(projectKey?: string, environmentKey?: string): Promise<Snapshot | null>;
   getActiveVersion(projectKey?: string, environmentKey?: string): Promise<string | null>;
   listAudit(projectKey?: string, environmentKey?: string): Promise<AuditEntry[]>;
+
+  /** Evaluate flags against a context (test targeting) using the draft or active snapshot. */
+  evaluate(input: EvaluateInput): Promise<FlagEvaluationResult[]>;
 }
 
 /** Construct the admin core over the configured storage. */
@@ -369,6 +396,33 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
 
     listAudit(projectKey, environmentKey) {
       return source.listAudit(pk(projectKey), ek(environmentKey));
+    },
+
+    async evaluate(input) {
+      const p = pk(input.projectKey);
+      const e = ek(input.environmentKey);
+      let flags: Record<string, Flag>;
+      if (input.source === "active") {
+        const snap = await source.getActiveSnapshot(p, e);
+        flags = snap?.flags ?? {};
+      } else {
+        flags = (await loadDraft(p, e)).flags;
+      }
+      const entries = input.flagKey
+        ? flags[input.flagKey]
+          ? [[input.flagKey, flags[input.flagKey]] as const]
+          : []
+        : Object.entries(flags);
+      return entries.map(([key, flag]) => {
+        const r = evaluateFlag(flag!, input.context);
+        return {
+          key,
+          value: r.value,
+          variant: r.variant,
+          reason: r.reason,
+          errorCode: r.errorCode,
+        };
+      });
     },
   };
 }

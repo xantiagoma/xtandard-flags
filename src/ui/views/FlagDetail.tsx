@@ -15,6 +15,7 @@ import type { Flag, FlagType, Rule, Condition, Serve, Variant } from "../types.t
 import { FlagsApiError } from "../types.ts";
 import { createFlag, updateFlag } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
+import { TestTargeting } from "../components/TestTargeting.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import {
   ToggleSwitch,
@@ -895,6 +896,16 @@ export function FlagDetail({
             />
           </div>
         </SectionCard>
+
+        {!isCreate && (
+          <SectionCard title="Test targeting" subtitle="See how this flag resolves for a context.">
+            <TestTargeting
+              flagKey={form.key}
+              projectKey={projectKey}
+              environmentKey={environmentKey}
+            />
+          </SectionCard>
+        )}
 
         {apiErrors.length > 0 && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">

@@ -134,6 +134,27 @@ export function getDraft(projectKey: string, environmentKey: string): Promise<un
   return req<unknown>(`${envBase(projectKey, environmentKey)}/draft`);
 }
 
+export interface EvaluationResult {
+  key: string;
+  value: unknown;
+  variant?: string;
+  reason: string;
+  errorCode?: string;
+}
+
+/** Test how flags resolve for a given evaluation context (against the saved draft). */
+export function evaluate(
+  projectKey: string,
+  environmentKey: string,
+  context: Record<string, unknown>,
+  opts: { flagKey?: string; source?: "draft" | "active" } = {},
+): Promise<{ results: EvaluationResult[] }> {
+  return req<{ results: EvaluationResult[] }>(`${envBase(projectKey, environmentKey)}/evaluate`, {
+    method: "POST",
+    body: JSON.stringify({ context, ...opts }),
+  });
+}
+
 export function listProjects(): Promise<{ key: string; name?: string }[]> {
   return req<{ key: string; name?: string }[]>("api/projects");
 }
