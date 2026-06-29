@@ -37,6 +37,7 @@ export type {
   EvaluationReason,
   Flag,
   FlagErrorCode,
+  FlagOwner,
   FlagType,
   FlagValue,
   JsonValue,

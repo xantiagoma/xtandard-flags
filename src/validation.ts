@@ -77,6 +77,12 @@ const variantSchema = v.object({
   description: v.optional(v.string()),
 });
 
+const ownerSchema = v.object({
+  name: v.pipe(v.string(), v.minLength(1)),
+  email: v.optional(v.string()),
+  team: v.optional(v.string()),
+});
+
 const flagTypeSchema = v.picklist(["boolean", "string", "number", "json"]);
 
 /** Structural schema for a {@link Flag}. Semantic checks run separately. */
@@ -92,6 +98,7 @@ export const flagSchema = v.object({
   fallthrough: serveSchema,
   salt: v.optional(v.string()),
   tags: v.optional(v.array(v.string())),
+  owner: v.optional(ownerSchema),
   archivedAt: v.optional(v.nullable(v.string())),
   createdAt: v.optional(v.string()),
   updatedAt: v.optional(v.string()),

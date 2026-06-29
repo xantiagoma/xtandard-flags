@@ -134,7 +134,10 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
         return (
           f.key.toLowerCase().includes(q) ||
           (f.description ?? "").toLowerCase().includes(q) ||
-          (f.tags ?? []).some((t) => t.toLowerCase().includes(q))
+          (f.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
+          (f.owner?.name ?? "").toLowerCase().includes(q) ||
+          (f.owner?.team ?? "").toLowerCase().includes(q) ||
+          (f.owner?.email ?? "").toLowerCase().includes(q)
         );
       })
     : visible;
@@ -317,6 +320,12 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                         </div>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">
                           {valueSummary(flag)}
+                          {flag.owner?.name && (
+                            <span className="ml-1 text-muted-foreground/60">
+                              · {flag.owner.name}
+                              {flag.owner.team ? ` (${flag.owner.team})` : ""}
+                            </span>
+                          )}
                           {flag.description && (
                             <span className="ml-1 text-muted-foreground/60">
                               · {flag.description}

@@ -40,6 +40,12 @@ export interface Rule {
   serve: Serve;
 }
 
+export interface FlagOwner {
+  name: string;
+  email?: string;
+  team?: string;
+}
+
 export interface Flag {
   key: string;
   type: FlagType;
@@ -52,6 +58,7 @@ export interface Flag {
   fallthrough: Serve;
   salt?: string;
   tags?: string[];
+  owner?: FlagOwner;
   archivedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;

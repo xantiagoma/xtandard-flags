@@ -97,6 +97,16 @@ export interface Override {
   variant: string;
 }
 
+/** Who owns/maintains a flag — organizational metadata, never consulted by the evaluator. */
+export interface FlagOwner {
+  /** Owner name or handle. */
+  name: string;
+  /** Optional contact email. */
+  email?: string;
+  /** Optional owning team. */
+  team?: string;
+}
+
 /**
  * A feature flag definition. This is the unit edited in drafts and frozen into
  * snapshots.
@@ -148,6 +158,8 @@ export interface Flag {
   salt?: string;
   /** Free-form organizational labels (e.g. "beta", "checkout", "permanent"). */
   tags?: string[];
+  /** Who owns/maintains this flag (name, optional email/team). */
+  owner?: FlagOwner;
   /**
    * ISO-8601 timestamp marking the flag as archived, or `null`/absent if active.
    * Archived flags are **excluded from compiled snapshots** (see {@link ./snapshot.compileDraft}),

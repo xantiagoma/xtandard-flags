@@ -97,6 +97,15 @@ const schemas = {
     required: ["targetingKey", "variant"],
     properties: { targetingKey: { type: "string" }, variant: { type: "string" } },
   },
+  FlagOwner: {
+    type: "object",
+    required: ["name"],
+    properties: {
+      name: { type: "string" },
+      email: { type: "string" },
+      team: { type: "string" },
+    },
+  },
   Flag: {
     type: "object",
     required: ["key", "type", "enabled", "defaultVariant", "variants", "fallthrough"],
@@ -112,6 +121,7 @@ const schemas = {
       fallthrough: { $ref: "#/components/schemas/Serve" },
       salt: { type: "string" },
       tags: { type: "array", items: { type: "string" } },
+      owner: { $ref: "#/components/schemas/FlagOwner" },
       archivedAt: {
         type: "string",
         nullable: true,

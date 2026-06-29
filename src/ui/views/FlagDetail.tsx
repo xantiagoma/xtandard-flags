@@ -11,7 +11,7 @@ import {
   ArrowDown,
   Percent,
 } from "lucide-react";
-import type { Flag, FlagType, Rule, Condition, Serve, Variant } from "../types.ts";
+import type { Flag, FlagOwner, FlagType, Rule, Condition, Serve, Variant } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
 import { createFlag, updateFlag } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
@@ -98,6 +98,24 @@ function emptyFlag(): Flag {
     overrides: [],
     fallthrough: { variant: "off" },
   };
+}
+
+/**
+ * Merge a single owner field, returning `undefined` when the result has no name
+ * (the schema requires `name`, so a nameless owner is dropped rather than sent).
+ */
+function patchOwner(
+  owner: FlagOwner | undefined,
+  field: keyof FlagOwner,
+  value: string,
+): FlagOwner | undefined {
+  const next = { ...owner, [field]: value };
+  const name = (next.name ?? "").trim();
+  if (!name) return undefined;
+  const result: FlagOwner = { name };
+  if (next.email?.trim()) result.email = next.email.trim();
+  if (next.team?.trim()) result.team = next.team.trim();
+  return result;
 }
 
 function newRule(): Rule {
@@ -636,6 +654,31 @@ export function FlagDetail({
                     const raw = e.target.value;
                     patch("expectedLifetimeDays", raw === "" ? undefined : Number(raw));
                   }}
+                />
+              </Field>
+              <Field label="Owner" hint="Who maintains this flag.">
+                <TextInput
+                  value={form.owner?.name ?? ""}
+                  placeholder="Name or handle"
+                  disabled={readonly}
+                  onChange={(e) => patch("owner", patchOwner(form.owner, "name", e.target.value))}
+                />
+              </Field>
+              <Field label="Owner email">
+                <TextInput
+                  type="email"
+                  value={form.owner?.email ?? ""}
+                  placeholder="owner@example.com"
+                  disabled={readonly}
+                  onChange={(e) => patch("owner", patchOwner(form.owner, "email", e.target.value))}
+                />
+              </Field>
+              <Field label="Team">
+                <TextInput
+                  value={form.owner?.team ?? ""}
+                  placeholder="e.g. Growth"
+                  disabled={readonly}
+                  onChange={(e) => patch("owner", patchOwner(form.owner, "team", e.target.value))}
                 />
               </Field>
               {isCreate && (
