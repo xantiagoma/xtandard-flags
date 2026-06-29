@@ -4,6 +4,20 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — /loop: more adapters & storage backends (feature-complete on named scope)
+
+- **Task:** Per /loop — Express adapter; Postgres, MongoDB storage; document unstorage's driver ecosystem (Upstash etc.). Fanned out Postgres + MongoDB subagents; built Express myself.
+- **Added:**
+  - `@xtandard/flags/express` — Node req/res ↔ web Request/Response bridge (4 tests).
+  - `@xtandard/flags/storage/postgres` — `createPostgresStorage` over a `key text / value jsonb` table; any `{query}` client (pg Pool OR PGlite). 16 tests via PGlite.
+  - `@xtandard/flags/storage/mongodb` — `createMongoStorage` over `{_id,value}`. 15 tests live (Mongo 7).
+  - unstorage adapter already bridges Upstash / Vercel KV / Cloudflare KV / S3 / GitHub / Netlify — documented + storage-drivers example.
+  - Standalone app + CLI gained `postgres`/`mongodb` drivers (source/runtime isolated by table/collection). Verified end-to-end (standalone CRUD+publish on both; CLI persisting to a real Postgres table, rows confirmed via psql).
+  - CI: mongo:7 + postgres:16 service containers → live suites run on GitHub (CI green).
+  - Examples now runnable in-repo via `file:../..`; express + storage-drivers added.
+- **Bugs caught while testing:** (1) the CLI bin runs `dist/cli.mjs` — must rebuild after editing `src/cli.ts` or the postgres/mongo cases silently fall back to file storage. (2) postgres-docker accepts connections during initdb then restarts — wait for the _second_ "ready to accept connections".
+- **State:** 208 tests (live mongo) + 16 pglite + redis/postgres live in CI · tsc/lint clean · build + publint green · CI + Docker workflows green on GitHub.
+
 ## 2026-06-29 — Playwright UI e2e + create-flow bug fix + pushed to GitHub
 
 - **Task (continuation):** Real browser e2e suite (spec §17.6) and push the repo.

@@ -34,7 +34,7 @@ everything official is just an implementation of a public contract you can repla
 ```bash
 bun add @xtandard/flags
 # optional integrations (peer deps), install what you use:
-bun add redis unstorage @openfeature/server-sdk elysia hono
+bun add redis unstorage pg mongodb @openfeature/server-sdk elysia hono express
 ```
 
 ## The two planes

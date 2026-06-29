@@ -93,3 +93,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
 
 Later / v1 non-goals: postgres adapter, `/react` component export, experiment analytics,
 Playwright UI suite in CI, hosted SaaS.
+
+## Post-MVP additions (done)
+
+- [x] Express adapter (`@xtandard/flags/express`) + example
+- [x] Postgres storage (`@xtandard/flags/storage/postgres`, pg + PGlite) + standalone/CLI driver + CI live
+- [x] MongoDB storage (`@xtandard/flags/storage/mongodb`) + standalone/CLI driver + CI live
+- [x] unstorage driver ecosystem documented (Upstash, Vercel KV, Cloudflare KV, S3, GitHub, Netlify Blobs)
+- [x] storage-drivers example; examples runnable via file:../.. against local checkout
+- [x] CI: mongo + postgres service containers
