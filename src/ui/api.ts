@@ -1,8 +1,18 @@
 import type { Flag, FlagsConfig, SnapshotListResponse, AuditEntry, ApiError } from "./types.ts";
 import { FlagsApiError } from "./types.ts";
 
+// Base prepended to every request path. Empty by default so the bundled SPA uses
+// relative URLs (resolved against the injected <base href>). The React component
+// export sets this to the panel's mount URL via setApiBase().
+let apiBase = "";
+
+/** Point the API client at a base URL (used by the `@xtandard/flags/react` export). */
+export function setApiBase(base: string): void {
+  apiBase = base.replace(/\/$/, "");
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiBase ? `${apiBase}/${path}` : path, {
     credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",

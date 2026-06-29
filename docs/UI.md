@@ -106,3 +106,24 @@ If the `dist/ui` directory is absent (e.g., the library was installed but `bun r
 - Makes clear that the JSON API at `api/` is fully available.
 
 This lets the API and CLI work without the UI being built.
+
+## Advanced: embed as a React component (`@xtandard/flags/react`)
+
+Most consumers mount the bundled SPA via a framework adapter and never install
+React. For teams that want the dashboard inside an existing React app:
+
+```tsx
+import { FlagsDashboard } from "@xtandard/flags/react";
+import "@xtandard/flags/react/styles.css";
+
+// Point it at wherever the panel API (+ /config) is mounted:
+export default function FlagsPage() {
+  return <FlagsDashboard apiBaseUrl="/flags" />;
+}
+```
+
+`react` and `react-dom` are (optional) peer dependencies in this mode; TanStack
+Query and styles are bundled. The component ships as `dist/react.js` + a single
+`dist/react.css`. See [`examples/react-embed`](../examples/react-embed) for a
+working host app (Vite dev proxy → standalone panel). The system/light/dark
+switcher is included; pass `theme="inherit"` to manage the theme yourself.

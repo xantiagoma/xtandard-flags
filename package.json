@@ -279,6 +279,13 @@
         "default": "./dist/entry-express.cjs"
       }
     },
+    "./react": {
+      "import": {
+        "types": "./dist/types-react/react.d.ts",
+        "default": "./dist/react.js"
+      }
+    },
+    "./react/styles.css": "./dist/react.css",
     "./ui/*": "./dist/ui/*",
     "./package.json": "./package.json"
   },
@@ -286,7 +293,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun run build:lib && bun run build:ui",
+    "build": "bun run build:lib && bun run build:ui && bun run build:react",
     "build:lib": "vp pack",
     "build:ui": "vite build --config vite.ui.config.ts",
     "dev:ui": "vite --config vite.ui.config.ts",
@@ -300,7 +307,8 @@
     "typecheck": "tsc --noEmit",
     "check": "vp lint && vp fmt --check && tsc --noEmit",
     "prepare": "husky || true",
-    "test:bun": "bun test ./test/*.bun.test.ts"
+    "test:bun": "bun test ./test/*.bun.test.ts",
+    "build:react": "vite build --config vite.react.config.ts && tsc -p tsconfig.react.json"
   },
   "dependencies": {
     "valibot": "^1.0.0"
@@ -349,7 +357,9 @@
     "mongodb": "^5.0.0 || ^6.0.0",
     "pg": "^8.0.0",
     "redis": "^4.0.0 || ^5.0.0",
-    "unstorage": "^1.0.0"
+    "unstorage": "^1.0.0",
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
     "@openfeature/server-sdk": {
@@ -374,6 +384,12 @@
       "optional": true
     },
     "unstorage": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   },
