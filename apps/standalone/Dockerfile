@@ -20,7 +20,7 @@ ENV PORT=3000
 COPY --from=build /app/src ./src
 COPY --from=build /app/dist/ui ./dist/ui
 COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./tsconfig.json ./
+COPY --from=build /app/package.json /app/tsconfig.json ./
 COPY --from=build /app/apps/standalone ./apps/standalone
 
 EXPOSE 3000
