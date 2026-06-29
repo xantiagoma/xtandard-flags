@@ -45,7 +45,9 @@ const jsonValueSchema: v.GenericSchema<unknown> = v.lazy(() =>
 );
 
 const conditionSchema = v.object({
-  attribute: v.pipe(v.string(), v.minLength(1)),
+  // `inSegment` conditions carry no attribute; the non-empty check is enforced
+  // semantically per-operator in {@link checkConditions}.
+  attribute: v.string(),
   operator: conditionOperatorSchema,
   value: v.optional(jsonValueSchema),
 });
@@ -140,14 +142,21 @@ function valueMatchesType(value: unknown, type: FlagType): boolean {
   }
 }
 
-/** `inSegment` conditions must carry a non-empty string segment key. */
+/**
+ * Per-operator condition checks: `inSegment` needs a non-empty segment key (and
+ * no attribute); every other operator needs a non-empty `attribute`.
+ */
 function checkConditions(conditions: Condition[], path: string, errors: ValidationError[]): void {
   conditions.forEach((c, i) => {
-    if (c.operator === "inSegment" && (typeof c.value !== "string" || c.value.length === 0)) {
-      errors.push({
-        path: `${path}[${i}].value`,
-        message: "inSegment requires a non-empty segment key",
-      });
+    if (c.operator === "inSegment") {
+      if (typeof c.value !== "string" || c.value.length === 0) {
+        errors.push({
+          path: `${path}[${i}].value`,
+          message: "inSegment requires a non-empty segment key",
+        });
+      }
+    } else if (c.attribute.length === 0) {
+      errors.push({ path: `${path}[${i}].attribute`, message: "attribute is required" });
     }
   });
 }

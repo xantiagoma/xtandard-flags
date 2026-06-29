@@ -8,13 +8,14 @@ import { useToast } from "./components/Toast.tsx";
 import { Button } from "./components/ui-bits.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { FlagsView } from "./views/FlagsView.tsx";
+import { SegmentsView } from "./views/SegmentsView.tsx";
 import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
 import { cn } from "./lib/utils.ts";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { TextInput } from "./components/primitives.tsx";
 
-type View = "flags" | "snapshots" | "audit";
+type View = "flags" | "segments" | "snapshots" | "audit";
 
 declare global {
   interface Window {
@@ -28,6 +29,7 @@ function getBootstrap(): Partial<FlagsConfig> {
 
 const NAV_TABS: { id: View; label: string }[] = [
   { id: "flags", label: "Flags" },
+  { id: "segments", label: "Segments" },
   { id: "snapshots", label: "Snapshots" },
   { id: "audit", label: "Audit" },
 ];
@@ -260,6 +262,13 @@ export function App() {
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
         {view === "flags" && (
           <FlagsView projectKey={projectKey} environmentKey={environmentKey} readonly={readonly} />
+        )}
+        {view === "segments" && (
+          <SegmentsView
+            projectKey={projectKey}
+            environmentKey={environmentKey}
+            readonly={readonly}
+          />
         )}
         {view === "snapshots" && (
           <SnapshotsView

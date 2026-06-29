@@ -1,4 +1,11 @@
-import type { Flag, FlagsConfig, SnapshotListResponse, AuditEntry, ApiError } from "./types.ts";
+import type {
+  Flag,
+  FlagsConfig,
+  Segment,
+  SnapshotListResponse,
+  AuditEntry,
+  ApiError,
+} from "./types.ts";
 import { FlagsApiError } from "./types.ts";
 
 // Base prepended to every request path. Empty by default so the bundled SPA uses
@@ -97,6 +104,47 @@ export function restoreFlag(
   return req<Flag>(
     `${envBase(projectKey, environmentKey)}/flags/${encodeURIComponent(key)}/restore`,
     { method: "POST" },
+  );
+}
+
+export function listSegments(projectKey: string, environmentKey: string): Promise<Segment[]> {
+  return req<Segment[]>(`${envBase(projectKey, environmentKey)}/segments`);
+}
+
+export function createSegment(
+  projectKey: string,
+  environmentKey: string,
+  segment: Segment,
+): Promise<Segment> {
+  return req<Segment>(`${envBase(projectKey, environmentKey)}/segments`, {
+    method: "POST",
+    body: JSON.stringify(segment),
+  });
+}
+
+export function updateSegment(
+  projectKey: string,
+  environmentKey: string,
+  key: string,
+  segment: Segment,
+): Promise<Segment> {
+  return req<Segment>(
+    `${envBase(projectKey, environmentKey)}/segments/${encodeURIComponent(key)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(segment),
+    },
+  );
+}
+
+export function deleteSegment(
+  projectKey: string,
+  environmentKey: string,
+  key: string,
+): Promise<{ ok: boolean }> {
+  return req<{ ok: boolean }>(
+    `${envBase(projectKey, environmentKey)}/segments/${encodeURIComponent(key)}`,
+    { method: "DELETE" },
   );
 }
 

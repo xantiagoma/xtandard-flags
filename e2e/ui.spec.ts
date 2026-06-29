@@ -72,6 +72,21 @@ test("rolls back to a previous snapshot", async ({ page }) => {
   await expect(page.getByRole("cell", { name: /v1\s+active/ })).toBeVisible();
 });
 
+test("creates a reusable segment through the builder", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Segments" }).click();
+  await page.getByRole("button", { name: /New segment/ }).click();
+
+  await page.getByPlaceholder("eu-beta-users").fill("e2e-eu");
+  // First condition row: attribute + value.
+  await page.getByPlaceholder("attribute").first().fill("country");
+  await page.getByPlaceholder("value").first().fill("FR");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  // Appears in the segment list.
+  await expect(page.getByText("e2e-eu")).toBeVisible();
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

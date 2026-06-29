@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
   Plus,
@@ -11,12 +11,13 @@ import {
   ArrowDown,
   Percent,
 } from "lucide-react";
-import type { Flag, FlagOwner, FlagType, Rule, Condition, Serve, Variant } from "../types.ts";
+import type { Flag, FlagOwner, FlagType, Rule, Serve, Variant } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
-import { createFlag, updateFlag } from "../api.ts";
+import { createFlag, updateFlag, listSegments } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
 import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
+import { ConditionRow } from "../components/ConditionRow.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import {
   ToggleSwitch,
@@ -44,29 +45,6 @@ const TYPE_BADGE: Record<FlagType, string> = {
 };
 
 const VARIANT_DOTS = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
-
-const OPERATORS: { value: string; label: string; noValue?: boolean }[] = [
-  { value: "equals", label: "equals" },
-  { value: "notEquals", label: "not equals" },
-  { value: "in", label: "in (comma-sep)" },
-  { value: "notIn", label: "not in (comma-sep)" },
-  { value: "contains", label: "contains" },
-  { value: "notContains", label: "not contains" },
-  { value: "startsWith", label: "starts with" },
-  { value: "endsWith", label: "ends with" },
-  { value: "greaterThan", label: ">" },
-  { value: "greaterThanOrEqual", label: ">=" },
-  { value: "lessThan", label: "<" },
-  { value: "lessThanOrEqual", label: "<=" },
-  { value: "semverEquals", label: "semver =" },
-  { value: "semverGreaterThan", label: "semver >" },
-  { value: "semverLessThan", label: "semver <" },
-  { value: "exists", label: "exists", noValue: true },
-  { value: "notExists", label: "not exists", noValue: true },
-];
-
-const NO_VALUE_OPS = new Set(["exists", "notExists"]);
-const COMMA_OPS = new Set(["in", "notIn"]);
 
 function defaultVariants(type: FlagType): Record<string, Variant> {
   switch (type) {
@@ -317,78 +295,11 @@ function ServeEditor({
   );
 }
 
-function ConditionRow({
-  condition,
-  onChange,
-  onRemove,
-  readonly,
-  isFirst,
-}: {
-  condition: Condition;
-  onChange: (c: Condition) => void;
-  onRemove: () => void;
-  readonly: boolean;
-  isFirst: boolean;
-}) {
-  const noValue = NO_VALUE_OPS.has(condition.operator);
-  const valueStr =
-    condition.value === undefined
-      ? ""
-      : Array.isArray(condition.value)
-        ? (condition.value as string[]).join(", ")
-        : String(condition.value);
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="w-8 shrink-0 text-xs font-medium uppercase text-muted-foreground">
-        {isFirst ? "If" : "And"}
-      </span>
-      <TextInput
-        placeholder="attribute"
-        value={condition.attribute}
-        disabled={readonly}
-        className="w-32 font-mono"
-        onChange={(e) => onChange({ ...condition, attribute: e.target.value })}
-      />
-      <Dropdown
-        value={condition.operator}
-        onValueChange={(op) => onChange({ ...condition, operator: op as Condition["operator"] })}
-        options={OPERATORS.map((o) => ({ value: o.value, label: o.label }))}
-        disabled={readonly}
-        className="w-36"
-      />
-      {!noValue ? (
-        <TextInput
-          placeholder={COMMA_OPS.has(condition.operator) ? "a, b, c" : "value"}
-          value={valueStr}
-          disabled={readonly}
-          className="w-36 font-mono"
-          onChange={(e) => {
-            const raw = e.target.value;
-            const v = COMMA_OPS.has(condition.operator) ? raw.split(",").map((s) => s.trim()) : raw;
-            onChange({ ...condition, value: v });
-          }}
-        />
-      ) : (
-        <div className="w-36" />
-      )}
-      {!readonly && (
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-muted-foreground hover:text-destructive"
-          aria-label="Remove condition"
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-      )}
-    </div>
-  );
-}
-
 function RuleCard({
   rule,
   index,
   variantKeys,
+  segmentKeys,
   readonly,
   onChange,
   onRemove,
@@ -400,6 +311,7 @@ function RuleCard({
   rule: Rule;
   index: number;
   variantKeys: string[];
+  segmentKeys: string[];
   readonly: boolean;
   onChange: (r: Rule) => void;
   onRemove: () => void;
@@ -459,6 +371,7 @@ function RuleCard({
               condition={cond}
               isFirst={ci === 0}
               readonly={readonly}
+              segmentKeys={segmentKeys}
               onChange={(updated) => {
                 const conditions = [...rule.conditions];
                 conditions[ci] = updated;
@@ -541,6 +454,13 @@ export function FlagDetail({
     setKeyError("");
     setApiErrors([]);
   }, [flag]);
+
+  const segmentsQuery = useQuery({
+    queryKey: ["segments", projectKey, environmentKey],
+    queryFn: () => listSegments(projectKey, environmentKey),
+    staleTime: 30_000,
+  });
+  const segmentKeys = (segmentsQuery.data ?? []).map((s) => s.key);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -843,6 +763,7 @@ export function FlagDetail({
                 rule={rule}
                 index={ri}
                 variantKeys={variantKeys}
+                segmentKeys={segmentKeys}
                 readonly={readonly}
                 canMoveUp={ri > 0}
                 canMoveDown={ri < (form.rules ?? []).length - 1}

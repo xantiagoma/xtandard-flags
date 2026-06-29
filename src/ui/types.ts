@@ -25,7 +25,8 @@ export type ConditionOperator =
   | "semverGreaterThan"
   | "semverLessThan"
   | "exists"
-  | "notExists";
+  | "notExists"
+  | "inSegment";
 
 export interface Condition {
   attribute: string;
@@ -44,6 +45,13 @@ export interface FlagOwner {
   name: string;
   email?: string;
   team?: string;
+}
+
+export interface Segment {
+  key: string;
+  name?: string;
+  description?: string;
+  conditions: Condition[];
 }
 
 export interface Flag {
