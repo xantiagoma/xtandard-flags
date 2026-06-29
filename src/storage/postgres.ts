@@ -74,6 +74,20 @@ const escapeLike = (literal: string): string => literal.replace(/[\\%_]/g, (c) =
  * lazily on first use; connection (when using `connectionString`/`url`) is also
  * lazy — the `pg` `Pool` is imported and constructed on the first operation and
  * reused thereafter.
+ *
+ * @example
+ * ```ts
+ * import { createPostgresStorage } from "@xtandard/flags/storage/postgres";
+ *
+ * // Via connection string (lazy `pg` Pool):
+ * const storage = createPostgresStorage({
+ *   connectionString: process.env.DATABASE_URL,
+ * });
+ *
+ * // Or with a pre-built pg Pool / PGlite client:
+ * // import { PGlite } from "@electric-sql/pglite";
+ * // const storage = createPostgresStorage({ client: new PGlite() });
+ * ```
  */
 export function createPostgresStorage(options: PostgresStorageOptions): PostgresFlagsStorage {
   const table = options.table ?? "xtandard_flags";

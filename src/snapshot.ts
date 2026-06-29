@@ -34,7 +34,20 @@ function freezeFlags(flags: Record<string, Flag>): Record<string, Flag> {
   return structuredClone(flags);
 }
 
-/** Compile a draft into an immutable snapshot. Does not persist anything. */
+/**
+ * Compile a draft into an immutable snapshot. Does not persist anything.
+ *
+ * @example
+ * ```ts
+ * import { compileDraft } from "@xtandard/flags";
+ *
+ * const snapshot = compileDraft(
+ *   { projectKey: "default", environmentKey: "production", flags: {} },
+ *   { version: "v1", createdBy: { id: "ci", name: "CI" } },
+ * );
+ * // snapshot.version === "v1"
+ * ```
+ */
 export function compileDraft(draft: Draft, options: CompileOptions): Snapshot {
   return {
     schemaVersion: SNAPSHOT_SCHEMA_VERSION,
@@ -47,7 +60,17 @@ export function compileDraft(draft: Draft, options: CompileOptions): Snapshot {
   };
 }
 
-/** Compute the next `v{n}` version given the set of existing version strings. */
+/**
+ * Compute the next `v{n}` version given the set of existing version strings.
+ *
+ * @example
+ * ```ts
+ * import { nextVersion } from "@xtandard/flags";
+ *
+ * nextVersion([]);           // → "v1"
+ * nextVersion(["v1", "v2"]); // → "v3"
+ * ```
+ */
 export function nextVersion(existing: string[]): string {
   let max = 0;
   for (const v of existing) {
@@ -63,6 +86,22 @@ export function nextVersion(existing: string[]): string {
 /**
  * Storage-backed snapshot operations. Constructed over any {@link FlagsStorage}.
  * The runtime provider uses only the read methods.
+ *
+ * @example
+ * ```ts
+ * import { SnapshotStore } from "@xtandard/flags";
+ * import { createMemoryStorage } from "@xtandard/flags/storage/memory";
+ *
+ * const storage = createMemoryStorage();
+ * const store = new SnapshotStore(storage);
+ *
+ * const draft = { projectKey: "default", environmentKey: "staging", flags: {} };
+ * const snapshot = await store.publish(draft, { createdBy: { id: "ci" } });
+ * // snapshot.version === "v1"
+ *
+ * const active = await store.getActiveSnapshot("default", "staging");
+ * // active?.version === "v1"
+ * ```
  */
 export class SnapshotStore {
   constructor(private readonly storage: FlagsStorage) {}

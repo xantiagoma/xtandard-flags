@@ -308,7 +308,8 @@
     "check": "vp lint && vp fmt --check && tsc --noEmit",
     "prepare": "husky || true",
     "test:bun": "bun test ./test/*.bun.test.ts",
-    "build:react": "vite build --config vite.react.config.ts && tsc -p tsconfig.react.json"
+    "build:react": "vite build --config vite.react.config.ts && tsc -p tsconfig.react.json",
+    "docs:api": "typedoc"
   },
   "dependencies": {
     "valibot": "^1.0.0"
@@ -344,6 +345,7 @@
     "tailwind-merge": "^3.6",
     "tailwindcss": "^4.0.0",
     "type-testing": "^0.2.0",
+    "typedoc": "^0.28.19",
     "typescript": "^5.7.0",
     "unstorage": "^1.13.0",
     "vite": "^6.0.0",

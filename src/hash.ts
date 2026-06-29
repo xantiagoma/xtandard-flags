@@ -13,6 +13,13 @@
  *
  * @param input - UTF-8 string to hash.
  * @param seed - Optional seed (default 0).
+ *
+ * @example
+ * ```ts
+ * import { murmur3 } from "@xtandard/flags";
+ *
+ * const h = murmur3("user-42"); // → deterministic uint32
+ * ```
  */
 export function murmur3(input: string, seed = 0): number {
   const data = new TextEncoder().encode(input);
@@ -64,6 +71,13 @@ export function murmur3(input: string, seed = 0): number {
 /**
  * Map a string deterministically onto the half-open unit interval `[0, 1)`.
  * Used to pick a bucket within a split's cumulative weight range.
+ *
+ * @example
+ * ```ts
+ * import { hashToUnitInterval } from "@xtandard/flags";
+ *
+ * const bucket = hashToUnitInterval("user-42"); // → e.g. 0.3141…  (always in [0, 1))
+ * ```
  */
 export function hashToUnitInterval(input: string, seed = 0): number {
   // Divide by 2^32 so the result is always < 1.

@@ -19,6 +19,15 @@ const clone = <T>(value: T): T => (value === undefined ? value : (structuredClon
 /**
  * Create an in-memory {@link FlagsStorage}. Also implements `watch` synchronously
  * (callbacks fire on the next microtask after a write/remove).
+ *
+ * @example
+ * ```ts
+ * import { createMemoryStorage } from "@xtandard/flags/storage/memory";
+ *
+ * const storage = createMemoryStorage();
+ * // Optionally seed with pre-existing data:
+ * // const storage = createMemoryStorage({ initial: { "my-key": { value: 1 } } });
+ * ```
  */
 export function createMemoryStorage(options: MemoryStorageOptions = {}): WatchableFlagsStorage {
   const map = new Map<string, unknown>();

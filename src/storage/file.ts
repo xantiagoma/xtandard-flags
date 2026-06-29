@@ -70,6 +70,13 @@ async function walk(root: string): Promise<string[]> {
  * pretty-printed JSON. `watch` is implemented via `fs.watch` on the base
  * directory (recursive); it is best-effort and may coalesce or miss events on
  * platforms without recursive-watch support.
+ *
+ * @example
+ * ```ts
+ * import { createFileStorage } from "@xtandard/flags/storage/file";
+ *
+ * const storage = createFileStorage({ dir: "./data/flags" });
+ * ```
  */
 export function createFileStorage(options: FileStorageOptions): WatchableFlagsStorage {
   const { dir } = options;

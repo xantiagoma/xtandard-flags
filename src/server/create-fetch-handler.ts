@@ -62,7 +62,24 @@ function defaultUiDir(): string {
   }
 }
 
-/** Build the panel fetch handler. */
+/**
+ * Build the panel fetch handler.
+ *
+ * @example
+ * ```ts
+ * import { createFetchHandler } from "@xtandard/flags";
+ * import { createFileStorage } from "@xtandard/flags/storage/file";
+ *
+ * const storage = createFileStorage({ dir: "./data/flags" });
+ * const { fetch, core } = createFetchHandler({
+ *   sourceStorage: storage,
+ *   basePath: "/flags",
+ *   title: "Acme Flags",
+ * });
+ *
+ * Bun.serve({ port: 3000, fetch });
+ * ```
+ */
 export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandlerResult {
   const basePath = normalizeBasePath(options.basePath);
   const readonly = options.readonly ?? false;

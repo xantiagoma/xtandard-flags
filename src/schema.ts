@@ -100,6 +100,34 @@ export interface Override {
 /**
  * A feature flag definition. This is the unit edited in drafts and frozen into
  * snapshots.
+ *
+ * @example
+ * ```ts
+ * // Boolean flag
+ * const darkMode: Flag = {
+ *   key: "dark-mode",
+ *   type: "boolean",
+ *   enabled: true,
+ *   defaultVariant: "off",
+ *   variants: { on: { value: true }, off: { value: false } },
+ *   fallthrough: { variant: "off" },
+ * };
+ *
+ * // String flag with targeting rule
+ * const theme: Flag = {
+ *   key: "ui-theme",
+ *   type: "string",
+ *   enabled: true,
+ *   defaultVariant: "default",
+ *   variants: { default: { value: "light" }, dark: { value: "dark" } },
+ *   fallthrough: { variant: "default" },
+ *   rules: [{
+ *     id: "rule-1",
+ *     conditions: [{ attribute: "plan", operator: "equals", value: "pro" }],
+ *     serve: { variant: "dark" },
+ *   }],
+ * };
+ * ```
  */
 export interface Flag {
   key: string;

@@ -66,6 +66,20 @@ interface RedisLike {
  * Create a Redis-backed {@link RedisFlagsStorage}. Connection is lazy: the client
  * is created/connected on the first storage operation and reused thereafter,
  * guarded by a single connection promise so concurrent calls connect once.
+ *
+ * @example
+ * ```ts
+ * import { createRedisStorage } from "@xtandard/flags/storage/redis";
+ *
+ * const storage = createRedisStorage({
+ *   url: process.env.REDIS_URL ?? "redis://localhost:6379",
+ *   prefix: "myapp:flags",
+ *   onError: (err) => console.error("[flags/redis]", err),
+ * });
+ *
+ * // Disconnect when the process exits:
+ * // process.on("SIGTERM", () => storage.close());
+ * ```
  */
 export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStorage {
   const { url, prefix } = options;

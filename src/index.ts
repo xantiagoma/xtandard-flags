@@ -5,6 +5,22 @@
  * admin/server factories. Storage/auth/authorization/adapter implementations
  * live behind their own subpath exports (e.g. `@xtandard/flags/storage/redis`).
  *
+ * @example
+ * ```ts
+ * import { createFetchHandler } from "@xtandard/flags";
+ * import { createRedisStorage } from "@xtandard/flags/storage/redis";
+ *
+ * const storage = createRedisStorage({ url: process.env.REDIS_URL, prefix: "flags" });
+ *
+ * const { fetch } = createFetchHandler({
+ *   sourceStorage: storage,
+ *   basePath: "/flags",
+ *   title: "My App Flags",
+ * });
+ *
+ * Bun.serve({ port: 3000, fetch });
+ * ```
+ *
  * @module
  */
 

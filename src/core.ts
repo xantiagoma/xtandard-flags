@@ -138,11 +138,47 @@ export interface FlagsCore {
   getActiveVersion(projectKey?: string, environmentKey?: string): Promise<string | null>;
   listAudit(projectKey?: string, environmentKey?: string): Promise<AuditEntry[]>;
 
-  /** Evaluate flags against a context (test targeting) using the draft or active snapshot. */
+  /**
+   * Evaluate flags against a context (test targeting) using the draft or active snapshot.
+   *
+   * @example
+   * ```ts
+   * const results = await core.evaluate({
+   *   context: { targetingKey: "user-123", plan: "pro" },
+   *   source: "draft",
+   * });
+   * for (const r of results) {
+   *   console.log(r.key, r.value, r.reason);
+   * }
+   * ```
+   */
   evaluate(input: EvaluateInput): Promise<FlagEvaluationResult[]>;
 }
 
-/** Construct the admin core over the configured storage. */
+/**
+ * Construct the admin core over the configured storage.
+ *
+ * @example
+ * ```ts
+ * import { createFlagsCore } from "@xtandard/flags";
+ * import { createMemoryStorage } from "@xtandard/flags/storage/memory";
+ *
+ * const storage = createMemoryStorage();
+ * const core = createFlagsCore({ sourceStorage: storage });
+ *
+ * await core.upsertFlag({
+ *   key: "dark-mode",
+ *   type: "boolean",
+ *   enabled: true,
+ *   defaultVariant: "off",
+ *   variants: { on: { value: true }, off: { value: false } },
+ *   fallthrough: { variant: "off" },
+ * });
+ *
+ * const snapshot = await core.publish({ message: "Enable dark-mode flag" });
+ * console.log(snapshot.version); // "v1"
+ * ```
+ */
 export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
   const sourceStorage = options.sourceStorage;
   const runtimeStorage = options.runtimeStorage ?? options.sourceStorage;

@@ -29,6 +29,17 @@ const fromUnstorageKey = (key: string): string => key.replace(/:/g, "/");
  * Create a {@link FlagsStorage} backed by an unstorage `Storage` instance.
  * unstorage auto-serializes/deserializes JSON values, so values round-trip
  * structurally; missing keys read back as `null`.
+ *
+ * @example
+ * ```ts
+ * import { createUnstorageStorage } from "@xtandard/flags/storage/unstorage";
+ * import { createStorage } from "unstorage";
+ * import fsDriver from "unstorage/drivers/fs";
+ *
+ * const storage = createUnstorageStorage({
+ *   storage: createStorage({ driver: fsDriver({ base: "./data/flags" }) }),
+ * });
+ * ```
  */
 export function createUnstorageStorage(options: UnstorageStorageOptions): FlagsStorage {
   const { storage } = options;

@@ -214,6 +214,7 @@ xtandard-flags inspect     # print the active snapshot
 - [OpenFeature](docs/OPENFEATURE.md) · [UI](docs/UI.md) · [Adapters](docs/ADAPTERS.md)
 - [Deployment](docs/DEPLOYMENT.md) · [Testing](docs/TESTING.md) · [Releases](docs/RELEASES.md)
 - ADRs in [docs/ADR](docs/ADR/)
+- **API reference** (TSDoc): `bun run docs:api` → generates `docs/api` (TypeDoc).
 
 ## Project status
 

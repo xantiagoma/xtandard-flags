@@ -18,7 +18,23 @@ export interface TestPanel {
   runtimeStorage: FlagsStorage;
 }
 
-/** Create an in-memory {@link FlagsCore} with separate source/runtime stores. */
+/**
+ * Create an in-memory {@link FlagsCore} with separate source/runtime stores.
+ *
+ * @example
+ * ```ts
+ * import { createTestPanel, booleanFlag, publishFlags } from "@xtandard/flags/testing";
+ *
+ * const { core } = createTestPanel();
+ * await publishFlags(core, [booleanFlag("my-feature", { default: true })]);
+ *
+ * const [result] = await core.evaluate({
+ *   context: { targetingKey: "user-1" },
+ *   source: "active",
+ * });
+ * console.log(result?.value); // true
+ * ```
+ */
 export function createTestPanel(
   options: { readonly?: boolean; sharedStorage?: boolean } = {},
 ): TestPanel {
@@ -28,7 +44,17 @@ export function createTestPanel(
   return { core, sourceStorage, runtimeStorage };
 }
 
-/** Build a boolean flag (variants `on`/`off`). */
+/**
+ * Build a boolean flag (variants `on`/`off`).
+ *
+ * @example
+ * ```ts
+ * import { booleanFlag } from "@xtandard/flags/testing";
+ *
+ * const flag = booleanFlag("dark-mode", { default: true });
+ * // flag.type === "boolean", flag.defaultVariant === "on"
+ * ```
+ */
 export function booleanFlag(
   key: string,
   config: {
@@ -52,7 +78,20 @@ export function booleanFlag(
   };
 }
 
-/** Build a string/number/json flag from a variant map. */
+/**
+ * Build a string/number/json flag from a variant map.
+ *
+ * @example
+ * ```ts
+ * import { variantFlag } from "@xtandard/flags/testing";
+ *
+ * const flag = variantFlag("checkout-layout", "string", {
+ *   variants: { control: "v1", treatment: "v2" },
+ *   default: "control",
+ * });
+ * // flag.type === "string", flag.defaultVariant === "control"
+ * ```
+ */
 export function variantFlag<T extends FlagBuildType>(
   key: string,
   type: T,
@@ -86,7 +125,21 @@ type FlagBuildValue<T extends FlagBuildType> = T extends "string"
     ? number
     : JsonValue;
 
-/** Upsert flags into the draft and publish a snapshot in one call. Returns the version. */
+/**
+ * Upsert flags into the draft and publish a snapshot in one call. Returns the version.
+ *
+ * @example
+ * ```ts
+ * import { createTestPanel, booleanFlag, publishFlags } from "@xtandard/flags/testing";
+ *
+ * const { core } = createTestPanel();
+ * const version = await publishFlags(core, [
+ *   booleanFlag("feature-a"),
+ *   booleanFlag("feature-b", { default: true }),
+ * ]);
+ * console.log(version); // "v1"
+ * ```
+ */
 export async function publishFlags(core: FlagsCore, flags: Flag[]): Promise<string> {
   for (const flag of flags) await core.upsertFlag(flag);
   const snapshot = await core.publish();

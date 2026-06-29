@@ -78,6 +78,20 @@ function escapeRegex(input: string): string {
  * client is created/connected on the first storage operation and reused
  * thereafter, guarded by a single connection promise so concurrent calls connect
  * once.
+ *
+ * @example
+ * ```ts
+ * import { createMongoStorage } from "@xtandard/flags/storage/mongodb";
+ *
+ * const storage = createMongoStorage({
+ *   url: process.env.MONGODB_URL ?? "mongodb://localhost:27017",
+ *   dbName: "myapp",
+ *   collectionName: "flags_kv",
+ * });
+ *
+ * // Disconnect when the process exits:
+ * // process.on("SIGTERM", () => storage.close());
+ * ```
  */
 export function createMongoStorage(options: MongoStorageOptions): MongoFlagsStorage {
   const { url, dbName = "xtandard_flags", collectionName = "flags_kv" } = options;

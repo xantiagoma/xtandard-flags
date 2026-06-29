@@ -43,7 +43,20 @@ export interface FlagEvaluation {
  */
 const BUCKETING_FALLBACK_ATTRS = ["userId", "organizationId", "email", "sessionId"] as const;
 
-/** Resolve the bucketing key for splits from the evaluation context. */
+/**
+ * Resolve the bucketing key for splits from the evaluation context.
+ *
+ * @example
+ * ```ts
+ * import { resolveBucketingKey } from "@xtandard/flags";
+ *
+ * const key = resolveBucketingKey({ targetingKey: "user-42" });
+ * // → "user-42"
+ *
+ * const fallback = resolveBucketingKey({ userId: "u99" });
+ * // → "u99"  (falls back to userId when targetingKey is absent)
+ * ```
+ */
 export function resolveBucketingKey(context: EvaluationContext): string | undefined {
   if (typeof context.targetingKey === "string" && context.targetingKey.length > 0) {
     return context.targetingKey;
@@ -126,7 +139,20 @@ export function compareSemver(a: unknown, b: unknown): number | undefined {
   return 0;
 }
 
-/** Evaluate a single condition operator against a context attribute value. */
+/**
+ * Evaluate a single condition operator against a context attribute value.
+ *
+ * @example
+ * ```ts
+ * import { evaluateCondition } from "@xtandard/flags";
+ *
+ * const matched = evaluateCondition(
+ *   { attribute: "plan", operator: "in", value: ["pro", "enterprise"] },
+ *   { plan: "pro" },
+ * );
+ * // → true
+ * ```
+ */
 export function evaluateCondition(condition: Condition, context: EvaluationContext): boolean {
   const actual = context[condition.attribute];
   const expected = condition.value;
@@ -204,6 +230,21 @@ export interface SplitInput {
  * Invariant: same `flagKey` + same `targetingKey` + same `salt` → same variant.
  * Non-positive weights are ignored. Weights need not sum to 100. Returns
  * `undefined` if no positive-weight leg exists.
+ *
+ * @example
+ * ```ts
+ * import { pickVariant } from "@xtandard/flags";
+ *
+ * const variant = pickVariant({
+ *   flagKey: "checkout-redesign",
+ *   targetingKey: "user-42",
+ *   split: [
+ *     { variant: "control", weight: 50 },
+ *     { variant: "treatment", weight: 50 },
+ *   ],
+ * });
+ * // → deterministic: "control" or "treatment" based on hash of user-42
+ * ```
  */
 export function pickVariant(input: SplitInput): string | undefined {
   const legs = input.split.filter((s) => s.weight > 0);
@@ -275,6 +316,23 @@ function resolveServe(
  * @returns A {@link FlagEvaluation}. `value` is `undefined` only when the flag
  * config is invalid (reason `ERROR`); the provider substitutes the caller's
  * default in that case.
+ *
+ * @example
+ * ```ts
+ * import { evaluateFlag } from "@xtandard/flags";
+ *
+ * const flag = {
+ *   key: "new-onboarding",
+ *   type: "boolean" as const,
+ *   enabled: true,
+ *   defaultVariant: "off",
+ *   variants: { on: { value: true }, off: { value: false } },
+ *   fallthrough: { variant: "off" },
+ * };
+ *
+ * const { value, variant, reason } = evaluateFlag(flag, { targetingKey: "user-1" });
+ * // value: false, variant: "off", reason: "STATIC"
+ * ```
  */
 export function evaluateFlag(flag: Flag, context: EvaluationContext): FlagEvaluation {
   // 1. Disabled → default variant value.

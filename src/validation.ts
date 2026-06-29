@@ -149,7 +149,24 @@ function checkServe(
   }
 }
 
-/** Validate a single flag: structure + semantic cross-field checks. */
+/**
+ * Validate a single flag: structure + semantic cross-field checks.
+ *
+ * @example
+ * ```ts
+ * import { validateFlag } from "@xtandard/flags";
+ *
+ * const result = validateFlag({
+ *   key: "dark-mode",
+ *   type: "boolean",
+ *   enabled: true,
+ *   defaultVariant: "off",
+ *   variants: { on: { value: true }, off: { value: false } },
+ *   fallthrough: { variant: "off" },
+ * });
+ * // result.valid === true, result.errors === []
+ * ```
+ */
 export function validateFlag(input: unknown, basePath = "flag"): ValidationResult {
   const parsed = v.safeParse(flagSchema, input);
   if (!parsed.success) {
@@ -202,7 +219,32 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
   return { valid: errors.length === 0, errors };
 }
 
-/** Validate every flag in a draft. Errors are prefixed with the flag key. */
+/**
+ * Validate every flag in a draft. Errors are prefixed with the flag key.
+ *
+ * @example
+ * ```ts
+ * import { validateDraft } from "@xtandard/flags";
+ *
+ * const result = validateDraft({
+ *   projectKey: "default",
+ *   environmentKey: "production",
+ *   flags: {
+ *     "dark-mode": {
+ *       key: "dark-mode",
+ *       type: "boolean",
+ *       enabled: true,
+ *       defaultVariant: "off",
+ *       variants: { on: { value: true }, off: { value: false } },
+ *       fallthrough: { variant: "off" },
+ *     },
+ *   },
+ * });
+ * if (!result.valid) {
+ *   for (const e of result.errors) console.error(e.path, e.message);
+ * }
+ * ```
+ */
 export function validateDraft(draft: Draft): ValidationResult {
   const errors: ValidationError[] = [];
   for (const [key, flag] of Object.entries(draft.flags)) {

@@ -31,3 +31,6 @@ examples/*/bun.lock
 # CLI/standalone file-storage dirs
 .flags
 data
+
+# generated API reference (run: bun run docs:api)
+docs/api

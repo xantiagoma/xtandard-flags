@@ -35,7 +35,20 @@ export interface SqliteFlagsStorage extends FlagsStorage {
 
 const escapeLike = (prefix: string): string => prefix.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-/** Create a SQLite-backed storage. Requires the Bun runtime (`bun:sqlite`). */
+/**
+ * Create a SQLite-backed storage. Requires the Bun runtime (`bun:sqlite`).
+ *
+ * @example
+ * ```ts
+ * import { createSqliteStorage } from "@xtandard/flags/storage/sqlite";
+ *
+ * // File-backed (persists across restarts):
+ * const storage = createSqliteStorage({ path: "./flags.sqlite" });
+ *
+ * // In-memory (reset each run, useful for tests):
+ * // const storage = createSqliteStorage({ path: ":memory:" });
+ * ```
+ */
 export function createSqliteStorage(options: SqliteStorageOptions = {}): SqliteFlagsStorage {
   const table = options.table ?? "xtandard_flags";
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(table)) {
