@@ -4,6 +4,14 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — Playwright UI e2e + create-flow bug fix + pushed to GitHub
+
+- **Task (continuation):** Real browser e2e suite (spec §17.6) and push the repo.
+- **Bug caught by e2e:** the "New flag" modal collected key/type but never passed them to `FlagEditor` (`seedFlag` computed but not wired) — the editor opened blank and **flags could not be created through the UI at all**. Manual screenshots missed it because I'd seeded flags via the API. Fixed by threading a `seed` prop into FlagEditor.
+- **Added:** `playwright.config.ts` (boots standalone server, memory storage) + `e2e/ui.spec.ts` (loads shell → create boolean flag via modal+editor → publish → verify snapshot in history). 3/3 pass. CI `browser-e2e` job added.
+- **Pushed** to `git@github.com:xantiagoma/xtandard-flags.git` (`main`). CI/Docker workflows will run on GitHub.
+- **State:** lint/tsc clean · unit+integration green · redis e2e green · UI e2e green · build green · publint clean.
+
 ## 2026-06-29 — P7–P10 complete + MVP done (178 tests, real-Redis e2e green)
 
 - **Task:** Bundled UI, standalone+Docker, CLI, docs, examples, CI, and the critical resilience e2e.
