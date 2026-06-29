@@ -10,6 +10,7 @@
       "devDependencies": {
         "@base-ui-components/react": "1.0.0-rc.0",
         "@electric-sql/pglite": "^0.2.0",
+        "@elysiajs/eden": "^1.4",
         "@openfeature/server-sdk": "^1.16.0",
         "@playwright/test": "^1.49.0",
         "@tailwindcss/vite": "^4.0.0",
@@ -24,7 +25,7 @@
         "changelogen": "^0.6.2",
         "class-variance-authority": "^0.7",
         "clsx": "^2.1",
-        "elysia": "^1.2.0",
+        "elysia": "^1.4",
         "express": "^5.0.0",
         "hono": "^4.6.0",
         "husky": "^9.1.7",
@@ -120,6 +121,8 @@
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
 
     "@electric-sql/pglite": ["@electric-sql/pglite@0.2.17", "", {}, "sha512-qEpKRT2oUaWDH6tjRxLHjdzMqRUGYDnGZlKrnL4dJ77JVMcP2Hpo3NYnOSPKdZdeec57B6QPprCUFg0picx5Pw=="],
+
+    "@elysiajs/eden": ["@elysiajs/eden@1.4.9", "", { "peerDependencies": { "elysia": ">=1.4.19" } }, "sha512-3CKVD4ycVjB8nCNssfmhnUuq3SzSHkUES3v5PNCFr9LxIrx39/HVRAZ8z2sLxrFqzUs48dCBZaxoZzJ5UUVHDA=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.12", "", { "os": "aix", "cpu": "ppc64" }, "sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA=="],
 

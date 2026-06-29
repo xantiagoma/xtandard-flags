@@ -226,3 +226,57 @@ app.listen(3000);
 
 The returned handler also carries `.core` for programmatic access to the admin
 operations (publish, rollback, etc.).
+
+## Typed Elysia plugin + Eden client (`flagsElysia`)
+
+`flagsPanel` mounts a web-standard handler — simplest, but opaque to Eden (the
+typed client can't see the routes). For a fully **typed Eden client**, use
+`flagsElysia`, which declares the admin routes on a typed Elysia plugin (handlers
+delegate to the same pipeline, so auth/validation/logic are reused):
+
+```ts
+import { Elysia } from "elysia";
+import { flagsElysia } from "@xtandard/flags/elysia";
+import { createRedisStorage } from "@xtandard/flags/storage/redis";
+
+const app = new Elysia()
+  .use(flagsElysia({ prefix: "/flags", sourceStorage: createRedisStorage({ url: process.env.REDIS_URL! }) }))
+  .listen(3000);
+
+export type App = typeof app;
+```
+
+```ts
+// client side — fully typed paths/methods/params:
+import { treaty } from "@elysiajs/eden";
+import type { App } from "./server";
+
+const client = treaty<App>("localhost:3000");
+
+await client.flags.config.get();
+const env = client.flags.api.projects({ projectKey: "default" }).environments({ environmentKey: "production" });
+await env.flags.get();
+await env.publish.post({ message: "ship it" });
+```
+
+## OpenAPI
+
+Every adapter exposes the admin API as an OpenAPI 3.1 document:
+
+```ts
+const panel = flagsPanel({ sourceStorage });   // or flagsElysia(...), hono, express
+panel.openapi();                                // → OpenAPI 3.1 object
+```
+
+It's also served at `{basePath}/api/openapi.json`. Merge it into your host app's
+docs — e.g. with Elysia's `@elysiajs/openapi` `references`, mirroring how
+better-auth integrates its schema:
+
+```ts
+import { openapi } from "@elysiajs/openapi";
+const flags = flagsElysia({ prefix: "/flags", sourceStorage });
+app.use(openapi({ references: flags.openapi() as never })).use(flags);
+```
+
+`buildOpenApiDocument({ basePath, title })` is also exported from `@xtandard/flags`
+for generating the spec without a running server.
