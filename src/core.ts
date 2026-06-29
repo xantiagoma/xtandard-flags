@@ -564,22 +564,33 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
         flags = (await loadDraft(p, e)).flags;
         segments = await loadSegments(p, e);
       }
-      const entries = input.flagKey
-        ? flags[input.flagKey]
-          ? [[input.flagKey, flags[input.flagKey]] as const]
-          : []
-        : Object.entries(flags);
-      return entries.map(([key, flag]) => {
-        let resolved = flag!;
-        if (segments) {
-          try {
-            resolved = inlineSegmentsInFlag(flag!, segments);
-          } catch {
-            // Dangling/cyclic segment ref in the draft → report as an error result.
-            return { key, value: undefined, variant: undefined, reason: "ERROR" as const };
-          }
+      // Build the resolved (segment-inlined) map once. Prerequisites resolve other
+      // flags, so the evaluator needs the whole map, not just the target flag.
+      const resolvedFlags: Record<string, Flag> = {};
+      const inlineFailed = new Set<string>();
+      for (const [key, flag] of Object.entries(flags)) {
+        if (!segments) {
+          resolvedFlags[key] = flag;
+          continue;
         }
-        const r = evaluateFlag(resolved, input.context);
+        try {
+          resolvedFlags[key] = inlineSegmentsInFlag(flag, segments);
+        } catch {
+          // Dangling/cyclic segment ref in the draft → report as an error result.
+          inlineFailed.add(key);
+        }
+      }
+
+      const keys = input.flagKey
+        ? input.flagKey in flags
+          ? [input.flagKey]
+          : []
+        : Object.keys(flags);
+      return keys.map((key) => {
+        if (inlineFailed.has(key)) {
+          return { key, value: undefined, variant: undefined, reason: "ERROR" as const };
+        }
+        const r = evaluateFlag(resolvedFlags[key]!, input.context, resolvedFlags);
         return {
           key,
           value: r.value,

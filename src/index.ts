@@ -42,6 +42,7 @@ export type {
   FlagValue,
   JsonValue,
   Override,
+  Prerequisite,
   ProjectMeta,
   Rule,
   Segment,
@@ -81,6 +82,7 @@ export {
   flagSchema,
   validateDraft,
   validateFlag,
+  validatePrerequisiteGraph,
   validateSegment,
 } from "./validation.ts";
 export type { ValidationError, ValidationResult } from "./validation.ts";

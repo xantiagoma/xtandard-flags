@@ -4,10 +4,14 @@
  * Implements the evaluation order from the spec:
  *
  * 1. Flag disabled        → default variant value (reason `DISABLED`)
- * 2. Exact overrides      → match on bucketing key (reason `STATIC`)
- * 3. Targeting rules      → first matching rule wins (reason `TARGETING_MATCH` / `SPLIT`)
- * 4. Fallthrough          → fixed variant or deterministic split (reason `STATIC` / `SPLIT`)
- * 5. Invalid config       → no value (reason `ERROR`)
+ * 2. Prerequisites unmet  → default variant value (reason `PREREQUISITE_FAILED`)
+ * 3. Exact overrides      → match on bucketing key (reason `STATIC`)
+ * 4. Targeting rules      → first matching rule wins (reason `TARGETING_MATCH` / `SPLIT`)
+ * 5. Fallthrough          → fixed variant or deterministic split (reason `STATIC` / `SPLIT`)
+ * 6. Invalid config       → no value (reason `ERROR`)
+ *
+ * Prerequisites re-evaluate other flags from a passed-in flag map; the dependency
+ * graph is validated acyclic at publish time.
  *
  * "Flag missing" (reason `FLAG_NOT_FOUND`) is handled one level up by the
  * provider, which holds the caller's default value.
@@ -338,7 +342,33 @@ function resolveServe(
  * // value: false, variant: "off", reason: "STATIC"
  * ```
  */
-export function evaluateFlag(flag: Flag, context: EvaluationContext): FlagEvaluation {
+export function evaluateFlag(
+  flag: Flag,
+  context: EvaluationContext,
+  allFlags?: Record<string, Flag>,
+): FlagEvaluation {
+  return evaluateFlagInternal(flag, context, allFlags ?? {}, new Set());
+}
+
+/** Serve the default variant because a prerequisite was not satisfied. */
+function prerequisiteFailed(flag: Flag): FlagEvaluation {
+  const value = variantValue(flag, flag.defaultVariant);
+  if (value === undefined) return error(`default variant "${flag.defaultVariant}" not found`);
+  return { value, variant: flag.defaultVariant, reason: "PREREQUISITE_FAILED" };
+}
+
+/**
+ * Core evaluation with prerequisite resolution. `allFlags` lets prerequisites be
+ * resolved by re-evaluating the depended-on flags against the same context;
+ * `chain` carries the in-progress flag keys for cycle detection (snapshots are
+ * validated acyclic at publish, this is a runtime backstop).
+ */
+function evaluateFlagInternal(
+  flag: Flag,
+  context: EvaluationContext,
+  allFlags: Record<string, Flag>,
+  chain: Set<string>,
+): FlagEvaluation {
   // 1. Disabled → default variant value.
   if (!flag.enabled) {
     const value = variantValue(flag, flag.defaultVariant);
@@ -346,7 +376,20 @@ export function evaluateFlag(flag: Flag, context: EvaluationContext): FlagEvalua
     return { value, variant: flag.defaultVariant, reason: "DISABLED" };
   }
 
-  // 2. Exact overrides on the bucketing key.
+  // 2. Prerequisites: every depended-on flag must resolve to its required variant.
+  if (flag.prerequisites && flag.prerequisites.length > 0) {
+    const nextChain = new Set(chain).add(flag.key);
+    for (const prereq of flag.prerequisites) {
+      // Self/cyclic reference, or a missing prerequisite flag → fail closed.
+      if (nextChain.has(prereq.flagKey)) return prerequisiteFailed(flag);
+      const prereqFlag = allFlags[prereq.flagKey];
+      if (!prereqFlag) return prerequisiteFailed(flag);
+      const result = evaluateFlagInternal(prereqFlag, context, allFlags, nextChain);
+      if (result.variant !== prereq.variant) return prerequisiteFailed(flag);
+    }
+  }
+
+  // 3. Exact overrides on the bucketing key.
   if (flag.overrides && flag.overrides.length > 0) {
     const bucketingKey = resolveBucketingKey(context);
     if (bucketingKey !== undefined) {
@@ -361,7 +404,7 @@ export function evaluateFlag(flag: Flag, context: EvaluationContext): FlagEvalua
     }
   }
 
-  // 3. Targeting rules in order; first match wins.
+  // 4. Targeting rules in order; first match wins.
   if (flag.rules && flag.rules.length > 0) {
     for (const rule of flag.rules) {
       if (matchesRule(rule.conditions, context)) {
@@ -370,6 +413,6 @@ export function evaluateFlag(flag: Flag, context: EvaluationContext): FlagEvalua
     }
   }
 
-  // 4. Fallthrough.
+  // 5. Fallthrough.
   return resolveServe(flag, flag.fallthrough, context, "STATIC");
 }

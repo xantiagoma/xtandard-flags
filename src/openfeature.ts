@@ -188,6 +188,10 @@ export function toOpenFeatureReason(reason: EvaluationReason): string {
       return OF_REASON.SPLIT;
     case "DISABLED":
       return OF_REASON.DISABLED;
+    case "PREREQUISITE_FAILED":
+      // Not an OpenFeature standard reason, but a valid free-form reason string
+      // (LaunchDarkly uses the same). Surfaced verbatim so callers can branch on it.
+      return "PREREQUISITE_FAILED";
     case "CACHED":
       return OF_REASON.CACHED;
     case "STALE":
@@ -417,8 +421,8 @@ export function createOpenFeatureProvider(
       };
     }
 
-    // 3. Evaluate.
-    const evaluation = evaluateFlag(flag, toInternalContext(context));
+    // 3. Evaluate. Pass the whole snapshot so prerequisites can be resolved.
+    const evaluation = evaluateFlag(flag, toInternalContext(context), snapshot.flags);
 
     // 3a. Evaluation error (or missing value) → caller default + ERROR.
     if (evaluation.reason === "ERROR" || evaluation.value === undefined) {

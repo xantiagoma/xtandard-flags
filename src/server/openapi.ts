@@ -98,6 +98,11 @@ const schemas = {
     required: ["targetingKey", "variant"],
     properties: { targetingKey: { type: "string" }, variant: { type: "string" } },
   },
+  Prerequisite: {
+    type: "object",
+    required: ["flagKey", "variant"],
+    properties: { flagKey: { type: "string" }, variant: { type: "string" } },
+  },
   FlagOwner: {
     type: "object",
     required: ["name"],
@@ -127,6 +132,7 @@ const schemas = {
       description: { type: "string" },
       defaultVariant: { type: "string" },
       variants: { type: "object", additionalProperties: { $ref: "#/components/schemas/Variant" } },
+      prerequisites: { type: "array", items: { $ref: "#/components/schemas/Prerequisite" } },
       overrides: { type: "array", items: { $ref: "#/components/schemas/Override" } },
       rules: { type: "array", items: { $ref: "#/components/schemas/Rule" } },
       fallthrough: { $ref: "#/components/schemas/Serve" },

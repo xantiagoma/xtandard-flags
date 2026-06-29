@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import type { Flag, FlagOwner, FlagType, Rule, Serve, Variant } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
-import { createFlag, updateFlag, listSegments } from "../api.ts";
+import { createFlag, updateFlag, listSegments, listFlags } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
 import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
@@ -415,6 +415,100 @@ function RuleCard({
   );
 }
 
+function PrerequisitesEditor({
+  prerequisites,
+  otherFlags,
+  readonly,
+  onChange,
+}: {
+  prerequisites: { flagKey: string; variant: string }[];
+  otherFlags: Flag[];
+  readonly: boolean;
+  onChange: (p: { flagKey: string; variant: string }[]) => void;
+}) {
+  const variantsOf = (flagKey: string) =>
+    Object.keys(otherFlags.find((f) => f.key === flagKey)?.variants ?? {});
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-card p-5">
+      {prerequisites.length === 0 && (
+        <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+          No prerequisites. This flag does not depend on any other flag.
+        </p>
+      )}
+      {prerequisites.map((p, i) => {
+        const variantKeys = variantsOf(p.flagKey);
+        return (
+          <div key={i} className="flex flex-wrap items-center gap-2">
+            <span className="w-20 shrink-0 text-xs font-medium uppercase text-muted-foreground">
+              Requires
+            </span>
+            <Dropdown
+              value={p.flagKey}
+              onValueChange={(flagKey) => {
+                const next = [...prerequisites];
+                // Reset the variant to the new flag's first variant.
+                const firstVariant = Object.keys(
+                  otherFlags.find((f) => f.key === flagKey)?.variants ?? {},
+                )[0];
+                next[i] = { flagKey, variant: firstVariant ?? "" };
+                onChange(next);
+              }}
+              options={otherFlags.map((f) => ({ value: f.key, label: f.key }))}
+              disabled={readonly}
+              className="w-52"
+            />
+            <span className="text-xs text-muted-foreground">is</span>
+            <Dropdown
+              value={p.variant}
+              onValueChange={(variant) => {
+                const next = [...prerequisites];
+                next[i] = { ...next[i]!, variant };
+                onChange(next);
+              }}
+              options={variantKeys.map((v) => ({ value: v, label: v }))}
+              disabled={readonly || variantKeys.length === 0}
+              className="w-40"
+            />
+            {!readonly && (
+              <button
+                type="button"
+                onClick={() => onChange(prerequisites.filter((_, j) => j !== i))}
+                className="text-muted-foreground hover:text-destructive"
+                aria-label="Remove prerequisite"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {!readonly && otherFlags.length > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          icon={<Plus className="size-3.5" />}
+          onClick={() => {
+            const first = otherFlags[0]!;
+            onChange([
+              ...prerequisites,
+              { flagKey: first.key, variant: Object.keys(first.variants)[0] ?? "" },
+            ]);
+          }}
+        >
+          Add prerequisite
+        </Button>
+      )}
+      {otherFlags.length === 0 && prerequisites.length === 0 && (
+        <p className="text-center text-xs text-muted-foreground">
+          Create another flag first to use it as a prerequisite.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function SectionCard({
   title,
   subtitle,
@@ -461,6 +555,14 @@ export function FlagDetail({
     staleTime: 30_000,
   });
   const segmentKeys = (segmentsQuery.data ?? []).map((s) => s.key);
+
+  const flagsQuery = useQuery({
+    queryKey: ["flags", projectKey, environmentKey],
+    queryFn: () => listFlags(projectKey, environmentKey),
+    staleTime: 30_000,
+  });
+  // Candidate prerequisite flags: active, not this flag.
+  const otherFlags = (flagsQuery.data ?? []).filter((f) => !f.archivedAt && f.key !== form.key);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -745,6 +847,18 @@ export function FlagDetail({
               className="w-full sm:w-64"
             />
           </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Prerequisites"
+          subtitle="Other flags that must resolve to a required variant for this flag to be live."
+        >
+          <PrerequisitesEditor
+            prerequisites={form.prerequisites ?? []}
+            otherFlags={otherFlags}
+            readonly={readonly}
+            onChange={(prerequisites) => patch("prerequisites", prerequisites)}
+          />
         </SectionCard>
 
         <SectionCard

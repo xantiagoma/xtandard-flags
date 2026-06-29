@@ -81,6 +81,11 @@ const overrideSchema = v.object({
   variant: v.pipe(v.string(), v.minLength(1)),
 });
 
+const prerequisiteSchema = v.object({
+  flagKey: v.pipe(v.string(), v.minLength(1)),
+  variant: v.pipe(v.string(), v.minLength(1)),
+});
+
 const variantSchema = v.object({
   value: jsonValueSchema,
   name: v.optional(v.string()),
@@ -103,6 +108,7 @@ export const flagSchema = v.object({
   description: v.optional(v.string()),
   defaultVariant: v.pipe(v.string(), v.minLength(1)),
   variants: v.record(v.string(), variantSchema),
+  prerequisites: v.optional(v.array(prerequisiteSchema)),
   overrides: v.optional(v.array(overrideSchema)),
   rules: v.optional(v.array(ruleSchema)),
   fallthrough: serveSchema,
@@ -298,7 +304,79 @@ export function validateDraft(draft: Draft): ValidationResult {
     const result = validateFlag(flag, `flags.${key}`);
     errors.push(...result.errors);
   }
+  errors.push(...validatePrerequisiteGraph(draft.flags));
   return { valid: errors.length === 0, errors };
+}
+
+/**
+ * Cross-flag prerequisite validation: every referenced flag/variant exists and
+ * the dependency graph is acyclic. Returns an empty array when sound.
+ *
+ * @example
+ * ```ts
+ * import { validatePrerequisiteGraph } from "@xtandard/flags";
+ *
+ * const errors = validatePrerequisiteGraph(draft.flags);
+ * if (errors.length) console.error(errors);
+ * ```
+ */
+export function validatePrerequisiteGraph(flags: Record<string, Flag>): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // 1. Dangling flag refs + missing required variants.
+  for (const [key, flag] of Object.entries(flags)) {
+    (flag.prerequisites ?? []).forEach((p, i) => {
+      const target = flags[p.flagKey];
+      if (!target) {
+        errors.push({
+          path: `flags.${key}.prerequisites[${i}].flagKey`,
+          message: `unknown prerequisite flag "${p.flagKey}"`,
+        });
+      } else if (!(p.variant in target.variants)) {
+        errors.push({
+          path: `flags.${key}.prerequisites[${i}].variant`,
+          message: `prerequisite flag "${p.flagKey}" has no variant "${p.variant}"`,
+        });
+      }
+    });
+  }
+
+  // 2. Cycle detection (DFS with a recursion stack). Report each cycle once.
+  const WHITE = 0;
+  const GRAY = 1;
+  const BLACK = 2;
+  const color = new Map<string, number>();
+  const reported = new Set<string>();
+
+  const visit = (key: string, stack: string[]): void => {
+    color.set(key, GRAY);
+    stack.push(key);
+    for (const prereq of flags[key]?.prerequisites ?? []) {
+      const next = prereq.flagKey;
+      if (!flags[next]) continue; // dangling handled above
+      const c = color.get(next) ?? WHITE;
+      if (c === GRAY) {
+        const cycle = [...stack.slice(stack.indexOf(next)), next].join(" → ");
+        if (!reported.has(cycle)) {
+          reported.add(cycle);
+          errors.push({
+            path: `flags.${key}.prerequisites`,
+            message: `cyclic prerequisite: ${cycle}`,
+          });
+        }
+      } else if (c === WHITE) {
+        visit(next, stack);
+      }
+    }
+    stack.pop();
+    color.set(key, BLACK);
+  };
+
+  for (const key of Object.keys(flags)) {
+    if ((color.get(key) ?? WHITE) === WHITE) visit(key, []);
+  }
+
+  return errors;
 }
 
 /**

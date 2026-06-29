@@ -61,6 +61,7 @@ export interface Flag {
   description?: string;
   defaultVariant: string;
   variants: Record<string, Variant>;
+  prerequisites?: { flagKey: string; variant: string }[];
   overrides?: { targetingKey: string; variant: string }[];
   rules?: Rule[];
   fallthrough: Serve;

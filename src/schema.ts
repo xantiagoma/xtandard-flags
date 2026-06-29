@@ -117,6 +117,19 @@ export interface Override {
   variant: string;
 }
 
+/**
+ * A dependency on another flag: this flag is only "live" when the prerequisite
+ * flag resolves to the required {@link variant} for the same context. Otherwise
+ * the dependent flag serves its default variant (reason `PREREQUISITE_FAILED`).
+ * The dependency graph is validated acyclic at publish time.
+ */
+export interface Prerequisite {
+  /** Key of the flag this one depends on. */
+  flagKey: string;
+  /** The variant the prerequisite flag must resolve to. */
+  variant: string;
+}
+
 /** Who owns/maintains a flag — organizational metadata, never consulted by the evaluator. */
 export interface FlagOwner {
   /** Owner name or handle. */
@@ -168,6 +181,11 @@ export interface Flag {
   /** Key into {@link variants}; served when disabled or when nothing else matches and no fallthrough applies. */
   defaultVariant: string;
   variants: Record<string, Variant>;
+  /**
+   * Other flags that must resolve to a required variant for this flag to be live.
+   * Checked right after the enabled gate, before overrides/rules. Acyclic.
+   */
+  prerequisites?: Prerequisite[];
   /** Exact targeting-key assignments, checked before rules. */
   overrides?: Override[];
   /** Ordered targeting rules; first match wins. */
@@ -278,6 +296,7 @@ export type EvaluationReason =
   | "TARGETING_MATCH"
   | "SPLIT"
   | "DISABLED"
+  | "PREREQUISITE_FAILED"
   | "CACHED"
   | "STALE"
   | "ERROR"
