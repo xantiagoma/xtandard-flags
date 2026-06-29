@@ -12,7 +12,7 @@ import { createFlagsCore, type FlagsCore } from "./core.ts";
 import { validateDraft } from "./validation.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 
-type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb";
+type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb" | "sqlite";
 
 const env = (key: string, fallback = ""): string => process.env[key] ?? fallback;
 
@@ -43,6 +43,13 @@ async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
         url: env("MONGO_URL", "mongodb://localhost:27017"),
         dbName: env("MONGO_DB", "xtandard_flags"),
         collectionName: env(`${role}_MONGO_COLLECTION`, `flags_${role.toLowerCase()}`),
+      });
+    }
+    case "sqlite": {
+      // Requires running the CLI under Bun (`bunx xtandard-flags …`).
+      const { createSqliteStorage } = await import("./storage/sqlite.ts");
+      return createSqliteStorage({
+        path: env(`${role}_SQLITE_PATH`, `./.flags/${role.toLowerCase()}.sqlite`),
       });
     }
     case "memory": {

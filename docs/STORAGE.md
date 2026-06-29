@@ -303,3 +303,20 @@ const storage = createUnstorageStorage({
 
 A common production pattern: GitHub/file as **source** storage (GitOps, reviewable)
 and Upstash/Redis as **runtime** storage (fast edge reads).
+
+## SQLite (`@xtandard/flags/storage/sqlite`) — Bun only
+
+Zero dependencies, backed by `bun:sqlite`. Great for single-node deployments and
+local persistence; for multi-node runtimes prefer Redis/Postgres. Requires the
+**Bun** runtime (the module is external to the bundle and only resolves under Bun).
+
+```ts
+import { createSqliteStorage } from "@xtandard/flags/storage/sqlite";
+
+const storage = createSqliteStorage({ path: "./flags.sqlite" }); // or ":memory:"
+// …or pass an existing bun:sqlite Database via { database }.
+```
+
+Stored in one table `key TEXT PRIMARY KEY, value TEXT` (auto-created). `table`
+defaults to `xtandard_flags`. Standalone/CLI driver: `SOURCE_STORAGE_DRIVER=sqlite`
+with `SOURCE_SQLITE_PATH` (run the standalone/CLI under Bun).

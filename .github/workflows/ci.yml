@@ -68,6 +68,9 @@ jobs:
       - name: Test (unit + integration, incl. live Redis)
         run: bun run test
 
+      - name: Test (bun:sqlite, native bun test)
+        run: bun run test:bun
+
       - name: Build library + UI
         run: bun run build
 

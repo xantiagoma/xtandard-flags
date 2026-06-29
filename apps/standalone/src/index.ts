@@ -21,6 +21,7 @@ import { createRedisStorage } from "../../../src/storage/redis.ts";
 import { createUnstorageStorage } from "../../../src/storage/unstorage.ts";
 import { createPostgresStorage } from "../../../src/storage/postgres.ts";
 import { createMongoStorage } from "../../../src/storage/mongodb.ts";
+import { createSqliteStorage } from "../../../src/storage/sqlite.ts";
 import type { AuthProvider, FlagsStorage } from "../../../src/index.ts";
 
 const env = (key: string, fallback = ""): string => process.env[key] ?? fallback;
@@ -30,7 +31,7 @@ const bool = (key: string, fallback = false): boolean => {
   return v === "1" || v.toLowerCase() === "true";
 };
 
-type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb";
+type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb" | "sqlite";
 
 async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
   const driver = (env(`${role}_STORAGE_DRIVER`, "memory") as Driver) || "memory";
@@ -41,6 +42,8 @@ async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
       return createRedisStorage({ url: env("REDIS_URL", "redis://localhost:6379"), prefix });
     case "file":
       return createFileStorage({ dir: env(`${role}_FILE_DIR`, `./data/${role_}`) });
+    case "sqlite":
+      return createSqliteStorage({ path: env(`${role}_SQLITE_PATH`, `./data/${role_}.sqlite`) });
     case "postgres":
       // Same DATABASE_URL for both roles; a separate table keeps them isolated.
       return createPostgresStorage({

@@ -169,6 +169,16 @@
         "default": "./dist/entry-storage-mongodb.cjs"
       }
     },
+    "./storage/sqlite": {
+      "import": {
+        "types": "./dist/entry-storage-sqlite.d.mts",
+        "default": "./dist/entry-storage-sqlite.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-sqlite.d.cts",
+        "default": "./dist/entry-storage-sqlite.cjs"
+      }
+    },
     "./auth/none": {
       "import": {
         "types": "./dist/entry-auth-none.d.mts",
@@ -289,7 +299,8 @@
     "format:check": "vp fmt --check",
     "typecheck": "tsc --noEmit",
     "check": "vp lint && vp fmt --check && tsc --noEmit",
-    "prepare": "husky || true"
+    "prepare": "husky || true",
+    "test:bun": "bun test ./test/*.bun.test.ts"
   },
   "dependencies": {
     "valibot": "^1.0.0"

@@ -3,7 +3,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   test: {
     include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
-    exclude: ["node_modules/**", "dist/**", "e2e/**"],
+    exclude: ["node_modules/**", "dist/**", "e2e/**", "test/**/*.bun.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
@@ -34,6 +34,7 @@ export default defineConfig({
       "src/entry-storage-unstorage.ts",
       "src/entry-storage-postgres.ts",
       "src/entry-storage-mongodb.ts",
+      "src/entry-storage-sqlite.ts",
       "src/entry-auth-none.ts",
       "src/entry-auth-basic.ts",
       "src/entry-auth-delegated.ts",
@@ -48,5 +49,7 @@ export default defineConfig({
     dts: true,
     format: ["esm", "cjs"],
     sourcemap: true,
+    // `bun:sqlite` only exists in the Bun runtime — never bundle/resolve it.
+    deps: { neverBundle: [/^bun:/] },
   },
 });
