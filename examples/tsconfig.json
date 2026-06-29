@@ -1,0 +1,27 @@
+{
+  // In-repo editor/typecheck support for the examples: maps the `@xtandard/flags/*`
+  // import strings to the local source so they resolve without `bun install` or a
+  // build. The examples still depend on the package via `file:../..` at runtime
+  // (`bun install` in an example links it); when copied out, install the published
+  // package and drop these paths.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "noEmit": true,
+    "types": ["bun"],
+    "paths": {
+      "@xtandard/flags": ["../src/index.ts"],
+      "@xtandard/flags/openfeature": ["../src/openfeature.ts"],
+      "@xtandard/flags/testing": ["../src/testing.ts"],
+      "@xtandard/flags/react": ["../src/react.tsx"],
+      "@xtandard/flags/elysia": ["../src/adapters/elysia.ts"],
+      "@xtandard/flags/hono": ["../src/adapters/hono.ts"],
+      "@xtandard/flags/bun": ["../src/adapters/bun.ts"],
+      "@xtandard/flags/express": ["../src/adapters/express.ts"],
+      "@xtandard/flags/storage/*": ["../src/storage/*"],
+      "@xtandard/flags/auth/*": ["../src/auth/*"],
+      "@xtandard/flags/authorization/*": ["../src/authorization/*"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}

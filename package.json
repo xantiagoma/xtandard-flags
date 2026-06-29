@@ -309,7 +309,8 @@
     "prepare": "husky || true",
     "test:bun": "bun test ./test/*.bun.test.ts",
     "build:react": "vite build --config vite.react.config.ts && tsc -p tsconfig.react.json",
-    "docs:api": "typedoc"
+    "docs:api": "typedoc",
+    "typecheck:examples": "tsc -p examples/tsconfig.json"
   },
   "dependencies": {
     "valibot": "^1.0.0"
