@@ -111,6 +111,14 @@ export interface FlagsCore {
   getFlag(flagKey: string, projectKey?: string, environmentKey?: string): Promise<Flag | null>;
   upsertFlag(flag: Flag, projectKey?: string, environmentKey?: string): Promise<Flag>;
   deleteFlag(flagKey: string, projectKey?: string, environmentKey?: string): Promise<void>;
+  /**
+   * Archive a flag: stamp {@link Flag.archivedAt} so it is excluded from the next
+   * compiled snapshot (leaves SDK payloads) while remaining in the draft for restore.
+   * Throws {@link NotFoundError} if the flag does not exist.
+   */
+  archiveFlag(flagKey: string, projectKey?: string, environmentKey?: string): Promise<Flag>;
+  /** Restore an archived flag by clearing {@link Flag.archivedAt}. */
+  restoreFlag(flagKey: string, projectKey?: string, environmentKey?: string): Promise<Flag>;
   replaceDraft(draft: Draft): Promise<Draft>;
 
   // Publish / rollback / history
@@ -316,6 +324,28 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       draft.flags[flag.key] = flag;
       await source.putDraft(draft);
       return flag;
+    },
+
+    async archiveFlag(flagKey, projectKey, environmentKey) {
+      guard("archive flags");
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      const draft = await loadDraft(p, e);
+      const flag = draft.flags[flagKey];
+      if (!flag) throw new NotFoundError(`flag "${flagKey}" not found`);
+      return this.upsertFlag({ ...flag, archivedAt: new Date().toISOString() }, p, e);
+    },
+
+    async restoreFlag(flagKey, projectKey, environmentKey) {
+      guard("restore flags");
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      const draft = await loadDraft(p, e);
+      const flag = draft.flags[flagKey];
+      if (!flag) throw new NotFoundError(`flag "${flagKey}" not found`);
+      const restored: Flag = { ...flag };
+      delete restored.archivedAt;
+      return this.upsertFlag(restored, p, e);
     },
 
     async deleteFlag(flagKey, projectKey, environmentKey) {

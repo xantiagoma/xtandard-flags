@@ -29,9 +29,18 @@ export interface CompileOptions {
   createdBy?: Actor | null;
 }
 
-/** Deep-clone flags so the compiled snapshot is decoupled from the live draft. */
+/**
+ * Deep-clone flags so the compiled snapshot is decoupled from the live draft.
+ * Archived flags ({@link Flag.archivedAt} set) are excluded so they leave SDK
+ * payloads and stop being evaluated — they remain in the draft for restore.
+ */
 function freezeFlags(flags: Record<string, Flag>): Record<string, Flag> {
-  return structuredClone(flags);
+  const live: Record<string, Flag> = {};
+  for (const [key, flag] of Object.entries(flags)) {
+    if (flag.archivedAt) continue;
+    live[key] = flag;
+  }
+  return structuredClone(live);
 }
 
 /**

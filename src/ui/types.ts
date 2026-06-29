@@ -52,6 +52,7 @@ export interface Flag {
   fallthrough: Serve;
   salt?: string;
   tags?: string[];
+  archivedAt?: string | null;
 }
 
 export interface FlagsConfig {

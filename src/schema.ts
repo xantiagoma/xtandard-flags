@@ -148,6 +148,13 @@ export interface Flag {
   salt?: string;
   /** Free-form organizational labels (e.g. "beta", "checkout", "permanent"). */
   tags?: string[];
+  /**
+   * ISO-8601 timestamp marking the flag as archived, or `null`/absent if active.
+   * Archived flags are **excluded from compiled snapshots** (see {@link ./snapshot.compileDraft}),
+   * so they leave SDK payloads and stop being evaluated — but they remain in the draft for
+   * history/restore. The evaluator never sees this field.
+   */
+  archivedAt?: string | null;
 }
 
 /** Identity captured on snapshot/audit records. */

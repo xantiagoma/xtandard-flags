@@ -101,6 +101,8 @@ export function flagsElysia(options: FlagsElysiaOptions) {
     .get(`${env}/flags/:flagKey`, pass, { params: flagParams })
     .put(`${env}/flags/:flagKey`, pass, { params: flagParams, body: t.Any() })
     .delete(`${env}/flags/:flagKey`, pass, { params: flagParams })
+    .post(`${env}/flags/:flagKey/archive`, pass, { params: flagParams })
+    .post(`${env}/flags/:flagKey/restore`, pass, { params: flagParams })
     .get(`${env}/draft`, pass, { params: envParams })
     .put(`${env}/draft`, pass, { params: envParams, body: t.Any() })
     .post(`${env}/publish`, pass, {

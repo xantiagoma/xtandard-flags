@@ -78,6 +78,28 @@ export function deleteFlag(
   );
 }
 
+export function archiveFlag(
+  projectKey: string,
+  environmentKey: string,
+  key: string,
+): Promise<Flag> {
+  return req<Flag>(
+    `${envBase(projectKey, environmentKey)}/flags/${encodeURIComponent(key)}/archive`,
+    { method: "POST" },
+  );
+}
+
+export function restoreFlag(
+  projectKey: string,
+  environmentKey: string,
+  key: string,
+): Promise<Flag> {
+  return req<Flag>(
+    `${envBase(projectKey, environmentKey)}/flags/${encodeURIComponent(key)}/restore`,
+    { method: "POST" },
+  );
+}
+
 export function publish(
   projectKey: string,
   environmentKey: string,

@@ -218,6 +218,33 @@ export async function handleApiRequest(
       }
     }
 
+    // --- Archive / restore a flag ---
+    m = match(`${base}/flags/:flagKey/archive`, path);
+    if (m && method === "POST") {
+      const { projectKey, environmentKey, flagKey } = m.params;
+      const denied = await authorize("flag:update", {
+        type: "flag",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+        flagKey: flagKey!,
+      });
+      if (denied) return denied;
+      return json(await ctx.core.archiveFlag(flagKey!, projectKey, environmentKey));
+    }
+
+    m = match(`${base}/flags/:flagKey/restore`, path);
+    if (m && method === "POST") {
+      const { projectKey, environmentKey, flagKey } = m.params;
+      const denied = await authorize("flag:update", {
+        type: "flag",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+        flagKey: flagKey!,
+      });
+      if (denied) return denied;
+      return json(await ctx.core.restoreFlag(flagKey!, projectKey, environmentKey));
+    }
+
     // --- Draft ---
     m = match(`${base}/draft`, path);
     if (m) {

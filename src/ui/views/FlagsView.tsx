@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, ChevronRight, Flag } from "lucide-react";
+import { Search, Plus, ChevronRight, Flag, Archive, ArchiveRestore } from "lucide-react";
 import type { Flag as FlagType, FlagType as FlagKind } from "../types.ts";
-import { listFlags, updateFlag } from "../api.ts";
+import { listFlags, updateFlag, archiveFlag, restoreFlag } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import { ToggleSwitch } from "../components/primitives.tsx";
@@ -73,6 +73,7 @@ function defaultFallthrough(type: FlagKind) {
 
 export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
   const [search, setSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedFlagKey, setSelectedFlagKey] = useState<string | "new" | null>(null);
   const [createSeed, setCreateSeed] = useState<{ key: string; type: FlagKind } | null>(null);
@@ -107,9 +108,26 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: ({ flag, archive }: { flag: FlagType; archive: boolean }) =>
+      archive
+        ? archiveFlag(projectKey, environmentKey, flag.key)
+        : restoreFlag(projectKey, environmentKey, flag.key),
+    onSuccess: (_data, { archive }) => {
+      toast.add("success", archive ? "Flag archived" : "Flag restored");
+      qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+    },
+    onError: (_err, { archive }) => {
+      toast.add("error", archive ? "Failed to archive flag" : "Failed to restore flag");
+    },
+  });
+
   const flags = query.data ?? [];
+  const activeFlags = flags.filter((f) => !f.archivedAt);
+  const archivedFlags = flags.filter((f) => f.archivedAt);
+  const visible = showArchived ? archivedFlags : activeFlags;
   const filtered = search
-    ? flags.filter((f) => {
+    ? visible.filter((f) => {
         const q = search.toLowerCase();
         return (
           f.key.toLowerCase().includes(q) ||
@@ -117,7 +135,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
           (f.tags ?? []).some((t) => t.toLowerCase().includes(q))
         );
       })
-    : flags;
+    : visible;
 
   // Handle create: seed from modal → open FlagDetail in create mode
   const handleCreateSeed = (key: string, type: FlagKind) => {
@@ -171,8 +189,8 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Feature Flags</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {flags.length} flag{flags.length !== 1 ? "s" : ""}
-            {flags.length > 0 ? " — roll out features safely across every environment." : ""}
+            {activeFlags.length} flag{activeFlags.length !== 1 ? "s" : ""}
+            {activeFlags.length > 0 ? " — roll out features safely across every environment." : ""}
           </p>
         </div>
         {!readonly && (
@@ -186,16 +204,44 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
         )}
       </div>
 
-      {/* Search */}
-      <div className="mt-6 relative w-full sm:w-72">
-        <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter flags…"
-          className="h-9 w-full rounded-md border border-input bg-secondary/40 pl-9 pr-3 text-[13px] outline-none placeholder:text-muted-foreground hover:bg-secondary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
-        />
+      {/* Search + archived filter */}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="relative w-full sm:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter flags…"
+            className="h-9 w-full rounded-md border border-input bg-secondary/40 pl-9 pr-3 text-[13px] outline-none placeholder:text-muted-foreground hover:bg-secondary/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+        <div className="inline-flex h-9 items-center rounded-md border border-input bg-secondary/40 p-0.5 text-[13px]">
+          <button
+            type="button"
+            onClick={() => setShowArchived(false)}
+            className={cn(
+              "h-8 rounded-[5px] px-3 font-medium transition-colors",
+              !showArchived
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Active
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowArchived(true)}
+            className={cn(
+              "h-8 rounded-[5px] px-3 font-medium transition-colors",
+              showArchived
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Archived{archivedFlags.length > 0 ? ` (${archivedFlags.length})` : ""}
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -222,13 +268,17 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
             Retry
           </Button>
         </div>
-      ) : filtered.length === 0 && flags.length === 0 ? (
+      ) : !showArchived && filtered.length === 0 && activeFlags.length === 0 ? (
         <EmptyState readonly={readonly} onCreateClick={() => setCreateOpen(true)} />
       ) : (
         <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card">
           {filtered.length === 0 ? (
             <div className="px-4 py-16 text-center text-sm text-muted-foreground">
-              No flags match &quot;{search}&quot;.
+              {search
+                ? `No flags match "${search}".`
+                : showArchived
+                  ? "No archived flags."
+                  : "No active flags."}
             </div>
           ) : (
             <ul className="divide-y divide-border">
@@ -281,17 +331,39 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                     {/* Type badge */}
                     <Badge className={TYPE_BADGE[flag.type]}>{flag.type}</Badge>
 
-                    {/* Enabled toggle */}
-                    <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                      <ToggleSwitch
-                        checked={flag.enabled}
-                        onCheckedChange={(enabled) =>
-                          !readonly && toggleMutation.mutate({ flag, enabled })
-                        }
-                        disabled={readonly}
-                        aria-label={`Toggle ${flag.key}`}
-                      />
-                    </div>
+                    {/* Enabled toggle (active flags only) */}
+                    {!flag.archivedAt && (
+                      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+                        <ToggleSwitch
+                          checked={flag.enabled}
+                          onCheckedChange={(enabled) =>
+                            !readonly && toggleMutation.mutate({ flag, enabled })
+                          }
+                          disabled={readonly}
+                          aria-label={`Toggle ${flag.key}`}
+                        />
+                      </div>
+                    )}
+
+                    {/* Archive / restore action */}
+                    {!readonly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          archiveMutation.mutate({ flag, archive: !flag.archivedAt });
+                        }}
+                        disabled={archiveMutation.isPending}
+                        className="shrink-0 rounded-md p-1.5 text-muted-foreground/60 hover:bg-secondary/60 hover:text-foreground disabled:opacity-50"
+                        aria-label={`${flag.archivedAt ? "Restore" : "Archive"} ${flag.key}`}
+                        title={flag.archivedAt ? "Restore flag" : "Archive flag"}
+                      >
+                        {flag.archivedAt ? (
+                          <ArchiveRestore className="size-4" />
+                        ) : (
+                          <Archive className="size-4" />
+                        )}
+                      </button>
+                    )}
 
                     {/* Chevron */}
                     <button

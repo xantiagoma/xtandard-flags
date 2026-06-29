@@ -112,6 +112,11 @@ const schemas = {
       fallthrough: { $ref: "#/components/schemas/Serve" },
       salt: { type: "string" },
       tags: { type: "array", items: { type: "string" } },
+      archivedAt: {
+        type: "string",
+        nullable: true,
+        description: "ISO-8601 archive timestamp; archived flags are excluded from snapshots.",
+      },
     },
   },
   Draft: {
@@ -358,6 +363,36 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           summary: "Delete a flag",
           responses: {
             "200": jsonRes("Deleted", { type: "object" }),
+            "404": errorRes("Not found"),
+          },
+        },
+      },
+      [`${envPath}/flags/{flagKey}/archive`]: {
+        parameters: [
+          PROJECT,
+          ENV,
+          { name: "flagKey", in: "path", required: true, schema: { type: "string" } },
+        ],
+        post: {
+          tags: ["flags"],
+          summary: "Archive a flag (excluded from future snapshots)",
+          responses: {
+            "200": jsonRes("Archived", ref("Flag")),
+            "404": errorRes("Not found"),
+          },
+        },
+      },
+      [`${envPath}/flags/{flagKey}/restore`]: {
+        parameters: [
+          PROJECT,
+          ENV,
+          { name: "flagKey", in: "path", required: true, schema: { type: "string" } },
+        ],
+        post: {
+          tags: ["flags"],
+          summary: "Restore an archived flag",
+          responses: {
+            "200": jsonRes("Restored", ref("Flag")),
             "404": errorRes("Not found"),
           },
         },
