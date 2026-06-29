@@ -4,6 +4,14 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-29 — /loop: TSDoc, coverage 96.7%, OpenAPI, Eden-typed Elysia
+
+- **Docs/TSDoc:** `@example` blocks across the public API (they ship in the `.d.ts`, so consumer IDE hover shows usage); TypeDoc API reference via `bun run docs:api`.
+- **Coverage:** 78% → **96.68% statements / 90% branch / 97.8% lines / 98% funcs** (+157 tests, 376 total; every source file ≥90%). Enforced in CI via thresholds (92/85/90/92) running `test:coverage` with live Redis/Mongo/Postgres; `retry: 2` for rare pub-sub/timer flakes; sqlite (Bun-only) excluded from vitest cov. Caught: format:check (oxfmt) had to run before commit.
+- **OpenAPI 3.1:** `buildOpenApiDocument()` (paths + component schemas), served at `{basePath}/api/openapi.json`, and exposed via `handler.openapi()` / `flagsPanel(...).openapi()` on every adapter for host-app doc merging (better-auth style). Exported from the package root.
+- **Eden-typed Elysia plugin:** `flagsElysia({ prefix, sourceStorage })` declares the admin routes (Elysia `t` schemas) so `@elysiajs/eden` treaty types them — `client.flags.api.projects({projectKey}).environments({environmentKey}).flags.get()`. Handlers delegate to the shared fetch pipeline (auth/validation reused). Proven by an in-process treaty test (4/4). `flagsPanel` (opaque mount) kept for the simple case.
+- CI green: build job (coverage+services, build lib/ui/react, publint, pack) + browser-e2e 5/5.
+
 ## 2026-06-29 — /loop: competitor research → evaluation tester + flag tags
 
 - **Researched** flag-management features across LaunchDarkly, Harness FME (Split), Flagsmith, Unleash, GrowthBook, GO Feature Flag, ConfigCat, PostHog, and the OpenFeature/OFREP spec (subagent, with sources). Built a value×effort matrix.
