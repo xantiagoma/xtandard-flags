@@ -22,18 +22,28 @@ const SOURCE_DIR = process.env.FLAGS_SOURCE_DIR ?? "./.flags-data/source";
 const RUNTIME_DIR = process.env.FLAGS_DATA_DIR ?? "./.flags-data/runtime";
 
 // The handler serves the bundled admin SPA from a directory. By default it
-// derives that from `import.meta.url`, but Next's bundler can't statically
-// resolve the `new URL("./ui", …)` inside the package, so we point it at the
-// package's shipped `dist/ui` explicitly (resolved from its package.json).
+// derives that from `import.meta.url`, but under Next's bundler that URL is
+// virtual, so we resolve the package's shipped `dist/ui` explicitly.
 //
-// `realpathSync` is important when developing against a `file:`-linked checkout:
-// the resolved package.json is a symlink into a node_modules copy whose `dist/ui`
-// asset links can go stale after a rebuild. Following the symlink to the real
-// package root points `dist/ui` at the freshly built bundle.
-const pkgJson = realpathSync(
-  createRequire(import.meta.url).resolve("@xtandard/flags/package.json"),
-);
-const uiDir = join(dirname(pkgJson), "dist", "ui");
+// Two subtleties:
+//   1. Anchor `createRequire` at a real path (`process.cwd()`), NOT
+//      `import.meta.url` — the latter is virtual under webpack and resolves the
+//      package against a bogus base.
+//   2. `realpathSync` the resolved package.json: when developing against a
+//      `file:`-linked checkout it's a symlink into a node_modules copy whose
+//      `dist/ui` asset links can go stale after a rebuild; following it to the
+//      real package root points `dist/ui` at the freshly built bundle.
+// If resolution fails for any reason, fall back to the handler's own default.
+function resolveUiDir(): string | undefined {
+  try {
+    const require = createRequire(join(process.cwd(), "package.json"));
+    const pkgJson = realpathSync(require.resolve("@xtandard/flags/package.json"));
+    return join(dirname(pkgJson), "dist", "ui");
+  } catch {
+    return undefined;
+  }
+}
+const uiDir = resolveUiDir();
 
 const { fetch: handler } = createFetchHandler({
   basePath: "/flags",
