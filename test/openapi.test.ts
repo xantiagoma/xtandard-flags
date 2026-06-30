@@ -10,7 +10,7 @@ describe("buildOpenApiDocument", () => {
     const doc = buildOpenApiDocument();
     expect(doc.openapi).toBe("3.1.0");
     const info = doc.info as { title: string; version: string };
-    expect(info.title).toBe("Xtandard Flags Admin API");
+    expect(info.title).toBe("@xtandard/flags Admin API");
     expect(info.version).toBe("0.1.0");
     expect(doc.servers).toEqual([{ url: "/" }]);
     expect(doc.paths).toBeDefined();

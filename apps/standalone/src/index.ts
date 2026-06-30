@@ -96,7 +96,7 @@ function buildAuth(): AuthProvider {
 async function main(): Promise<void> {
   const port = Number(env("PORT", "3000"));
   const basePath = env("BASE_PATH", "");
-  const title = env("TITLE", "Xtandard Flags");
+  const title = env("TITLE", "@xtandard/flags");
   const readonly = bool("READONLY", false);
   const authMode = env("AUTH_MODE", "none");
 

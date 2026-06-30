@@ -248,7 +248,9 @@ function AppShell() {
             <div className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
               <Flag className="size-4" strokeWidth={2.5} />
             </div>
-            <span className="text-sm font-semibold tracking-tight">Xtandard Flags</span>
+            <span className="text-sm font-semibold tracking-tight">
+              {config?.title || "@xtandard/flags"}
+            </span>
           </div>
 
           <span className="text-border select-none">/</span>

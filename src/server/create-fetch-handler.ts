@@ -89,7 +89,7 @@ function defaultUiDir(): string {
 export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandlerResult {
   const basePath = normalizeBasePath(options.basePath);
   const readonly = options.readonly ?? false;
-  const title = options.title ?? "Xtandard Flags";
+  const title = options.title ?? "@xtandard/flags";
   const uiDir = options.uiDir ?? defaultUiDir();
 
   const core =

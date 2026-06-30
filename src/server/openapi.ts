@@ -291,7 +291,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
   return {
     openapi: "3.1.0",
     info: {
-      title: options.title ?? "Xtandard Flags Admin API",
+      title: options.title ?? "@xtandard/flags Admin API",
       version: options.version ?? "0.1.0",
       description:
         "Admin/control-plane API for @xtandard/flags. Applications evaluate flags from memory via the OpenFeature provider; this API manages drafts, snapshots, publish/rollback, and audit.",

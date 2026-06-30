@@ -6,7 +6,7 @@ test.describe.configure({ mode: "serial" });
 
 test("loads the dashboard shell", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Xtandard", { exact: false }).first()).toBeVisible();
+  await expect(page.getByText("@xtandard/flags", { exact: false }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "New flag" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Publish" })).toBeVisible();
 });
