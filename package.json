@@ -297,6 +297,8 @@
     "build:lib": "vp pack",
     "build:ui": "vite build --config vite.ui.config.ts",
     "dev:ui": "vite --config vite.ui.config.ts",
+    "demo": "bun scripts/demo.ts",
+    "seed:demo": "bun scripts/seed-demo.ts",
     "test": "vp test run",
     "test:coverage": "vp test run --coverage",
     "test:e2e": "playwright test",
