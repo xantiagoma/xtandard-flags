@@ -6,35 +6,25 @@
 
 ## The Two Planes
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                     ADMIN / CONTROL PLANE                            │
-│                                                                      │
-│  UI (SPA)  ──►  JSON API  ──►  FlagsCore  ──►  Source Storage       │
-│                                    │                                 │
-│                               Compile draft                          │
-│                               │                                      │
-│                               ▼                                      │
-│                         Snapshot (v{n})  ──────────────────────────► │
-│                                                ▼                     │
-│                                      Runtime Storage                 │
-└──────────────────────────────────────────────────────────────────────┘
-                                          │
-                                   (load on init,
-                                    background refresh)
-                                          │
-                                          ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                    APPLICATION RUNTIME (per app)                     │
-│                                                                      │
-│  OpenFeature Provider                                                │
-│  ┌────────────────────────────────────────────────┐                  │
-│  │  in-memory: Snapshot (last-known-good)         │                  │
-│  │                                                │                  │
-│  │  evaluateFlag(flag, context)  ─────────────►  ResolutionDetails  │
-│  │  (pure, sync, zero I/O)                        │                  │
-│  └────────────────────────────────────────────────┘                  │
-└──────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph Admin["🛠️  Admin / control plane"]
+    direction TB
+    UI["UI (SPA) / CLI"] --> API["JSON API"]
+    API --> CORE["FlagsCore"]
+    CORE --> SRC[("Source storage<br/>drafts · history · audit")]
+    CORE -- "publish → compile<br/>Snapshot v{n}" --> RT[("Runtime storage<br/>published snapshots")]
+  end
+
+  subgraph App["🚀  Application runtime (per app)"]
+    direction TB
+    PROV["OpenFeature provider"] -- "load on init" --> MEM[["In-memory snapshot<br/>(last-known-good)"]]
+    MEM --> EVAL["evaluateFlag(flag, context)<br/>pure · sync · zero I/O"]
+    EVAL --> RD["ResolutionDetails"]
+    PROV -. "background refresh<br/>(poll + watch)" .-> RT
+  end
+
+  RT --> PROV
 ```
 
 ### Admin plane
@@ -55,6 +45,31 @@ The OpenFeature provider loads the active snapshot from runtime storage into mem
 - A storage `watch` subscription, if the storage adapter is `WatchableFlagsStorage` (Redis, memory, file).
 
 All flag resolution reads only the in-memory snapshot — it is pure, synchronous, and cannot fail because storage is unavailable.
+
+### Publish → propagate → evaluate
+
+```mermaid
+sequenceDiagram
+  actor Op as Operator
+  participant API as Admin API / Core
+  participant SRC as Source storage
+  participant RT as Runtime storage
+  participant P as OpenFeature provider
+  participant App as Application
+
+  Op->>API: edit draft, then Publish
+  API->>API: compile draft → immutable Snapshot v{n}
+  API->>SRC: write snapshot + audit, flip active_version
+  API->>RT: write snapshot, flip active_version
+  Note over RT,P: poll timer (default 30s) or watch() event
+  RT-->>P: new active snapshot
+  P->>P: swap in-memory snapshot (atomic)
+  App->>P: getBooleanValue(key, ctx)
+  P-->>App: ResolutionDetails (from memory, never blocks)
+```
+
+If runtime storage is unreachable when the refresh fires, the provider keeps the
+previous snapshot and marks it `stale` — evaluation never blocks or throws.
 
 ---
 
@@ -135,15 +150,32 @@ These keys are exported from `@xtandard/flags` as `keys.*` for consumers impleme
 
 ## Memory-First Evaluation
 
-The evaluator (`evaluateFlag`) is pure TypeScript — no I/O, no dependencies. It runs the following decision chain synchronously:
+The evaluator (`evaluateFlag`) is pure TypeScript — no I/O, no dependencies. It runs the following decision chain synchronously; the **first** branch that resolves wins:
 
-1. **Disabled** → serve the default variant (reason `DISABLED`).
-2. **Exact override** on the bucketing key (reason `STATIC`).
-3. **Targeting rules**, first match wins (reason `TARGETING_MATCH` or `SPLIT`).
-4. **Fallthrough** — fixed variant or deterministic weighted split (reason `STATIC` or `SPLIT`).
-5. **Invalid config** → `undefined` value + reason `ERROR`.
+```mermaid
+flowchart TD
+  A([evaluate flag, context]) --> B{enabled?}
+  B -- no --> Z["default variant · DISABLED"]
+  B -- yes --> S{"within schedule window?"}
+  S -- no --> Z2["default variant · SCHEDULED / EXPIRED"]
+  S -- yes --> P{"prerequisites all satisfied?"}
+  P -- no --> Z3["default variant · PREREQUISITE_FAILED"]
+  P -- yes --> O{"exact override on bucketing key?"}
+  O -- yes --> ZO["override variant · STATIC"]
+  O -- no --> R{"targeting rule matches? first match wins"}
+  R -- yes --> ZR["rule variant · TARGETING_MATCH / SPLIT"]
+  R -- no --> F["fallthrough · STATIC / SPLIT"]
+```
 
-Splits are deterministic: `salt + flagKey + targetingKey → MurmurHash3 → unit interval → bucket into weights`. The same input always produces the same variant. The bucketing key falls back from `targetingKey` → `userId` → `organizationId` → `email` → `sessionId` when `targetingKey` is absent.
+1. **Disabled** (`enabled: false`) → default variant (reason `DISABLED`).
+2. **Scheduled window** — outside `schedule.enableAt`/`disableAt`, default variant (reason `SCHEDULED` before the window, `EXPIRED` after).
+3. **Prerequisites** — every depended-on flag must resolve to its required variant, else default (reason `PREREQUISITE_FAILED`).
+4. **Exact override** on the bucketing key (reason `STATIC`).
+5. **Targeting rules**, first match wins (reason `TARGETING_MATCH` or `SPLIT`).
+6. **Fallthrough** — fixed variant or deterministic weighted split (reason `STATIC` or `SPLIT`).
+7. **Invalid config** → caller default + reason `ERROR`; **missing flag** → caller default + reason `FLAG_NOT_FOUND`.
+
+Splits are deterministic: `salt + flagKey + targetingKey → MurmurHash3 → unit interval → bucket into weights`. The same input always produces the same variant. The bucketing key falls back from `targetingKey` → `userId` → `organizationId` → `email` → `sessionId` when `targetingKey` is absent. The schedule check is the only time-dependent step — see [ADR 0010](ADR/0010-scheduled-active-window.md).
 
 The provider never reads storage during resolution. The admin going down does not affect flag evaluation.
 
