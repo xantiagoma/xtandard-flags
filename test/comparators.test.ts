@@ -70,10 +70,10 @@ describe("registerComparator — global default registry", () => {
     expect(evaluateCondition(cond("equals", money(150, "USD", 1)), { v: money(1500) })).toBe(true);
   });
 
-  test("before/after delegate to the comparator", () => {
+  test("ordering operators delegate to the comparator", () => {
     registerComparator(isMoney, { compare: moneyCompare });
-    expect(evaluateCondition(cond("after", money(1000)), { v: money(1500) })).toBe(true);
-    expect(evaluateCondition(cond("before", money(1000)), { v: money(1500) })).toBe(false);
+    expect(evaluateCondition(cond("greaterThan", money(1000)), { v: money(1500) })).toBe(true);
+    expect(evaluateCondition(cond("lessThan", money(1000)), { v: money(1500) })).toBe(false);
   });
 
   test("`in` works with custom value objects", () => {
@@ -123,7 +123,7 @@ describe("no regression when nothing matches", () => {
     expect(evaluateCondition(cond("greaterThan", 10), { v: 20 })).toBe(true);
     expect(evaluateCondition(cond("lessThan", 10), { v: 5 })).toBe(true);
     // ISO date strings still compare numerically.
-    expect(evaluateCondition(cond("after", "2026-01-01"), { v: "2026-07-01" })).toBe(true);
+    expect(evaluateCondition(cond("greaterThan", "2026-01-01"), { v: "2026-07-01" })).toBe(true);
   });
 });
 

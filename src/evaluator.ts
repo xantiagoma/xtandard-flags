@@ -355,12 +355,6 @@ export function evaluateCondition(
       if (op === "semverGreaterThan") return cmp > 0;
       return cmp < 0;
     }
-    case "before":
-    case "after": {
-      const c = compareValues(actual, expected);
-      if (c === undefined) return false;
-      return op === "before" ? c < 0 : c > 0;
-    }
     case "inSegment":
       // Normally inlined at compile time; if a snapshot embeds segments, resolve.
       return typeof expected === "string" && matchesSegment(expected, context, segments, seen);

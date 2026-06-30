@@ -256,7 +256,7 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     key: "loyalty-reward",
     type: "string",
     enabled: true,
-    description: "Reward tier by signup date (before/after)",
+    description: "Reward tier by signup date (date via ordering operators)",
     defaultVariant: "none",
     variants: {
       none: { value: "none", name: "No reward" },
@@ -268,7 +268,7 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
       {
         id: "founders",
         name: "Signed up before 2025",
-        conditions: [{ attribute: "signupAt", operator: "before", value: "2025-01-01" }],
+        conditions: [{ attribute: "signupAt", operator: "lessThan", value: "2025-01-01" }],
         serve: { variant: "founder" },
       },
     ],

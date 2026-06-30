@@ -156,7 +156,8 @@ Splits are deterministic: `same flagKey + same targetingKey + same salt → same
 
 Targeting rules are an AND of **conditions** — see the full operator reference in
 [docs/OPERATORS.md](docs/OPERATORS.md) (equality, membership, string, numeric,
-**date** `before`/`after`, **semver**, **`inSegment`/`notInSegment`**, and
+**dates** (via the ordering operators — ISO-8601/epoch/`Date`/`Temporal`), **semver**,
+**`inSegment`/`notInSegment`**, and
 **`matches`/`notMatches`** — a JSON query document evaluated by a pluggable matcher
 (built-in `regex`, or `sift`/`mingo` via [a registered matcher](docs/OPERATORS.md#query-matchers-matches--notmatches),
 giving you OR/nested logic in one condition). Ordering and

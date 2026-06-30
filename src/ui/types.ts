@@ -24,8 +24,6 @@ export type ConditionOperator =
   | "semverEquals"
   | "semverGreaterThan"
   | "semverLessThan"
-  | "before"
-  | "after"
   | "exists"
   | "notExists"
   | "inSegment"

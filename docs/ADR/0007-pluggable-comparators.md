@@ -6,7 +6,7 @@
 
 ## Context
 
-The ordering operators (`>`/`>=`/`<`/`<=`/`before`/`after`) and equality
+The ordering operators (`>`/`>=`/`<`/`<=`) and equality
 (`equals`/`in`/…) go through one never-throws `compareValues` with three tiers
 (see [docs/OPERATORS.md](../OPERATORS.md)): a constructor-duck-typed **value-object**
 tier (static `compare` + static `from`/…), a **BigInt** tier, and a numeric-scalar

@@ -20,7 +20,7 @@ describe("comparable — BigInt", () => {
   test("mixed bigint / number compares by magnitude", () => {
     expect(evaluateCondition(cond("greaterThan", 100), { v: 150n })).toBe(true);
     expect(evaluateCondition(cond("lessThan", 100), { v: 50n })).toBe(true);
-    expect(evaluateCondition(cond("after", 1000), { v: 2000n })).toBe(true);
+    expect(evaluateCondition(cond("greaterThan", 1000), { v: 2000n })).toBe(true);
   });
 });
 
@@ -56,18 +56,20 @@ describe("comparable — value objects via constructor.compare + from", () => {
   test("instance vs stored string threshold (parsed with static from)", () => {
     const ctx = { v: Dur.from("PT50M") }; // 50 minutes
     expect(evaluateCondition(cond("lessThan", "PT1H"), ctx)).toBe(true);
-    expect(evaluateCondition(cond("before", "PT1H"), ctx)).toBe(true);
+    expect(evaluateCondition(cond("lessThan", "PT1H"), ctx)).toBe(true);
     expect(evaluateCondition(cond("greaterThan", "PT2H"), ctx)).toBe(false);
   });
 
   test("instance vs instance", () => {
-    expect(evaluateCondition(cond("after", new Dur(60_000)), { v: new Dur(120_000) })).toBe(true);
+    expect(evaluateCondition(cond("greaterThan", new Dur(60_000)), { v: new Dur(120_000) })).toBe(
+      true,
+    );
   });
 
   test("unparseable threshold for the type fails closed (no throw)", () => {
     const ctx = { v: Dur.from("PT1H") };
-    expect(() => evaluateCondition(cond("after", "garbage"), ctx)).not.toThrow();
-    expect(evaluateCondition(cond("after", "garbage"), ctx)).toBe(false);
+    expect(() => evaluateCondition(cond("greaterThan", "garbage"), ctx)).not.toThrow();
+    expect(evaluateCondition(cond("greaterThan", "garbage"), ctx)).toBe(false);
   });
 
   test("a value object without static compare falls back to valueOf (numeric)", () => {
@@ -81,7 +83,7 @@ describe("comparable — value objects via constructor.compare + from", () => {
   });
 
   test("ISO strings still compare numerically when no instance is involved", () => {
-    expect(evaluateCondition(cond("after", "2026-01-01"), { v: "2026-07-01" })).toBe(true);
+    expect(evaluateCondition(cond("greaterThan", "2026-01-01"), { v: "2026-07-01" })).toBe(true);
   });
 });
 

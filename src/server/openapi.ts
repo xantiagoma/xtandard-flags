@@ -58,8 +58,6 @@ const conditionOperators = [
   "semverEquals",
   "semverGreaterThan",
   "semverLessThan",
-  "before",
-  "after",
   "exists",
   "notExists",
   "inSegment",

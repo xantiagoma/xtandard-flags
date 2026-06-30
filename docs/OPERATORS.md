@@ -13,12 +13,11 @@ throw** — a type mismatch evaluates to `false`. Across rules, first match wins
 | `contains` / `notContains`                          | array includes value, or string substring  |                                                                                             |
 | `startsWith` / `endsWith`                           | string prefix / suffix                     | attribute must be a string                                                                  |
 | `exists` / `notExists`                              | attribute present (not `null`/`undefined`) | no value needed                                                                             |
-| `greaterThan` `>=` `lessThan` `<=`                  | ordering                                   | see **comparable coercion** below                                                           |
-| `before` / `after`                                  | date/time ordering                         | semantic alias for ordering on dates                                                        |
+| `greaterThan` `>=` `lessThan` `<=`                  | ordering (incl. **dates**)                 | see **comparable coercion** below; ISO-8601 / epoch / `Date` / `Temporal` all compare       |
 | `semverEquals` `semverGreaterThan` `semverLessThan` | semver compare                             | `10.0.0 > 2.0.0`; prerelease < release; invalid → `false`                                   |
 | `matches` / `notMatches`                            | JSON query via a pluggable matcher         | `value` = query document; see **Query matchers** below                                      |
 
-## Comparable coercion (`>`, `>=`, `<`, `<=`, `before`, `after`)
+## Comparable coercion (`>`, `>=`, `<`, `<=`)
 
 Ordering operators use a single zero-dependency, never-throws comparator
 (`compareValues → -1|0|1`, `undefined` = incomparable → `false`), with four tiers:
@@ -48,7 +47,8 @@ Ordering operators use a single zero-dependency, never-throws comparator
    strings** (`Date.parse` → epoch ms), `Date` instances, and any object with a
    numeric `valueOf`/`Symbol.toPrimitive`.
 
-So `count > 100`, `lastSeen after "2026-01-01"`, `signupTs > <epoch>`,
+So `count > 100`, `lastSeen > "2026-01-01"` (dates compare here — there is no
+dedicated date operator), `signupTs > <epoch>`,
 `appBuild > 9007199254740993n`, and a `Temporal.PlainDate` context value vs an ISO
 threshold all work. Custom _Comparable_ types participate via either the standard
 `valueOf` hook (tier 3) or a `Temporal`-style static `compare`/`from`. The evaluator

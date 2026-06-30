@@ -2,7 +2,7 @@
  * Pluggable comparators for **value-object types that don't follow the
  * static-`compare`/static-`from` convention** the evaluator duck-types in
  * {@link ./evaluator}. Register a predicate plus a `compare` (and optionally a
- * `parser`) and the ordering operators (`>`/`<`/`before`/`after`) and equality
+ * `parser`) and the ordering operators (`>`/`>=`/`<`/`<=`) and equality
  * (`equals`/`in`/…) learn the type — e.g. Dinero.js, Decimal.js, BigNumber.
  *
  * The whole mechanism is **request-path safe**: zero deps, never throws. A

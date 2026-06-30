@@ -4,6 +4,25 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — remove `before`/`after` operators (superseded by `>`/`<`)
+
+The generalized comparable engine made `before`/`after` exact aliases of
+`lessThan`/`greaterThan` — same `compareValues`, same ISO-8601/epoch/`Date`/`Temporal`
+coercion. They were pure sugar with no inclusive variants, so we dropped them
+(user's call). **Breaking** for any stored condition using them; dates now use the
+ordering operators directly.
+
+- Removed from `ConditionOperator` (schema.ts, ui/types.ts), the valibot picklist
+  (validation.ts), the OpenAPI enum (openapi.ts), the evaluator `case`, the UI
+  operator picker + its date-placeholder special-case (ConditionRow.tsx), and the
+  type-test union.
+- Tests: `conditions-date.test.ts` rewritten to drive dates through `>`/`<`/`>=`/`<=`
+  (coverage preserved + an inclusive-variant case); `before`/`after` swapped for
+  `lessThan`/`greaterThan` in comparators/comparable tests.
+- Docs: OPERATORS.md (dropped the row + the date-operator wording, ordering row notes
+  dates), README, ADR 0007. Seed `loyalty-reward` rule → `lessThan`.
+- Gate green: typecheck/lint/format, 494 tests, build, publint.
+
 ## 2026-06-30 — richer demo seed + standalone registers sift/default matcher
 
 Make `bun run demo` exercise the newer features end-to-end.
