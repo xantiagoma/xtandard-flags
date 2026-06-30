@@ -4,7 +4,21 @@
 
 ## Standalone Server
 
-The standalone app (`apps/standalone/src/index.ts`) reads all configuration from environment variables and starts a `Bun.serve` listener.
+The standalone app (`apps/standalone/src/index.ts`) reads all configuration from environment variables and starts a `Bun.serve` listener. This is what the [Docker image](#docker) runs.
+
+### Without Docker — `npx`/`bunx serve`
+
+The same server ships in the published package as the CLI `serve` command, so you can run it without building or containerizing anything:
+
+```bash
+PORT=4000 \
+  SOURCE_STORAGE_DRIVER=redis RUNTIME_STORAGE_DRIVER=redis \
+  REDIS_URL=redis://localhost:6379 \
+  AUTH_MODE=basic AUTH_USERNAME=admin AUTH_PASSWORD=secret \
+  npx @xtandard/flags serve          # or: bunx @xtandard/flags serve
+```
+
+`serve` honors the same environment variables documented below and works under both Node (`npx`, via a `node:http` bridge) and Bun (`bunx`, via `Bun.serve`). It serves the bundled SPA from the package's `dist/ui`, the JSON API, OFREP, the OpenAPI document, and `GET /healthcheck`. Use it for local development, a single small node, or anywhere a container is overkill; reach for the Docker image when you want a pinned, reproducible runtime.
 
 ### Environment Variables
 

@@ -120,6 +120,22 @@ docker run --rm -p 3000:3000 \
 
 Visit `http://localhost:3000`. Health check at `/healthcheck`.
 
+### Or run it without Docker (`npx` / `bunx`)
+
+Same server, same env vars — no container:
+
+```bash
+PORT=4000 \
+  SOURCE_STORAGE_DRIVER=redis RUNTIME_STORAGE_DRIVER=redis \
+  REDIS_URL=redis://localhost:6379 \
+  AUTH_MODE=basic AUTH_USERNAME=admin AUTH_PASSWORD=secret \
+  npx @xtandard/flags serve          # or: bunx @xtandard/flags serve
+```
+
+`serve` runs under both Node (`npx`) and Bun (`bunx`). With no env it defaults to
+in-process file storage and no auth — fine for a quick local look, but set
+`AUTH_MODE=basic` before exposing it.
+
 ### Or embed the admin panel in your app
 
 <details open>
@@ -329,6 +345,7 @@ bun run examples:elysia     # → ▶ elysia → http://localhost:NNNN/flags
 ## CLI
 
 ```bash
+xtandard-flags serve       # run the panel + API server (no Docker; honors the env vars above)
 xtandard-flags init        # create default project/env + empty draft
 xtandard-flags list        # list flags in the draft
 xtandard-flags validate    # validate the draft (exit 1 if invalid)
@@ -336,6 +353,9 @@ xtandard-flags publish     # compile draft → snapshot → activate
 xtandard-flags rollback v3 # re-point active version
 xtandard-flags inspect     # print the active snapshot
 ```
+
+Run any command via `npx @xtandard/flags <cmd>` or `bunx @xtandard/flags <cmd>`
+without installing.
 
 ## Docs
 
