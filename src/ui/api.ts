@@ -234,3 +234,20 @@ export function listEnvironments(projectKey: string): Promise<{ key: string; nam
     `api/projects/${encodeURIComponent(projectKey)}/environments`,
   );
 }
+
+export function createProject(key: string): Promise<{ key: string; name?: string }> {
+  return req<{ key: string; name?: string }>("api/projects", {
+    method: "POST",
+    body: JSON.stringify({ key }),
+  });
+}
+
+export function createEnvironment(
+  projectKey: string,
+  key: string,
+): Promise<{ key: string; name?: string }> {
+  return req<{ key: string; name?: string }>(
+    `api/projects/${encodeURIComponent(projectKey)}/environments`,
+    { method: "POST", body: JSON.stringify({ key }) },
+  );
+}

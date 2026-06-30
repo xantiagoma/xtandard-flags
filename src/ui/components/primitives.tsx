@@ -1,9 +1,10 @@
 import * as React from "react";
 import { Switch } from "@base-ui-components/react/switch";
 import { Select } from "@base-ui-components/react/select";
+import { Combobox } from "@base-ui-components/react/combobox";
 import { ToggleGroup } from "@base-ui-components/react/toggle-group";
 import { Toggle } from "@base-ui-components/react/toggle";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "../lib/utils.ts";
 
 /* ─── ToggleSwitch ──────────────────────────────────────────────────────────── */
@@ -178,6 +179,135 @@ export function Dropdown({
         </Select.Positioner>
       </Select.Portal>
     </Select.Root>
+  );
+}
+
+/* ─── CreatableCombobox ─────────────────────────────────────────────────────── */
+
+interface ComboItem {
+  value: string;
+  label: string;
+  create?: boolean;
+}
+
+/**
+ * A single-select combobox that lets you pick an existing option **or type a new
+ * one** — when the typed text matches nothing, a "Create …" item appears and
+ * selecting it calls {@link onCreate}. Used for the project/environment switchers.
+ */
+export function CreatableCombobox({
+  value,
+  options,
+  onSelect,
+  onCreate,
+  placeholder = "Select…",
+  createLabel = (q) => `Create "${q}"`,
+  disabled,
+  className,
+  "aria-label": ariaLabel,
+}: {
+  value: string;
+  options: string[];
+  onSelect: (value: string) => void;
+  onCreate: (value: string) => void;
+  placeholder?: string;
+  createLabel?: (query: string) => string;
+  disabled?: boolean;
+  className?: string;
+  "aria-label"?: string;
+}) {
+  // Controlled input text. We don't pass a controlled selection `value` (it makes
+  // Base UI re-sync and wipe the input as the selection drops out of the filtered
+  // list); instead the input shows the current selection via this state, synced
+  // whenever the parent's `value` changes.
+  const [query, setQuery] = React.useState("");
+  const trimmed = query.trim();
+  const lower = trimmed.toLowerCase();
+
+  const base: ComboItem[] = options.map((o) => ({ value: o, label: o }));
+  const filtered = trimmed ? base.filter((i) => i.label.toLowerCase().includes(lower)) : base;
+  const exact = options.some((o) => o.toLowerCase() === lower);
+  const items: ComboItem[] =
+    trimmed && !exact
+      ? [...filtered, { value: " create", label: createLabel(trimmed), create: true }]
+      : filtered;
+
+  return (
+    <Combobox.Root
+      items={items}
+      // We compute `items` ourselves (filtered + a synthetic "create" entry), so
+      // disable Base UI's built-in filtering — otherwise it double-filters and
+      // hides the create option.
+      filter={null}
+      inputValue={query}
+      onInputValueChange={setQuery}
+      onOpenChange={(open) => {
+        if (!open) setQuery("");
+      }}
+      onValueChange={(item: ComboItem | null) => {
+        if (!item) return;
+        if (item.create) onCreate(trimmed);
+        else onSelect(item.value);
+        setQuery("");
+      }}
+      itemToStringLabel={(i: ComboItem) => i.label}
+      disabled={disabled}
+    >
+      <Combobox.Trigger
+        aria-label={ariaLabel}
+        className={cn(
+          "inline-flex h-9 min-w-0 items-center justify-between gap-2 rounded-md border border-input bg-secondary/40 px-3 text-[13px] text-foreground outline-none transition-colors",
+          "hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring",
+          "disabled:cursor-not-allowed disabled:opacity-50 data-[popup-open]:border-ring",
+          className,
+        )}
+      >
+        <span className={cn("truncate", !value && "text-muted-foreground")}>
+          {value || placeholder}
+        </span>
+        <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+      </Combobox.Trigger>
+      <Combobox.Portal>
+        <Combobox.Positioner sideOffset={6} className="z-50 outline-none">
+          <Combobox.Popup
+            className={cn(
+              "w-[max(var(--anchor-width),13rem)] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl outline-none",
+              "origin-[var(--transform-origin)] transition-[transform,opacity] data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0",
+            )}
+          >
+            <Combobox.Input
+              placeholder="Search or create…"
+              className="mb-1 h-8 w-full rounded-md border border-input bg-secondary/40 px-2.5 text-[13px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <Combobox.Empty className="px-2 py-2 text-[13px] text-muted-foreground">
+              No matches.
+            </Combobox.Empty>
+            <Combobox.List className="max-h-64 overflow-y-auto">
+              {(item: ComboItem) => (
+                <Combobox.Item
+                  key={item.value}
+                  value={item}
+                  className={cn(
+                    "flex cursor-pointer select-none items-center gap-2 rounded-md py-1.5 pl-2 pr-2 text-[13px] outline-none",
+                    "data-[highlighted]:bg-accent/15 data-[highlighted]:text-foreground",
+                    item.create && "text-accent",
+                  )}
+                >
+                  {item.create ? (
+                    <Plus className="size-3.5 shrink-0" />
+                  ) : (
+                    <span className="flex w-4 shrink-0 items-center justify-center">
+                      {item.value === value && <Check className="size-3.5 text-accent" />}
+                    </span>
+                  )}
+                  <span className="truncate">{item.label}</span>
+                </Combobox.Item>
+              )}
+            </Combobox.List>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
   );
 }
 

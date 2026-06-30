@@ -87,6 +87,16 @@ test("creates a reusable segment through the builder", async ({ page }) => {
   await expect(page.getByText("e2e-eu")).toBeVisible();
 });
 
+test("creates a project from the creatable combobox", async ({ page }) => {
+  await page.goto("/");
+  // Open the Project switcher, type a new key, pick the "Create" item.
+  await page.getByLabel("Project").click();
+  await page.getByPlaceholder(/Search or create/).fill("mobile");
+  await page.getByText('Create project "mobile"').click();
+  // The trigger now reflects the newly-created, auto-selected project.
+  await expect(page.getByLabel("Project")).toHaveText(/mobile/);
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

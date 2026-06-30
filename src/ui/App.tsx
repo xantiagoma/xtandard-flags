@@ -3,7 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Flag, CloudUpload, Lock } from "lucide-react";
 import type { FlagsConfig } from "./types.ts";
 import { FlagsApiError } from "./types.ts";
-import { getConfig, publish, listProjects, listEnvironments } from "./api.ts";
+import {
+  getConfig,
+  publish,
+  listProjects,
+  listEnvironments,
+  createProject,
+  createEnvironment,
+} from "./api.ts";
 import { useToast } from "./components/Toast.tsx";
 import { Button } from "./components/ui-bits.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
@@ -13,7 +20,7 @@ import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
 import { cn } from "./lib/utils.ts";
 import { Dialog } from "@base-ui-components/react/dialog";
-import { TextInput } from "./components/primitives.tsx";
+import { TextInput, CreatableCombobox } from "./components/primitives.tsx";
 
 type View = "flags" | "segments" | "snapshots" | "audit";
 
@@ -139,6 +146,34 @@ export function App() {
   const projectOptions = projectsQuery.data?.map((p) => p.key) ?? [projectKey];
   const envOptions = envsQuery.data?.map((e) => e.key) ?? [environmentKey];
 
+  const createProjectMutation = useMutation({
+    mutationFn: (key: string) => createProject(key),
+    onSuccess: (meta) => {
+      qc.invalidateQueries({ queryKey: ["projects"] });
+      setProjectKey(meta.key);
+      toast.add("success", `Project "${meta.key}" created`);
+    },
+    onError: (err: unknown) =>
+      toast.add(
+        "error",
+        err instanceof FlagsApiError ? err.body.error : "Failed to create project",
+      ),
+  });
+
+  const createEnvMutation = useMutation({
+    mutationFn: (key: string) => createEnvironment(projectKey, key),
+    onSuccess: (meta) => {
+      qc.invalidateQueries({ queryKey: ["environments", projectKey] });
+      setEnvironmentKey(meta.key);
+      toast.add("success", `Environment "${meta.key}" created`);
+    },
+    onError: (err: unknown) =>
+      toast.add(
+        "error",
+        err instanceof FlagsApiError ? err.body.error : "Failed to create environment",
+      ),
+  });
+
   const publishMutation = useMutation({
     mutationFn: (message?: string) => publish(projectKey, environmentKey, message),
     onSuccess: (data) => {
@@ -157,9 +192,6 @@ export function App() {
     },
   });
 
-  const selectClass =
-    "h-8 rounded-md border border-border bg-secondary/40 px-2.5 text-[13px] text-foreground outline-none hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring cursor-pointer appearance-none pr-7";
-
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background">
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
@@ -175,45 +207,33 @@ export function App() {
 
           <span className="text-border select-none">/</span>
 
-          {/* Project select */}
-          <div className="relative">
-            <select
-              value={projectKey}
-              onChange={(e) => setProjectKey(e.target.value)}
-              className={selectClass}
-              aria-label="Project"
-            >
-              {projectOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-              {!projectOptions.includes(projectKey) && (
-                <option value={projectKey}>{projectKey}</option>
-              )}
-            </select>
-          </div>
+          {/* Project switcher (type to filter or create) */}
+          <CreatableCombobox
+            value={projectKey}
+            options={projectOptions}
+            onSelect={setProjectKey}
+            onCreate={(key) => createProjectMutation.mutate(key)}
+            disabled={readonly}
+            aria-label="Project"
+            placeholder="Project"
+            createLabel={(q) => `Create project "${q}"`}
+            className="w-40"
+          />
 
           <span className="text-border select-none">/</span>
 
-          {/* Environment select */}
-          <div className="relative">
-            <select
-              value={environmentKey}
-              onChange={(e) => setEnvironmentKey(e.target.value)}
-              className={selectClass}
-              aria-label="Environment"
-            >
-              {envOptions.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-              {!envOptions.includes(environmentKey) && (
-                <option value={environmentKey}>{environmentKey}</option>
-              )}
-            </select>
-          </div>
+          {/* Environment switcher (type to filter or create) */}
+          <CreatableCombobox
+            value={environmentKey}
+            options={envOptions}
+            onSelect={setEnvironmentKey}
+            onCreate={(key) => createEnvMutation.mutate(key)}
+            disabled={readonly}
+            aria-label="Environment"
+            placeholder="Environment"
+            createLabel={(q) => `Create environment "${q}"`}
+            className="w-40"
+          />
 
           <div className="ml-auto flex items-center gap-2">
             {readonly && (
