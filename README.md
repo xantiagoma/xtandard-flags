@@ -54,7 +54,8 @@ sharp gap:
 
 - 🏠 **Self-hosted OpenFeature admin** — your data, your infra, no SaaS.
 - 🔌 **Pluggable storage** — memory, file, Redis, Postgres, MongoDB, SQLite, **libSQL/Turso**, **Cloudflare KV**, or any [unstorage](https://unstorage.unjs.io) driver. Bring your own with four methods.
-- ⚡ **Local-first evaluation** — a tiny, **zero-dependency** evaluator + provider run in-process. The panel can be offline.
+- ⚡ **Local-first evaluation** — a tiny, **zero-dependency** evaluator + provider run in-process (JS/TS). The panel can be offline.
+- 🌐 **Any language, standard protocol** — every other language evaluates over **OFREP** (the OpenFeature Remote Evaluation Protocol): point any OpenFeature SDK's generic OFREP provider at the panel — no vendor SDK to write or install.
 - 🧩 **Embeddable or standalone** — mount the panel in your app, or run the Docker image.
 - 📦 **One npm package** — explicit subpath exports, optional peer deps; install only what you use.
 - 🎛️ **Bundled admin SPA** — consumers mounting the panel **don't install React**.
@@ -212,6 +213,15 @@ Then open `http://localhost:3000/flags`, create a flag, and **Publish**.
 
 ## Evaluate flags at runtime (OpenFeature)
 
+Two ways, both standard OpenFeature — pick by language:
+
+| Path                                  | For              | Eval runs                    | Resilience                                                           |
+| ------------------------------------- | ---------------- | ---------------------------- | -------------------------------------------------------------------- |
+| **In-process provider** (recommended) | JS / TS          | inside your app, from memory | control plane down → fine; storage down after load → last-known-good |
+| **OFREP** (remote)                    | **any** language | on the server, over HTTP     | run the standalone next to your app + ETag/304 caching               |
+
+### In-process — JS/TS, memory-first (recommended)
+
 ```ts
 import { OpenFeature } from "@openfeature/server-sdk";
 import { createOpenFeatureProvider } from "@xtandard/flags/openfeature";
@@ -238,7 +248,33 @@ After the first load the provider serves **from memory**. If the admin panel goe
 away, evaluation is unaffected. If storage goes down _after_ the first load, the
 provider keeps serving the **last-known-good** snapshot (marked `stale`). Missing
 flags return the caller's default with `FLAG_NOT_FOUND`. The evaluator is pure and
-never throws — invalid config falls back to the caller default with `ERROR`.
+never throws — invalid config falls back to the caller default with `ERROR`. **This
+is the path to use for JS/TS services.**
+
+### Any language — OFREP (remote evaluation)
+
+Go, Python, Rust, Java, .NET, … evaluate over **OFREP**, the OpenFeature Remote
+Evaluation Protocol — a standard HTTP contract. Point any OpenFeature SDK's generic
+OFREP provider at your panel; there's no vendor library to write or install.
+
+```python
+# pip install openfeature-sdk openfeature-provider-ofrep
+from openfeature import api
+from openfeature.contrib.provider.ofrep import OFREPProvider
+
+api.set_provider(OFREPProvider(base_url="https://flags.example.com"))
+enabled = api.get_client().get_boolean_value("new-checkout", False, ctx)
+```
+
+The panel serves OFREP bulk + single evaluation with `ETag`/`304` caching and an
+opt-in SSE stream for live updates. Runnable clients (Python / Go / plain TS) are
+in [`examples/ofrep-clients`](examples/ofrep-clients) (`bun run examples:ofrep-clients`);
+full details in [docs/OPENFEATURE.md](docs/OPENFEATURE.md#remote-evaluation-ofrep).
+
+> **Which should I use?** For JS/TS, prefer the in-process provider above — it's
+> memory-first and keeps working if the control plane is down. OFREP puts the
+> server in the request path, so for the same resilience run the standalone server
+> next to your app and lean on ETag/304 caching.
 
 ## The flag model
 
