@@ -294,6 +294,14 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
         ],
         serve: { variant: "on" },
       },
+      {
+        id: "any-cohort",
+        name: "In any cohort (multi-segment OR)",
+        conditions: [
+          { attribute: "", operator: "inSegment", value: ["eu-beta", "internal-staff"] },
+        ],
+        serve: { variant: "on" },
+      },
     ],
   });
 

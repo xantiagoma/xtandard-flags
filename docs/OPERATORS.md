@@ -147,10 +147,19 @@ registerMatcher("default", siftMatcher); // so conditions can omit `matcher`
 
 ## Segments & prerequisites
 
-- **`inSegment`** is resolved by _inlining_ the segment's conditions into the rule
-  at publish time — the runtime evaluator never sees it.
-- **`notInSegment`** can't be inlined (negating an AND is an OR), so the resolved
-  segments are embedded in `Snapshot.segments` and the evaluator checks membership;
-  cyclic references are guarded (fail closed). Dangling refs are rejected at publish.
+Both segment operators take **one key or an array of keys** (`value: "k"` or
+`value: ["a", "b"]`):
+
+- **`inSegment`** — member of the segment, or of **any** in the array (OR). A
+  **single key** is resolved by _inlining_ the segment's conditions into the rule at
+  publish time — the runtime evaluator never sees it. An **array** is an OR, which
+  can't be inlined into a flat AND, so (like `notInSegment`) the resolved segments
+  are embedded in `Snapshot.segments` and the evaluator checks membership at runtime.
+- **`notInSegment`** — in **none** of the named segments. Never inlined; evaluated
+  against the embedded segments. Cyclic references are guarded (fail closed).
+- Dangling references (any operator, any key in an array) are rejected at publish.
+- _Note:_ multiple `inSegment` **conditions** in one rule still AND (every condition
+  must pass). The array form is how you express OR **within** a single condition. For
+  arbitrary OR/nested logic across attributes, see [`matches`](#query-matchers-matches--notmatches).
 - **Prerequisites** (`flag.prerequisites`) gate a flag on other flags resolving to a
   required variant; the dependency graph is validated acyclic at publish.

@@ -57,6 +57,23 @@ function matchesSegment(
   return segment.conditions.every((c) => evaluateCondition(c, context, segments, next));
 }
 
+/** The segment key(s) a condition value names: a single key string, or an array (OR). */
+function segmentKeys(value: unknown): string[] {
+  if (typeof value === "string") return value ? [value] : [];
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string" && !!v);
+  return [];
+}
+
+/** Whether the context is a member of **any** of the named segments (OR). */
+function inAnySegment(
+  value: unknown,
+  context: EvaluationContext,
+  segments: SegmentMap,
+  seen: Set<string>,
+): boolean {
+  return segmentKeys(value).some((key) => matchesSegment(key, context, segments, seen));
+}
+
 /** The outcome of evaluating a single flag. `value` is `undefined` only on ERROR. */
 export interface FlagEvaluation {
   value: FlagValue | undefined;
@@ -356,11 +373,13 @@ export function evaluateCondition(
       return cmp < 0;
     }
     case "inSegment":
-      // Normally inlined at compile time; if a snapshot embeds segments, resolve.
-      return typeof expected === "string" && matchesSegment(expected, context, segments, seen);
+      // Single-key form is normally inlined at compile time; an array (OR) form
+      // and any embedded snapshot resolve here. Member of ANY listed segment.
+      return inAnySegment(expected, context, segments, seen);
     case "notInSegment":
-      // Negated membership — true unless the context is in the (resolved) segment.
-      return typeof expected !== "string" || !matchesSegment(expected, context, segments, seen);
+      // Negated membership — true unless the context is in ANY listed segment
+      // (i.e. a member of NONE of them).
+      return !inAnySegment(expected, context, segments, seen);
     case "matches":
     case "notMatches": {
       // A registered matcher evaluates a JSON query against the subject

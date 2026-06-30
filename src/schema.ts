@@ -56,14 +56,16 @@ export type ConditionOperator =
   | "exists"
   | "notExists"
   /**
-   * Membership in a reusable {@link Segment}. `value` is the segment's key.
-   * Resolved (inlined) at **compile time** — the runtime evaluator and compiled
-   * snapshots never contain this operator (see {@link ./snapshot.compileDraft}).
+   * Membership in a reusable {@link Segment}. `value` is the segment's key, **or
+   * an array of keys** (member of **any** → OR). A single key is resolved
+   * (inlined) at **compile time**; an array can't be inlined (it's an OR), so the
+   * resolved segments are embedded in the snapshot and evaluated at runtime (see
+   * {@link ./snapshot.compileDraft}).
    */
   | "inSegment"
   /**
-   * Negated segment membership — true when the context does **not** satisfy the
-   * segment. `value` is the segment's key. Unlike `inSegment` it can't be inlined
+   * Negated segment membership — true when the context is in **none** of the named
+   * segments. `value` is a segment key or an array of keys. Can't be inlined
    * (negating an AND is an OR), so the resolved segments are embedded in the
    * snapshot ({@link Snapshot.segments}) and the evaluator checks membership.
    */

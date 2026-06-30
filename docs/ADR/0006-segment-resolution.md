@@ -50,3 +50,21 @@ and resolve `notInSegment` at **runtime** against segments embedded in the snaps
   segment builder would build on this embed-and-evaluate path rather than inlining.
 - **Cycles via `notInSegment`** are safe at runtime (guarded) rather than forbidden
   outright; only dangling references are a publish error.
+
+## Update (2026-06-30) — multi-segment OR via an array value
+
+The "OR across audiences" gap above is now closed for the in-condition case:
+`inSegment` / `notInSegment` accept **a single key or an array of keys**.
+
+- `inSegment: [A, B]` → member of **any** (OR); `notInSegment: [A, B]` → in **none**.
+- A **single-key `inSegment`** is still inlined (unchanged — lean snapshots). An
+  **array `inSegment`** is an OR that can't be inlined into a flat AND, so it takes
+  the same embed-and-evaluate path as `notInSegment`. Embedding now triggers on
+  `usesEmbeddedSegments` (notInSegment **or** array inSegment), not just notInSegment.
+- The evaluator resolves both via `inAnySegment(value, …)` (match any listed key,
+  cycle-guarded); `notInSegment` is its negation. Validation accepts a non-empty key
+  or non-empty array of non-empty keys; dangling keys (incl. inside an array) are a
+  publish error. The UI segment picker became a chip multi-select.
+- This is OR **within one condition**; separate conditions still AND. For arbitrary
+  cross-attribute OR/nested logic, the `matches` operator ([ADR 0008](./0008-query-matchers.md))
+  is the general tool. A richer visual segment/boolean builder remains future work.

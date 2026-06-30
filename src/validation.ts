@@ -162,10 +162,15 @@ function valueMatchesType(value: unknown, type: FlagType): boolean {
 function checkConditions(conditions: Condition[], path: string, errors: ValidationError[]): void {
   conditions.forEach((c, i) => {
     if (c.operator === "inSegment" || c.operator === "notInSegment") {
-      if (typeof c.value !== "string" || c.value.length === 0) {
+      // A single non-empty key, or a non-empty array of non-empty keys (OR).
+      const validKey = (k: unknown): k is string => typeof k === "string" && k.length > 0;
+      const ok = Array.isArray(c.value)
+        ? c.value.length > 0 && c.value.every(validKey)
+        : validKey(c.value);
+      if (!ok) {
         errors.push({
           path: `${path}[${i}].value`,
-          message: `${c.operator} requires a non-empty segment key`,
+          message: `${c.operator} requires a non-empty segment key (or array of keys)`,
         });
       }
     } else if (c.operator === "matches" || c.operator === "notMatches") {

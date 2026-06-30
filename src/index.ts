@@ -115,6 +115,7 @@ export {
   referencedSegmentKeys,
   resolveSegments,
   SegmentResolutionError,
+  usesEmbeddedSegments,
   usesNotInSegment,
   validateSegmentReferences,
 } from "./segments.ts";

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import type { Condition } from "../types.ts";
 import { JsonCodeEditor } from "./JsonCodeEditor.tsx";
 import { TextInput, Dropdown } from "./primitives.tsx";
@@ -106,14 +106,21 @@ export function ConditionRow({
         ? (condition.value as string[]).join(", ")
         : String(condition.value);
 
-  // Include the current value so an existing/dangling reference still renders.
-  const currentSegment = typeof condition.value === "string" ? condition.value : "";
-  const segmentOptions = [...new Set([...segmentKeys, currentSegment].filter(Boolean))].map(
-    (k) => ({
-      value: k,
-      label: k,
-    }),
-  );
+  // Segment membership accepts one key or many (OR). Normalize the value to a list
+  // for editing; write back a bare string for a single key (keeps it inlinable) and
+  // an array for 2+. Keep unknown/dangling selections visible.
+  const selectedSegments: string[] = Array.isArray(condition.value)
+    ? (condition.value as unknown[]).filter((v): v is string => typeof v === "string" && !!v)
+    : typeof condition.value === "string" && condition.value
+      ? [condition.value]
+      : [];
+  const availableSegments = [...new Set(segmentKeys)].filter((k) => !selectedSegments.includes(k));
+  const setSegments = (next: string[]) =>
+    onChange({
+      ...condition,
+      attribute: "",
+      value: next.length === 0 ? "" : next.length === 1 ? next[0]! : next,
+    });
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -168,17 +175,40 @@ export function ConditionRow({
           </div>
         </>
       ) : isSegment ? (
-        segmentOptions.length > 0 ? (
-          <Dropdown
-            value={currentSegment}
-            onValueChange={(v) => onChange({ ...condition, attribute: "", value: v })}
-            options={segmentOptions}
-            disabled={readonly}
-            className="w-36"
-          />
-        ) : (
-          <span className="w-36 text-xs text-muted-foreground">no segments yet</span>
-        )
+        <div className="flex min-w-36 flex-1 flex-wrap items-center gap-1.5">
+          {selectedSegments.map((key) => (
+            <span
+              key={key}
+              className="inline-flex items-center gap-1 rounded-md border border-input bg-secondary/40 px-2 py-1 font-mono text-xs"
+            >
+              {key}
+              {!readonly && (
+                <button
+                  type="button"
+                  aria-label={`Remove ${key}`}
+                  onClick={() => setSegments(selectedSegments.filter((k) => k !== key))}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </span>
+          ))}
+          {selectedSegments.length > 1 && (
+            <span className="text-xs text-muted-foreground">(any)</span>
+          )}
+          {!readonly && availableSegments.length > 0 ? (
+            <Dropdown
+              value=""
+              placeholder={selectedSegments.length ? "add (or)…" : "select segment…"}
+              onValueChange={(v) => v && setSegments([...selectedSegments, v])}
+              options={availableSegments.map((k) => ({ value: k, label: k }))}
+              className="w-40"
+            />
+          ) : selectedSegments.length === 0 ? (
+            <span className="text-xs text-muted-foreground">no segments yet</span>
+          ) : null}
+        </div>
       ) : COMMA_OPS.has(condition.operator) ? (
         // `in` / `notIn` take a list — use a chip input (type + Enter) instead
         // of asking the user to type commas. Values are case-sensitive.

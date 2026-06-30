@@ -2,10 +2,12 @@
  * Reusable-segment resolution.
  *
  * Segments are named, shareable audiences referenced by targeting rules via the
- * `inSegment` condition operator. They are an **authoring** convenience only:
- * this module inlines them into rule conditions at compile time so the runtime
- * evaluator (and the compiled snapshot) never see `inSegment`. Pure and
- * dependency-free — safe to use from the compile path.
+ * `inSegment` / `notInSegment` operators. A **single-key** `inSegment` is an
+ * authoring convenience: this module inlines it into rule conditions at compile
+ * time so the runtime evaluator never sees it. An **array** `inSegment` (OR across
+ * segments) and `notInSegment` can't be inlined (negating/OR-ing a flat AND), so
+ * the resolved segments are embedded in the snapshot and evaluated at runtime.
+ * Pure and dependency-free — safe to use from the compile path.
  *
  * @module
  */
@@ -36,6 +38,13 @@ function expandConditions(
   const out: Condition[] = [];
   for (const condition of conditions) {
     if (condition.operator !== "inSegment") {
+      out.push(condition);
+      continue;
+    }
+    // An array value is an OR across segments — it can't be inlined into a flat
+    // AND list, so keep the condition for runtime evaluation against the embedded
+    // segments (same path as `notInSegment`).
+    if (Array.isArray(condition.value)) {
       out.push(condition);
       continue;
     }
@@ -84,13 +93,20 @@ export function inlineSegments(
   return out;
 }
 
+/** Segment keys named by a condition value (a single key string or an array of keys). */
+function segmentKeysOfValue(value: unknown): string[] {
+  if (typeof value === "string") return value ? [value] : [];
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string" && !!v);
+  return [];
+}
+
 /** Collect the segment keys referenced (directly) by a flag's rule conditions. */
 export function referencedSegmentKeys(flag: Flag): string[] {
   const keys = new Set<string>();
   for (const rule of flag.rules ?? []) {
     for (const condition of rule.conditions) {
-      if (condition.operator === "inSegment" && typeof condition.value === "string") {
-        keys.add(condition.value);
+      if (condition.operator === "inSegment") {
+        for (const k of segmentKeysOfValue(condition.value)) keys.add(k);
       }
     }
   }
@@ -115,6 +131,24 @@ export function usesNotInSegment(flags: Record<string, Flag>): boolean {
   for (const flag of Object.values(flags)) {
     for (const rule of flag.rules ?? []) {
       if (rule.conditions.some((c) => c.operator === "notInSegment")) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * True if any flag rule (after inlining) needs **embedded** segments at runtime —
+ * i.e. uses `notInSegment`, or an `inSegment` with an **array** value (an OR across
+ * segments, which can't be inlined). Single-key `inSegment` is inlined, so it
+ * doesn't count.
+ */
+export function usesEmbeddedSegments(flags: Record<string, Flag>): boolean {
+  for (const flag of Object.values(flags)) {
+    for (const rule of flag.rules ?? []) {
+      for (const c of rule.conditions) {
+        if (c.operator === "notInSegment") return true;
+        if (c.operator === "inSegment" && Array.isArray(c.value)) return true;
+      }
     }
   }
   return false;
@@ -161,14 +195,21 @@ export function validateSegmentReferences(
     });
   }
 
-  // 3. `notInSegment` refs aren't followed by expandConditions (they're not
-  // inlined) — check they point at an existing segment. Cycles are safe at
-  // runtime (guarded), so only dangling refs are an error.
-  const checkNotIn = (conditions: Condition[], path: string) => {
+  // 3. References that aren't inlined by expandConditions — `notInSegment` and
+  // array (`OR`) `inSegment` — are evaluated at runtime against embedded segments.
+  // Check they point at existing segments. Cycles are safe at runtime (guarded),
+  // so only dangling refs are an error.
+  const checkNonInlined = (conditions: Condition[], path: string) => {
     conditions.forEach((c, i) => {
-      if (c.operator === "notInSegment") {
-        const key = typeof c.value === "string" ? c.value : "";
-        if (!key || !segments[key]) {
+      const nonInlined =
+        c.operator === "notInSegment" || (c.operator === "inSegment" && Array.isArray(c.value));
+      if (!nonInlined) return;
+      const keys = segmentKeysOfValue(c.value);
+      if (keys.length === 0) {
+        errors.push({ path: `${path}[${i}].value`, message: `unknown segment ""` });
+      }
+      for (const key of keys) {
+        if (!segments[key]) {
           errors.push({ path: `${path}[${i}].value`, message: `unknown segment "${key}"` });
         }
       }
@@ -176,11 +217,11 @@ export function validateSegmentReferences(
   };
   for (const [flagKey, flag] of Object.entries(flags)) {
     (flag.rules ?? []).forEach((rule, i) =>
-      checkNotIn(rule.conditions, `flags.${flagKey}.rules[${i}].conditions`),
+      checkNonInlined(rule.conditions, `flags.${flagKey}.rules[${i}].conditions`),
     );
   }
   for (const [key, segment] of Object.entries(segments)) {
-    checkNotIn(segment.conditions, `segments.${key}.conditions`);
+    checkNonInlined(segment.conditions, `segments.${key}.conditions`);
   }
 
   return errors;

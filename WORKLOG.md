@@ -4,6 +4,31 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — multi-segment OR: inSegment/notInSegment accept a key or array
+
+Closes the "OR across segments" gap ADR 0006 left open. `inSegment`/`notInSegment`
+`value` is now a single key **or an array of keys**: `inSegment [A,B]` = member of
+**any** (OR); `notInSegment [A,B]` = in **none**. Back-compat (single string unchanged).
+
+- **segments.ts**: `expandConditions` keeps an array `inSegment` (an OR can't inline);
+  single-key still inlines. New `usesEmbeddedSegments` (notInSegment **or** array
+  inSegment) drives snapshot embedding. `referencedSegmentKeys` + reference validation
+  broadened to array values (dangling key in an array → publish error; cycles guarded).
+- **evaluator.ts**: `inAnySegment(value,…)` (match any listed key, cycle-guarded);
+  `inSegment` → inAny, `notInSegment` → !inAny. Handles string or array.
+- **snapshot.ts**: embed resolved segments when `usesEmbeddedSegments`. **validation.ts**:
+  accept non-empty key or non-empty array of non-empty keys. **schema.ts** doc updated.
+  Exports `usesEmbeddedSegments`.
+- **UI** (`ConditionRow.tsx`): segment picker → **chip multi-select** (removable chips +
+  "add (or)…" dropdown, "(any)" marker for 2+). Writes a bare string for one key
+  (keeps it inlinable), an array for 2+.
+- **Tests:** `test/segments-or.test.ts` (10) — OR match-any, none, single-key back-compat,
+  compile embeds array inSegment (single-key still inlined), publish resolves + rejects
+  dangling array key. **e2e** 9/9. Verified live (screenshot): chips + (any) render, 0
+  console errors. **Seed:** beta-program gains an `inSegment ["eu-beta","internal-staff"]`
+  rule. **Docs:** OPERATORS.md segments section, ADR 0006 amendment.
+- Gate green: typecheck/lint/format, 504 unit + 9 e2e, build, publint.
+
 ## 2026-06-30 — remove `before`/`after` operators (superseded by `>`/`<`)
 
 The generalized comparable engine made `before`/`after` exact aliases of
