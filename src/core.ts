@@ -11,11 +11,13 @@
  * @module
  */
 
+import { diff } from "ohash/utils";
 import {
   environmentMetaKey,
   environmentsKey,
   projectMetaKey,
   projectsKey,
+  publishedDraftKey,
   segmentsKey,
 } from "./keys.ts";
 import { compileDraft, nextVersion, SnapshotStore } from "./snapshot.ts";
@@ -102,6 +104,22 @@ export interface SnapshotSummary {
   message?: string;
 }
 
+/** One field-level change between the published draft and the current draft. */
+export interface DraftDiffEntry {
+  type: "added" | "removed" | "changed";
+  /** Dot path into `{ flags, segments }`, e.g. `flags.new-checkout.enabled`. */
+  path: string;
+  /** Human-readable one-liner (e.g. "Changed `flags.x.enabled` from `false` to `true`"). */
+  summary: string;
+}
+
+/** The unpublished changes in a draft (see {@link FlagsCore.diffDraft}). */
+export interface DraftDiff {
+  /** False when the draft equals the last-published state (nothing to publish). */
+  changed: boolean;
+  entries: DraftDiffEntry[];
+}
+
 /** Thrown by mutating operations when the core is in readonly mode. */
 export class ReadonlyError extends Error {
   constructor(operation: string) {
@@ -165,6 +183,15 @@ export interface FlagsCore {
   upsertSegment(segment: Segment, projectKey?: string, environmentKey?: string): Promise<Segment>;
   deleteSegment(segmentKey: string, projectKey?: string, environmentKey?: string): Promise<void>;
   replaceDraft(draft: Draft): Promise<Draft>;
+
+  /**
+   * Field-level diff of the current draft (flags + segments) against the draft as
+   * it was at the last publish — i.e. the unpublished changes. `changed` is false
+   * when there is nothing to publish.
+   */
+  diffDraft(projectKey?: string, environmentKey?: string): Promise<DraftDiff>;
+  /** Discard all unpublished changes: reset the draft to the last-published state. */
+  discardDraft(projectKey?: string, environmentKey?: string): Promise<Draft>;
 
   // Publish / rollback / history
   publish(input?: {
@@ -473,6 +500,53 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       return loadDraft(draft.projectKey, draft.environmentKey);
     },
 
+    async diffDraft(projectKey, environmentKey) {
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      const [draft, segments] = await Promise.all([loadDraft(p, e), loadSegments(p, e)]);
+      const baseline = (await sourceStorage.getItem<{
+        flags: Record<string, Flag>;
+        segments: Record<string, Segment>;
+      }>(publishedDraftKey(p, e))) ?? { flags: {}, segments: {} };
+      const current = { flags: draft.flags, segments };
+      // Diff the published baseline → current draft (field-level, via ohash). Build
+      // our own summary from the values — ohash's toString() renders `false` as `{}`.
+      const fmt = (v: unknown): string => {
+        if (v === undefined) return "∅";
+        const s = typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
+        return s.length > 60 ? `${s.slice(0, 57)}…` : s;
+      };
+      const entries: DraftDiffEntry[] = diff(baseline, current)
+        .slice(0, 500)
+        .map((d) => {
+          const oldV = d.oldValue?.value;
+          const newV = d.newValue?.value;
+          const summary =
+            d.type === "added"
+              ? `Added ${d.key}${newV !== undefined ? ` = ${fmt(newV)}` : ""}`
+              : d.type === "removed"
+                ? `Removed ${d.key}`
+                : `Changed ${d.key}: ${fmt(oldV)} → ${fmt(newV)}`;
+          return { type: d.type, path: d.key, summary };
+        });
+      return { changed: entries.length > 0, entries };
+    },
+
+    async discardDraft(projectKey, environmentKey) {
+      guard("discard draft");
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      const baseline = await sourceStorage.getItem<{
+        flags: Record<string, Flag>;
+        segments: Record<string, Segment>;
+      }>(publishedDraftKey(p, e));
+      const flags = baseline?.flags ?? {};
+      const segments = baseline?.segments ?? {};
+      await source.putDraft({ projectKey: p, environmentKey: e, flags });
+      await sourceStorage.setItem(segmentsKey(p, e), segments);
+      return loadDraft(p, e);
+    },
+
     async publish(input = {}) {
       guard("publish");
       const p = pk(input.projectKey);
@@ -502,6 +576,8 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
         by: input.by ?? null,
         message: input.message,
       });
+      // Record the draft as-published — the baseline for diff + discard.
+      await sourceStorage.setItem(publishedDraftKey(p, e), { flags: draft.flags, segments });
       return snapshot;
     },
 

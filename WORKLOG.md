@@ -4,6 +4,31 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — Publish ⟂ Save parity: unpublished-changes diff + Discard
+
+Mirror the per-flag Save UX at the publish level — the draft→publish model was a
+common point of confusion ("is my toggle live before I publish?" → no).
+
+- **Baseline**: publish now records the draft as-published at `publishedDraftKey`
+  (`{flags,segments}`) — distinct from the compiled snapshot (which inlines segments
+  / drops archived). `core.diffDraft()` field-level-diffs the current draft vs that
+  baseline via **`ohash`** `diff` (new dep, admin/core path; request path stays
+  zero-dep). `core.discardDraft()` resets the draft to the baseline. API:
+  `GET .../draft/diff`, `POST .../draft/discard`.
+  - ohash's `toString()` renders `false` as `` `{}` `` — so we build our own summary
+    from `oldValue/newValue` ("Changed flags.x.enabled: true → false").
+- **UI** (App): a `draftDiff` query drives — **Publish disabled when nothing changed**,
+  a "● N unpublished" indicator, a **Discard** button (confirm dialog), and the
+  **diff list inside the publish dialog**. Invalidated alongside flags/segments at
+  every mutation site (toggle/archive/delete/save/segment ops) so it stays live.
+- **Tests**: `test/draft-diff.test.ts` (6) — never-published, post-publish clean,
+  field-level change, discard restores, discard-empties, archive-is-a-change. Verified
+  live (Publish gating + indicator + diff + discard, 0 console errors). 531 unit + 13
+  e2e, build, publint green.
+- **Note:** the demo seed edits the draft after its last publish (legacy-promo
+  backdate), so the demo starts with 1 unpublished change — incidentally showcases the
+  indicator.
+
 ## 2026-06-30 — UI: scheduled/expired row badges + permanent delete (archived only)
 
 - **Row status badges** (FlagsView): next to "Stale", show **Expired** (past

@@ -341,6 +341,32 @@ export async function handleApiRequest(
       }
     }
 
+    // --- Draft diff (unpublished changes) ---
+    m = match(`${base}/draft/diff`, path);
+    if (m && method === "GET") {
+      const { projectKey, environmentKey } = m.params;
+      const denied = await authorize("flag:read", {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      });
+      if (denied) return denied;
+      return json(await ctx.core.diffDraft(projectKey, environmentKey));
+    }
+
+    // --- Discard unpublished draft changes ---
+    m = match(`${base}/draft/discard`, path);
+    if (m && method === "POST") {
+      const { projectKey, environmentKey } = m.params;
+      const denied = await authorize("flag:update", {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      });
+      if (denied) return denied;
+      return json(await ctx.core.discardDraft(projectKey, environmentKey));
+    }
+
     // --- Publish ---
     m = match(`${base}/publish`, path);
     if (m && method === "POST") {

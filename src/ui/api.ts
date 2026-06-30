@@ -204,6 +204,26 @@ export function getDraft(projectKey: string, environmentKey: string): Promise<un
   return req<unknown>(`${envBase(projectKey, environmentKey)}/draft`);
 }
 
+export interface DraftDiffEntry {
+  type: "added" | "removed" | "changed";
+  path: string;
+  summary: string;
+}
+export interface DraftDiff {
+  changed: boolean;
+  entries: DraftDiffEntry[];
+}
+
+/** Field-level diff of the draft vs the last-published state (unpublished changes). */
+export function draftDiff(projectKey: string, environmentKey: string): Promise<DraftDiff> {
+  return req<DraftDiff>(`${envBase(projectKey, environmentKey)}/draft/diff`);
+}
+
+/** Discard all unpublished changes, resetting the draft to the last-published state. */
+export function discardDraft(projectKey: string, environmentKey: string): Promise<unknown> {
+  return req<unknown>(`${envBase(projectKey, environmentKey)}/draft/discard`, { method: "POST" });
+}
+
 export interface EvaluationResult {
   key: string;
   value: unknown;

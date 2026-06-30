@@ -5,6 +5,7 @@
     "": {
       "name": "@xtandard/flags",
       "dependencies": {
+        "ohash": "^2.0.11",
         "valibot": "^1.0.0",
         "wouter": "^3.10.0",
       },

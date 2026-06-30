@@ -155,6 +155,8 @@ export { isMutatingAction, MUTATING_ACTIONS } from "./authorization/contract.ts"
 // Admin core + server handler
 export { createFlagsCore } from "./core.ts";
 export type {
+  DraftDiff,
+  DraftDiffEntry,
   EvaluateInput,
   FlagEvaluationResult,
   FlagsCore,

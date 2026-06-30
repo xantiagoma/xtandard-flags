@@ -57,6 +57,14 @@ export const draftKey = (projectKey: string, environmentKey: string) =>
 export const segmentsKey = (projectKey: string, environmentKey: string) =>
   `${env(projectKey, environmentKey)}/segments`;
 
+/**
+ * The draft as it was at the last publish (`{ flags, segments }`) — the baseline
+ * for "unpublished changes" diffing and draft discard. Distinct from the compiled
+ * snapshot (which inlines segments and drops archived flags).
+ */
+export const publishedDraftKey = (projectKey: string, environmentKey: string) =>
+  `${env(projectKey, environmentKey)}/published-draft`;
+
 /** Prefix under which audit entries live. */
 export const auditPrefix = (projectKey: string, environmentKey: string) =>
   `${env(projectKey, environmentKey)}/audit`;

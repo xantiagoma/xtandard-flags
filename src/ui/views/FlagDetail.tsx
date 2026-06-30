@@ -952,6 +952,7 @@ export function FlagDetail({
         : updateFlag(projectKey, environmentKey, form.key, form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
       toast.add("success", isCreate ? "Flag created" : "Flag saved");
       // Saved — not a discard, so clear the dirty guard before navigating back.
       dirtyRef.current = false;

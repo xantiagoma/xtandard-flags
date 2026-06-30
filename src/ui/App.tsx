@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import { Router, Switch, Route, useLocation, useSearchParams, type BaseLocationHook } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CloudUpload, Lock } from "lucide-react";
+import { CloudUpload, Lock, Undo2 } from "lucide-react";
 import type { FlagsConfig } from "./types.ts";
 import { FlagsApiError } from "./types.ts";
 import {
   getConfig,
   publish,
+  draftDiff,
+  discardDraft,
   listProjects,
   listEnvironments,
   createProject,
@@ -43,16 +45,24 @@ function getBootstrap(): Partial<FlagsConfig> {
   return window.__FLAGS_CONFIG__ ?? {};
 }
 
+const DIFF_TONE: Record<string, string> = {
+  added: "text-success",
+  removed: "text-destructive",
+  changed: "text-warning",
+};
+
 function PublishDialog({
   open,
   onClose,
   onPublish,
   loading,
+  entries,
 }: {
   open: boolean;
   onClose: () => void;
   onPublish: (msg?: string) => void;
   loading: boolean;
+  entries: import("./api.ts").DraftDiffEntry[];
 }) {
   const [message, setMessage] = useState("");
 
@@ -76,6 +86,20 @@ function PublishDialog({
               Publishing creates a new versioned snapshot of all flags and activates it. This will
               affect live evaluations immediately.
             </p>
+            {entries.length > 0 && (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {entries.length} change{entries.length !== 1 ? "s" : ""} since last publish
+                </span>
+                <ul className="max-h-48 overflow-y-auto rounded-md border border-border bg-background/40 p-2 font-mono text-[11px] leading-relaxed">
+                  {entries.map((e, i) => (
+                    <li key={i} className={DIFF_TONE[e.type] ?? "text-foreground"}>
+                      {e.summary}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="publish-msg" className="text-xs font-medium text-muted-foreground">
                 Message (optional)
@@ -239,11 +263,23 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
       ),
   });
 
+  // Unpublished-changes diff (draft vs last published). Drives the Publish button's
+  // enabled state, the "N changes" indicator, and the pre-publish diff preview.
+  const diffQuery = useQuery({
+    queryKey: ["draftDiff", projectKey, environmentKey],
+    queryFn: () => draftDiff(projectKey, environmentKey),
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
+  });
+  const diff = diffQuery.data;
+  const hasChanges = diff?.changed ?? false;
+
   const publishMutation = useMutation({
     mutationFn: (message?: string) => publish(projectKey, environmentKey, message),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["snapshots", projectKey, environmentKey] });
       qc.invalidateQueries({ queryKey: ["audit", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
       const version = (data as { version?: string })?.version;
       toast.add("success", "Published successfully", version ? `Version ${version}` : undefined);
       setPublishOpen(false);
@@ -255,6 +291,19 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
         toast.add("error", "Publish failed");
       }
     },
+  });
+
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const discardMutation = useMutation({
+    mutationFn: () => discardDraft(projectKey, environmentKey),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["segments", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
+      toast.add("success", "Unpublished changes discarded");
+      setDiscardOpen(false);
+    },
+    onError: () => toast.add("error", "Failed to discard changes"),
   });
 
   return (
@@ -313,12 +362,33 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
                 Read-only
               </span>
             )}
+            {!readonly && hasChanges && (
+              <span
+                className="flex items-center gap-1.5 text-xs font-medium text-warning"
+                title="The draft differs from the published snapshot"
+              >
+                <span className="size-2 rounded-full bg-warning" aria-hidden />
+                {diff!.entries.length} unpublished
+              </span>
+            )}
+            {!readonly && hasChanges && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Undo2 className="size-3.5" />}
+                onClick={() => setDiscardOpen(true)}
+              >
+                Discard
+              </Button>
+            )}
             {!readonly && (
               <Button
                 variant="primary"
                 size="sm"
                 icon={<CloudUpload className="size-3.5" />}
                 onClick={() => setPublishOpen(true)}
+                disabled={!hasChanges}
+                title={hasChanges ? "Publish unpublished changes" : "Nothing to publish"}
               >
                 Publish
               </Button>
@@ -410,7 +480,41 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
         onClose={() => setPublishOpen(false)}
         onPublish={(msg) => publishMutation.mutate(msg)}
         loading={publishMutation.isPending}
+        entries={diff?.entries ?? []}
       />
+
+      {/* ── Discard-changes confirmation ─────────────────────────────────── */}
+      <Dialog.Root open={discardOpen} onOpenChange={(o) => !o && setDiscardOpen(false)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
+            <div className="border-b border-border px-5 py-4">
+              <Dialog.Title className="text-[15px] font-semibold text-foreground">
+                Discard unpublished changes
+              </Dialog.Title>
+            </div>
+            <div className="px-5 py-5">
+              <p className="text-[13px] text-muted-foreground">
+                This resets the draft to the last published snapshot, throwing away all{" "}
+                {diff?.entries.length ?? 0} unpublished change
+                {(diff?.entries.length ?? 0) !== 1 ? "s" : ""}. This can't be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="secondary" onClick={() => setDiscardOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                loading={discardMutation.isPending}
+                onClick={() => discardMutation.mutate()}
+              >
+                Discard changes
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

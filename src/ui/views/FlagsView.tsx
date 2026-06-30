@@ -138,6 +138,7 @@ export function FlagsView({
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
     },
   });
 
@@ -149,6 +150,7 @@ export function FlagsView({
     onSuccess: (_data, { archive }) => {
       toast.add("success", archive ? "Flag archived" : "Flag restored");
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
     },
     onError: (_err, { archive }) => {
       toast.add("error", archive ? "Failed to archive flag" : "Failed to restore flag");
@@ -163,6 +165,7 @@ export function FlagsView({
     onSuccess: () => {
       toast.add("success", "Flag deleted");
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
       setDeleteTarget(null);
       setConfirmText("");
     },

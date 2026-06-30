@@ -60,8 +60,10 @@ function SegmentEditor({
     setApiErrors([]);
   }, [segment]);
 
-  const invalidate = () =>
+  const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["segments", projectKey, environmentKey] });
+    qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
+  };
 
   const save = useMutation({
     mutationFn: () =>
