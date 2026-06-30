@@ -53,6 +53,9 @@ export type ConditionOperator =
   | "semverEquals"
   | "semverGreaterThan"
   | "semverLessThan"
+  /** Date/time comparison. Parses ISO-8601 strings or epoch-millis numbers on both sides. */
+  | "before"
+  | "after"
   | "exists"
   | "notExists"
   /**

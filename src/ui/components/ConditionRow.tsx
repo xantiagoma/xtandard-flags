@@ -29,6 +29,9 @@ export const CONDITION_OPERATORS: { value: string; label: string }[] = [
   { value: "greaterThanOrEqual", label: ">=" },
   { value: "lessThan", label: "<" },
   { value: "lessThanOrEqual", label: "<=" },
+  // Dates (ISO-8601 or epoch ms)
+  { value: "before", label: "before (date)" },
+  { value: "after", label: "after (date)" },
   // Version strings (niche)
   { value: "semverEquals", label: "semver =" },
   { value: "semverGreaterThan", label: "semver >" },
@@ -125,7 +128,11 @@ export function ConditionRow({
         </div>
       ) : !noValue ? (
         <TextInput
-          placeholder="value"
+          placeholder={
+            condition.operator === "before" || condition.operator === "after"
+              ? "2026-01-01 or epoch"
+              : "value"
+          }
           value={valueStr}
           disabled={readonly}
           className="w-36 font-mono"

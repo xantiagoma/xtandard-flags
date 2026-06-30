@@ -28,6 +28,8 @@ const conditionOperatorSchema = v.picklist([
   "semverEquals",
   "semverGreaterThan",
   "semverLessThan",
+  "before",
+  "after",
   "exists",
   "notExists",
   "inSegment",

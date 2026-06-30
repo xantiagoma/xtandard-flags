@@ -92,6 +92,24 @@ function toFiniteNumber(v: unknown): number | undefined {
   return undefined;
 }
 
+/**
+ * Parse a date/time to epoch milliseconds. Accepts an ISO-8601 string (via the
+ * built-in `Date` parser — no dependency) or an epoch-millis number. Returns
+ * `undefined` for anything unparseable, so date conditions fail closed.
+ */
+function toEpochMillis(v: unknown): number | undefined {
+  if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+  if (typeof v === "string" && v.trim() !== "") {
+    const t = Date.parse(v);
+    return Number.isNaN(t) ? undefined : t;
+  }
+  if (v instanceof Date) {
+    const t = v.getTime();
+    return Number.isNaN(t) ? undefined : t;
+  }
+  return undefined;
+}
+
 interface Semver {
   major: number;
   minor: number;
@@ -205,6 +223,13 @@ export function evaluateCondition(condition: Condition, context: EvaluationConte
       if (op === "semverEquals") return cmp === 0;
       if (op === "semverGreaterThan") return cmp > 0;
       return cmp < 0;
+    }
+    case "before":
+    case "after": {
+      const a = toEpochMillis(actual);
+      const b = toEpochMillis(expected);
+      if (a === undefined || b === undefined) return false;
+      return op === "before" ? a < b : a > b;
     }
     case "inSegment":
       // Segments are inlined at compile time, so the evaluator should never see
