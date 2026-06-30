@@ -1,6 +1,30 @@
 # Changelog
 
 
+## v0.1.3
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.2...v0.1.3)
+
+### 🚀 Enhancements
+
+- **ofrep:** Full OpenFeature compliance — ETag/304, flag metadata, opt-in SSE ([4efae2e](https://github.com/xantiagoma/xtandard-flags/commit/4efae2e))
+- **examples:** One-command runner for the polyglot OFREP clients ([f0b8ad8](https://github.com/xantiagoma/xtandard-flags/commit/f0b8ad8))
+
+### 🩹 Fixes
+
+- **ci:** Exclude cli.ts from coverage; add pre-commit + pre-push hooks ([8bdb873](https://github.com/xantiagoma/xtandard-flags/commit/8bdb873))
+
+### 📖 Documentation
+
+- **examples:** OFREP client example + polyglot Python/Go/plain-TS clients ([d22157b](https://github.com/xantiagoma/xtandard-flags/commit/d22157b), [a90ad9b](https://github.com/xantiagoma/xtandard-flags/commit/a90ad9b))
+- **examples:** Auth + authorization flexibility demo ([cd5bc54](https://github.com/xantiagoma/xtandard-flags/commit/cd5bc54))
+- **readme:** Frame the two evaluation paths — in-process (recommended) vs OFREP ([53a2d47](https://github.com/xantiagoma/xtandard-flags/commit/53a2d47))
+
+### ❤️ Contributors
+
+- Santiago Montoya ([@xantiagoma](https://github.com/xantiagoma))
+
+
 ## v0.1.2
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.1...v0.1.2)
