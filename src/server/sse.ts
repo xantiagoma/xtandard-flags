@@ -74,6 +74,7 @@ export function createSseManager(opts: SseOptions): SseManager {
 
   const start = (): void => {
     if (timer) return;
+    void tick(); // capture the baseline version now, so a change right after connect is caught
     timer = setInterval(() => void tick(), pollMs);
     (timer as unknown as { unref?: () => void }).unref?.();
   };

@@ -71,6 +71,12 @@ const EXAMPLES: Record<string, ExampleConfig> = {
     run: ["bun", "run", "start"],
     note: "needs Redis at REDIS_URL (default redis://localhost:6379) + published flags",
   },
+  ofrep: {
+    dir: "examples/ofrep",
+    kind: "script",
+    run: ["bun", "run", "start"],
+    note: "self-contained: boots a panel + acts as an OFREP client (bulk/single/ETag/SSE)",
+  },
 };
 
 const name = process.argv[2];

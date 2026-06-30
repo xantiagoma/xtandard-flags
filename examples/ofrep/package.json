@@ -1,0 +1,11 @@
+{
+  "name": "example-ofrep",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@xtandard/flags": "file:../.."
+  }
+}

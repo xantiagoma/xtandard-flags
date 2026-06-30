@@ -345,6 +345,7 @@
     "examples:express": "bun scripts/example.ts express",
     "examples:storage-drivers": "bun scripts/example.ts storage-drivers",
     "examples:openfeature-redis": "bun scripts/example.ts openfeature-redis",
+    "examples:ofrep": "bun scripts/example.ts ofrep",
     "test": "vp test run",
     "test:coverage": "vp test run --coverage",
     "test:e2e": "playwright test",
