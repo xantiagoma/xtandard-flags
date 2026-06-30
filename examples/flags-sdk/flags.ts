@@ -39,7 +39,9 @@ const openFeature = createOpenFeatureAdapter(async () => {
     storage: createFileStorage({ dir: FLAGS_DATA_DIR }),
     projectKey: "default",
     environmentKey: "production",
-    refreshIntervalMs: 10_000,
+    // Short interval so a Publish from the in-app panel (/flags) shows up on the
+    // next page load within a couple seconds, without restarting the dev server.
+    refreshIntervalMs: 2000,
   });
   await OpenFeature.setProviderAndWait(provider);
   return OpenFeature.getClient();

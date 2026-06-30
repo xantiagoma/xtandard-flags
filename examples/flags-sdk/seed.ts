@@ -8,8 +8,15 @@
 import { createFlagsCore } from "@xtandard/flags";
 import { createFileStorage } from "@xtandard/flags/storage/file";
 
-const dir = process.env.FLAGS_DATA_DIR ?? "./.flags-data/runtime";
-const core = createFlagsCore({ sourceStorage: createFileStorage({ dir }) });
+// Publish to the same two dirs the in-app admin panel uses (see
+// `app/flags/[[...path]]/route.ts`): source holds drafts/history, runtime holds
+// the published snapshots the app evaluates from.
+const sourceDir = process.env.FLAGS_SOURCE_DIR ?? "./.flags-data/source";
+const runtimeDir = process.env.FLAGS_DATA_DIR ?? "./.flags-data/runtime";
+const core = createFlagsCore({
+  sourceStorage: createFileStorage({ dir: sourceDir }),
+  runtimeStorage: createFileStorage({ dir: runtimeDir }),
+});
 
 await core.upsertFlag({
   key: "new-checkout",
@@ -53,4 +60,4 @@ await core.upsertFlag({
 });
 
 const snapshot = await core.publish({ message: "seed flags-sdk example" });
-console.log(`Published ${snapshot.version} to ${dir}. Now run: bun run dev`);
+console.log(`Published ${snapshot.version} to ${runtimeDir}. Now run: bun run dev`);
