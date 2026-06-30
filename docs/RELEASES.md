@@ -53,6 +53,8 @@ separate and triggered by pushing a version tag (`v*`):
 2. `bun run build` (lib + UI + react)
 3. `bunx publint` (package-correctness check)
 4. `npm publish --provenance --access public` (auth via `NPM_TOKEN`)
+5. Create a **GitHub Release** for the tag (`gh release create … --generate-notes`),
+   so it appears on the repo's [Releases](https://github.com/xantiagoma/xtandard-flags/releases) page.
 
 **First release:** `git tag v0.1.0 && git push origin v0.1.0`.
 **Ongoing releases:** `bun run release`.
