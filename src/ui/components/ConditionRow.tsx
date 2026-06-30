@@ -2,13 +2,14 @@ import React from "react";
 import { Trash2 } from "lucide-react";
 import type { Condition } from "../types.ts";
 import { TextInput, Dropdown } from "./primitives.tsx";
+import { TagInput } from "./TagInput.tsx";
 
 /** Operator options shown in the condition editor (shared by flags & segments). */
 export const CONDITION_OPERATORS: { value: string; label: string }[] = [
   { value: "equals", label: "equals" },
   { value: "notEquals", label: "not equals" },
-  { value: "in", label: "in (comma-sep)" },
-  { value: "notIn", label: "not in (comma-sep)" },
+  { value: "in", label: "in (any of)" },
+  { value: "notIn", label: "not in (any of)" },
   { value: "contains", label: "contains" },
   { value: "notContains", label: "not contains" },
   { value: "startsWith", label: "starts with" },
@@ -101,17 +102,25 @@ export function ConditionRow({
         ) : (
           <span className="w-36 text-xs text-muted-foreground">no segments yet</span>
         )
+      ) : COMMA_OPS.has(condition.operator) ? (
+        // `in` / `notIn` take a list — use a chip input (type + Enter) instead
+        // of asking the user to type commas. Values are case-sensitive.
+        <div className="min-w-36 flex-1">
+          <TagInput
+            values={Array.isArray(condition.value) ? (condition.value as string[]) : []}
+            onChange={(vals) => onChange({ ...condition, value: vals })}
+            disabled={readonly}
+            placeholder="Add value…"
+            lowercase={false}
+          />
+        </div>
       ) : !noValue ? (
         <TextInput
-          placeholder={COMMA_OPS.has(condition.operator) ? "a, b, c" : "value"}
+          placeholder="value"
           value={valueStr}
           disabled={readonly}
           className="w-36 font-mono"
-          onChange={(e) => {
-            const raw = e.target.value;
-            const v = COMMA_OPS.has(condition.operator) ? raw.split(",").map((s) => s.trim()) : raw;
-            onChange({ ...condition, value: v });
-          }}
+          onChange={(e) => onChange({ ...condition, value: e.target.value })}
         />
       ) : (
         <div className="w-36" />

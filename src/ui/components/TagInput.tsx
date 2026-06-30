@@ -8,16 +8,20 @@ export function TagInput({
   onChange,
   placeholder = "Add tag…",
   disabled,
+  lowercase = true,
 }: {
   values: string[];
   onChange: (values: string[]) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Lowercase entries on add. True for tags; false for case-sensitive values (e.g. "FR"). */
+  lowercase?: boolean;
 }) {
   const [draft, setDraft] = useState("");
 
   const add = (raw: string) => {
-    const t = raw.trim().toLowerCase();
+    const trimmed = raw.trim();
+    const t = lowercase ? trimmed.toLowerCase() : trimmed;
     if (t && !values.includes(t)) onChange([...values, t]);
     setDraft("");
   };
