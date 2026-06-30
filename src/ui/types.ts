@@ -51,6 +51,22 @@ export type ConditionNode = Condition | ConditionGroup;
 export const isConditionGroup = (node: ConditionNode): node is ConditionGroup =>
   typeof node === "object" && node !== null && ("all" in node || "any" in node || "not" in node);
 
+/** Depth-first walk of every leaf {@link Condition} under a list of nodes. */
+export function leafConditions(nodes: ConditionNode[]): Condition[] {
+  const out: Condition[] = [];
+  const visit = (node: ConditionNode): void => {
+    if (!isConditionGroup(node)) {
+      out.push(node);
+      return;
+    }
+    if (node.all) node.all.forEach(visit);
+    else if (node.any) node.any.forEach(visit);
+    else if (node.not) visit(node.not);
+  };
+  nodes.forEach(visit);
+  return out;
+}
+
 export interface Rule {
   id: string;
   name?: string;

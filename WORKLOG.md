@@ -4,6 +4,29 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — JSON variant editor (CodeMirror) + clearer Test Targeting
+
+Two UI polish items from live review:
+
+- **JSON variant values** now use the CodeMirror `JsonCodeEditor` (line numbers +
+  syntax highlighting) instead of a plain textarea — same editor as the `matches`
+  query. New `JsonValueField` (draft buffer; pushes parsed value only when valid,
+  shows "Invalid JSON — last valid value kept" otherwise). Dropped the unused
+  `TextArea` import from FlagDetail.
+- **Test targeting** was confusing ("don't know how to use it"). Now it:
+  - **seeds attribute rows from the flag's own rules** (the attributes its conditions
+    read) with "(seeded from this flag's rules — fill in values)" — so it's obvious
+    what to test; falls back to one blank row;
+  - explains what it does + what the targeting key is (rollouts/splits/overrides);
+  - **warns when the flag is dirty** ("tests the last saved version — save to test
+    edits"); and
+  - shows a richer result with a plain-language explanation per reason
+    (TARGETING_MATCH/SPLIT/STATIC/DEFAULT/DISABLED/PREREQUISITE_FAILED/ERROR/…).
+    `TestTargeting` now takes `flag` + `isDirty` (was `flagKey`); added `leafConditions`
+    to `ui/types`.
+- Verified live (screenshots): JSON flag shows 2 highlighted editors; Test Targeting
+  seeds plan/seats/role/region from a grouped rule. 0 console errors; 12/12 e2e, gate green.
+
 ## 2026-06-30 — drop the default navbar icon (wordmark-only branding)
 
 The navbar no longer shows the built-in flag glyph. Branding is now just: the

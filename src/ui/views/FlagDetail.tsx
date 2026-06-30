@@ -18,16 +18,11 @@ import { useToast } from "../components/Toast.tsx";
 import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
 import { ConditionTree } from "../components/ConditionTree.tsx";
+import { JsonCodeEditor } from "../components/JsonCodeEditor.tsx";
 import { renameVariantInFlag } from "../lib/variants.ts";
 import { clearNavBlocker, setNavBlocker } from "../lib/nav-guard.ts";
 import { Button, Badge } from "../components/ui-bits.tsx";
-import {
-  ToggleSwitch,
-  Segmented,
-  Dropdown,
-  TextInput,
-  TextArea,
-} from "../components/primitives.tsx";
+import { ToggleSwitch, Segmented, Dropdown, TextInput } from "../components/primitives.tsx";
 import { cn } from "../lib/utils.ts";
 
 interface Props {
@@ -127,6 +122,43 @@ function Field({
   );
 }
 
+/**
+ * JSON variant value edited in the CodeMirror {@link JsonCodeEditor}. Keeps a raw
+ * draft while typing; pushes the parsed value up only when it's valid JSON,
+ * surfacing an error otherwise (so a half-typed value never corrupts the model).
+ */
+function JsonValueField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: unknown;
+  onChange: (v: unknown) => void;
+  disabled?: boolean;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const text = draft ?? (typeof value === "string" ? value : JSON.stringify(value, null, 2));
+  return (
+    <div>
+      <JsonCodeEditor
+        value={text}
+        readOnly={disabled}
+        onChange={(t) => {
+          setDraft(t);
+          try {
+            onChange(JSON.parse(t));
+            setError(null);
+          } catch {
+            setError("Invalid JSON — last valid value kept");
+          }
+        }}
+      />
+      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 function VariantValueEditor({
   type,
   value,
@@ -140,25 +172,8 @@ function VariantValueEditor({
 }) {
   if (type === "boolean")
     return <span className="font-mono text-xs text-muted-foreground">{String(value)}</span>;
-  if (type === "json") {
-    const str = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-    return (
-      <TextArea
-        value={str}
-        disabled={disabled}
-        rows={3}
-        spellCheck={false}
-        className="font-mono text-xs"
-        onChange={(e) => {
-          try {
-            onChange(JSON.parse(e.target.value));
-          } catch {
-            onChange(e.target.value);
-          }
-        }}
-      />
-    );
-  }
+  if (type === "json")
+    return <JsonValueField value={value} onChange={onChange} disabled={disabled} />;
   return (
     <TextInput
       value={String(value ?? "")}
@@ -1094,7 +1109,8 @@ export function FlagDetail({
         {!isCreate && (
           <SectionCard title="Test targeting" subtitle="See how this flag resolves for a context.">
             <TestTargeting
-              flagKey={form.key}
+              flag={form}
+              isDirty={isDirty}
               projectKey={projectKey}
               environmentKey={environmentKey}
             />
