@@ -121,6 +121,13 @@ docker run --rm -p 3000:3000 \
 
 Visit `http://localhost:3000`. Health check at `/healthcheck`.
 
+Configured entirely by env vars — `PORT`, `BASE_PATH`, `TITLE`, `LOGO_URL`,
+`READONLY`, `STREAMING` (OFREP SSE), `AUTH_MODE`/`AUTH_USERNAME`/`AUTH_PASSWORD[_HASH]`,
+and the `SOURCE_/RUNTIME_STORAGE_DRIVER` family (`memory`/`file`/`redis`/`postgres`/
+`mongodb`/`sqlite`/`unstorage`). **Full reference + per-driver vars:**
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). The same set works with `serve` (run
+`npx @xtandard/flags serve --help`).
+
 ### Or run it without Docker (`npx` / `bunx`)
 
 Same server, same env vars — no container:

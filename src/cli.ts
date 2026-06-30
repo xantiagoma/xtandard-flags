@@ -260,8 +260,8 @@ function helpText(version: string): string {
   return `xtandard-flags v${version} — self-hosted, OpenFeature-compatible feature-flag control plane
 
 Usage:
-  xtandard-flags <command> [options]
-  npx @xtandard/flags <command>          # or: bunx @xtandard/flags <command>
+  xtandard-flags <command> [options]     # the binary, after: npm i -g @xtandard/flags
+  npx @xtandard/flags <command>          # without installing (or: bunx @xtandard/flags …)
 
 Commands:
   serve [--port <n>]            Run the panel + JSON API + OFREP server (no Docker).

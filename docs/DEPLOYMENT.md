@@ -31,26 +31,26 @@ PORT=4000 \
 
 ### Environment Variables
 
-| Variable                 | Default                    | Description                                                                      |
-| ------------------------ | -------------------------- | -------------------------------------------------------------------------------- |
-| `PORT`                   | `3000`                     | TCP port to listen on.                                                           |
-| `BASE_PATH`              | `""`                       | URL prefix, e.g. `"/flags"`. Must match the path you expose.                     |
-| `TITLE`                  | `"@xtandard/flags"`        | Navbar wordmark, shown in the admin UI and `/healthcheck`.                       |
-| `LOGO_URL`               | `""`                       | Logo image URL shown in place of the title wordmark.                             |
-| `SOURCE_STORAGE_DRIVER`  | `"memory"`                 | Driver for source storage: `redis`, `file`, `unstorage`, `memory`.               |
-| `RUNTIME_STORAGE_DRIVER` | `"memory"`                 | Driver for runtime storage: `redis`, `file`, `unstorage`, `memory`.              |
-| `REDIS_URL`              | `"redis://localhost:6379"` | Redis connection URL (used when driver is `redis`).                              |
-| `SOURCE_PREFIX`          | `"xtandard:flags:source"`  | Redis key prefix for source storage.                                             |
-| `RUNTIME_PREFIX`         | `"xtandard:flags:runtime"` | Redis key prefix for runtime storage.                                            |
-| `SOURCE_FILE_DIR`        | `"./data/source"`          | Directory for file-backed source storage.                                        |
-| `RUNTIME_FILE_DIR`       | `"./data/runtime"`         | Directory for file-backed runtime storage.                                       |
-| `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` or `basic`.                                          |
-| `AUTH_USERNAME`          | `"admin"`                  | Username for `basic` auth mode.                                                  |
-| `AUTH_PASSWORD_HASH`     | `""`                       | scrypt hash of the admin password (preferred). See [Auth](AUTH.md).              |
-| `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                                  |
-| `READONLY`               | `false`                    | Set to `1` or `true` to block all mutating operations.                           |
-| `STREAMING`              | `false`                    | Set to `1` or `true` to enable the opt-in OFREP SSE stream (`/ofrep/v1/stream`). |
-| `UI_DIR`                 | resolved from module path  | Override the bundled UI directory (e.g. in custom Docker images).                |
+| Variable                 | Default                    | Description                                                                             |
+| ------------------------ | -------------------------- | --------------------------------------------------------------------------------------- |
+| `PORT`                   | `3000`                     | TCP port to listen on.                                                                  |
+| `BASE_PATH`              | `""`                       | URL prefix, e.g. `"/flags"`. Must match the path you expose.                            |
+| `TITLE`                  | `"@xtandard/flags"`        | Navbar wordmark, shown in the admin UI and `/healthcheck`.                              |
+| `LOGO_URL`               | `""`                       | Logo image URL shown in place of the title wordmark.                                    |
+| `SOURCE_STORAGE_DRIVER`  | `"memory"`                 | Source driver: `memory`, `file`, `redis`, `postgres`, `mongodb`, `sqlite`, `unstorage`. |
+| `RUNTIME_STORAGE_DRIVER` | `"memory"`                 | Runtime driver (same set as above).                                                     |
+| `REDIS_URL`              | `"redis://localhost:6379"` | Redis connection URL (used when driver is `redis`).                                     |
+| `SOURCE_PREFIX`          | `"xtandard:flags:source"`  | Redis key prefix for source storage.                                                    |
+| `RUNTIME_PREFIX`         | `"xtandard:flags:runtime"` | Redis key prefix for runtime storage.                                                   |
+| `SOURCE_FILE_DIR`        | `"./data/source"`          | Directory for file-backed source storage.                                               |
+| `RUNTIME_FILE_DIR`       | `"./data/runtime"`         | Directory for file-backed runtime storage.                                              |
+| `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` or `basic`.                                                 |
+| `AUTH_USERNAME`          | `"admin"`                  | Username for `basic` auth mode.                                                         |
+| `AUTH_PASSWORD_HASH`     | `""`                       | scrypt hash of the admin password (preferred). See [Auth](AUTH.md).                     |
+| `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                                         |
+| `READONLY`               | `false`                    | Set to `1` or `true` to block all mutating operations.                                  |
+| `STREAMING`              | `false`                    | Set to `1` or `true` to enable the opt-in OFREP SSE stream (`/ofrep/v1/stream`).        |
+| `UI_DIR`                 | resolved from module path  | Override the bundled UI directory (e.g. in custom Docker images).                       |
 
 ### Healthcheck
 
@@ -176,17 +176,24 @@ Consider mounting the admin panel on an internal-only port or path:
 - Place a reverse proxy in front and restrict access by IP or mTLS.
 - Run the standalone container on a non-public network and only expose the OpenFeature provider's runtime storage (Redis) to applications.
 
-## Storage driver env vars (Postgres & MongoDB)
+## Storage driver env vars (per driver)
 
-The standalone app and CLI accept `postgres` and `mongodb` for
-`SOURCE_STORAGE_DRIVER` / `RUNTIME_STORAGE_DRIVER` (alongside `redis`, `unstorage`,
-`file`, `memory`). Source and runtime share one connection but are isolated by a
-distinct table/collection.
+The standalone app and CLI accept these `SOURCE_STORAGE_DRIVER` /
+`RUNTIME_STORAGE_DRIVER` values. Source and runtime share one connection but are
+isolated by a distinct table/collection/prefix/dir.
 
-| Driver     | Env vars                                                                                                                                               |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `postgres` | `DATABASE_URL` (or `POSTGRES_URL`); optional `SOURCE_PG_TABLE` / `RUNTIME_PG_TABLE` (default `xtandard_flags_{source,runtime}`)                        |
-| `mongodb`  | `MONGO_URL`; optional `MONGO_DB` (default `xtandard_flags`), `SOURCE_MONGO_COLLECTION` / `RUNTIME_MONGO_COLLECTION` (default `flags_{source,runtime}`) |
+| Driver      | Env vars                                                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `memory`    | _(none)_ — ephemeral, lost on restart. Docker default.                                                                                                 |
+| `file`      | `SOURCE_FILE_DIR` / `RUNTIME_FILE_DIR` (standalone default `./data/{source,runtime}`; CLI `serve` default `./.flags/{source,runtime}`)                 |
+| `redis`     | `REDIS_URL` (default `redis://localhost:6379`); optional `SOURCE_PREFIX` / `RUNTIME_PREFIX`                                                            |
+| `postgres`  | `DATABASE_URL` (or `POSTGRES_URL`); optional `SOURCE_PG_TABLE` / `RUNTIME_PG_TABLE` (default `xtandard_flags_{source,runtime}`)                        |
+| `mongodb`   | `MONGO_URL`; optional `MONGO_DB` (default `xtandard_flags`), `SOURCE_MONGO_COLLECTION` / `RUNTIME_MONGO_COLLECTION` (default `flags_{source,runtime}`) |
+| `sqlite`    | `SOURCE_SQLITE_PATH` / `RUNTIME_SQLITE_PATH` (default `./data/{source,runtime}.sqlite`). Bun-only — works in the Docker image (Bun) and under `bunx`.  |
+| `unstorage` | in-memory by default; configure other unstorage drivers in code (see [Storage](STORAGE.md))                                                            |
+
+> Note: `libsql`/Turso and `cloudflare-kv` adapters exist but are wired in **code**
+> (`createLibsqlStorage` / `createCloudflareKvStorage`), not via these env drivers.
 
 ```bash
 # Postgres source + runtime
