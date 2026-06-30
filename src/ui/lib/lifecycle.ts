@@ -44,3 +44,18 @@ export function isStale(flag: Flag, defaultIdleDays = 7, now = Date.now()): bool
 export function staleCount(flags: Flag[], now = Date.now()): number {
   return flags.reduce((n, f) => n + (isStale(f, 7, now) ? 1 : 0), 0);
 }
+
+/**
+ * The flag's scheduled-window status right now: `"expired"` (past `disableAt`),
+ * `"scheduled"` (before `enableAt`), or `null` (live / no window). Mirrors the
+ * evaluator's `scheduleState`.
+ */
+export function scheduleStatus(flag: Flag, now = Date.now()): "scheduled" | "expired" | null {
+  const s = flag.schedule;
+  if (!s) return null;
+  const end = ms(s.disableAt);
+  if (end != null && now > end) return "expired";
+  const start = ms(s.enableAt);
+  if (start != null && now < start) return "scheduled";
+  return null;
+}

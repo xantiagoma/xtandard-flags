@@ -8,7 +8,7 @@ import { useToast } from "../components/Toast.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import { ToggleSwitch } from "../components/primitives.tsx";
 import { cn } from "../lib/utils.ts";
-import { isStale, staleCount } from "../lib/lifecycle.ts";
+import { isStale, scheduleStatus, staleCount } from "../lib/lifecycle.ts";
 import { FlagDetail } from "./FlagDetail.tsx";
 import { CreateFlagModal } from "./CreateFlagModal.tsx";
 
@@ -347,6 +347,16 @@ export function FlagsView({
                           {isStale(flag) && (
                             <span className="rounded-md border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
                               Stale
+                            </span>
+                          )}
+                          {scheduleStatus(flag) === "expired" && (
+                            <span className="rounded-md border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
+                              Expired
+                            </span>
+                          )}
+                          {scheduleStatus(flag) === "scheduled" && (
+                            <span className="rounded-md border border-chart-2/30 bg-chart-2/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-chart-2">
+                              Scheduled
                             </span>
                           )}
                         </div>

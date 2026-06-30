@@ -348,6 +348,19 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     schedule: { enableAt: daysAgo(3), disableAt: daysAgo(1) },
   });
 
+  // --- A future-scheduled flag (not yet live → SCHEDULED). ---
+  await call("POST", `${prod}/flags`, {
+    key: "spring-promo",
+    type: "boolean",
+    enabled: true,
+    description: "Goes live at a future date (scheduled window)",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "on" },
+    tags: ["marketing"],
+    schedule: { enableAt: daysAgo(-14) },
+  });
+
   // --- Kitchen-sink: prerequisite + overrides + nested groups (with a matches
   // leaf inside an AND, and a regex-matches inside a NOT) + a weighted-split serve.
   await call("POST", `${prod}/flags`, {
