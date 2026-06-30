@@ -604,12 +604,35 @@ export function FlagDetail({
   const [form, setForm] = useState<Flag>(() => flag ?? emptyFlag());
   const [keyError, setKeyError] = useState("");
   const [apiErrors, setApiErrors] = useState<{ path?: string; message: string }[]>([]);
+  // Baseline snapshot of the loaded flag; `form` differing from it means unsaved edits.
+  const [baseline, setBaseline] = useState(() => JSON.stringify(flag ?? emptyFlag()));
 
   useEffect(() => {
     setForm(flag ?? emptyFlag());
+    setBaseline(JSON.stringify(flag ?? emptyFlag()));
     setKeyError("");
     setApiErrors([]);
   }, [flag]);
+
+  const isDirty = !readonly && JSON.stringify(form) !== baseline;
+
+  // Warn before a full-page unload (tab close / refresh) with unsaved edits.
+  useEffect(() => {
+    if (!isDirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
+
+  // Guarded back: confirm if there are unsaved edits. Used by Cancel + the
+  // breadcrumb. (A successful save calls the raw `onBack` — it isn't "discarding".)
+  const handleBack = () => {
+    if (isDirty && !window.confirm("You have unsaved changes. Discard them and leave?")) return;
+    onBack();
+  };
 
   const segmentsQuery = useQuery({
     queryKey: ["segments", projectKey, environmentKey],
@@ -680,7 +703,7 @@ export function FlagDetail({
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <div className="flex items-center gap-3">
         <button
-          onClick={onBack}
+          onClick={handleBack}
           className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="size-4" />
@@ -1076,17 +1099,31 @@ export function FlagDetail({
 
         <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
-            <CheckCircle2 className="size-4 shrink-0 text-success" />
-            {isCreate
-              ? "Fill in the details and save to create."
-              : "Save changes then publish to go live."}
+            {isDirty ? (
+              <>
+                <span className="size-2 shrink-0 rounded-full bg-warning" aria-hidden />
+                Unsaved changes
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="size-4 shrink-0 text-success" />
+                {isCreate
+                  ? "Fill in the details and save to create."
+                  : "Save changes then publish to go live."}
+              </>
+            )}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={onBack}>
+            <Button variant="secondary" onClick={handleBack}>
               Cancel
             </Button>
             {!readonly && (
-              <Button variant="primary" loading={mutation.isPending} onClick={handleSave}>
+              <Button
+                variant="primary"
+                loading={mutation.isPending}
+                disabled={!isCreate && !isDirty}
+                onClick={handleSave}
+              >
                 {isCreate ? "Create flag" : "Save changes"}
               </Button>
             )}

@@ -146,6 +146,26 @@ test("condition groups: add a nested AND/OR group to a rule", async ({ page }) =
   await expect(page.getByRole("button", { name: "Add condition" })).toHaveCount(2);
 });
 
+test("unsaved changes: Save disabled when clean, enabled when dirty, Cancel confirms", async ({
+  page,
+}) => {
+  await page.goto("/flags/e2e-checkout");
+  await expect(page.getByText("Basics")).toBeVisible();
+
+  const save = page.getByRole("button", { name: "Save changes" });
+  await expect(save).toBeDisabled(); // freshly loaded → no changes
+
+  // Make an edit → Save enables + the "Unsaved changes" indicator shows.
+  await page.getByPlaceholder("What does this flag control?").fill("edited in e2e");
+  await expect(save).toBeEnabled();
+  await expect(page.getByText("Unsaved changes")).toBeVisible();
+
+  // Cancel with unsaved edits prompts a confirm; dismissing keeps us on the page.
+  page.once("dialog", (d) => d.dismiss());
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByText("Basics")).toBeVisible();
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

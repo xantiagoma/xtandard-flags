@@ -4,6 +4,21 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — unsaved-changes guard + dirty Save button (flag detail)
+
+- **Dirty tracking** in `FlagDetail`: baseline JSON snapshot of the loaded flag;
+  `isDirty = form !== baseline` (reset on flag load; readonly is never dirty).
+- **Save disabled when clean** (edit mode; create stays enabled). The sticky footer
+  shows a "Unsaved changes" dot when dirty, the success hint otherwise.
+- **Confirm before leaving with edits:** `handleBack` (Cancel + "All Flags"
+  breadcrumb) `window.confirm`s; a successful save calls the raw `onBack` (not a
+  discard). A `beforeunload` listener warns on tab close / refresh.
+- **e2e** +1 (11 total): Save disabled→enabled on edit, "Unsaved changes" shows,
+  Cancel prompts + dismiss stays. Verified live (0 console errors).
+- **Known gap:** in-app nav that bypasses `handleBack` (clicking another flag row,
+  switching project/env or tab in the nav) isn't guarded yet — needs a wouter-level
+  navigation interceptor in `App`. beforeunload + Cancel/breadcrumb cover the rest.
+
 ## 2026-06-30 — sticky flag-detail action bar
 
 The "Save changes then publish to go live." bar (Cancel + Save/Create) is now a
