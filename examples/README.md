@@ -25,12 +25,26 @@ bun run build    # builds dist/ (lib) + dist/ui (admin SPA)
 When using the published package instead, swap the dependency for
 `"@xtandard/flags": "^0.1.0"`.
 
-## Try the embedded panel
+## Run from the repo root (auto-install + free port)
+
+From the repo root, after `bun run build`, convenience scripts install the
+example on first use and launch it on a **free port** (via `get-port-please`, so
+you can run several at once without collisions):
+
+```bash
+bun run examples:elysia            # or: hono | express | flags-sdk
+bun run examples:storage-drivers   # script example (no server)
+bun run examples:openfeature-redis # needs Redis + published flags
+```
+
+Each prints the URL it chose, e.g. `▶ elysia → http://localhost:3001/flags`.
+
+## Try the embedded panel (manually)
 
 ```bash
 cd elysia      # or: hono, express
 bun install
-bun run start
+bun run start  # honors PORT; defaults to 3000
 # open http://localhost:3000/flags — create a "theme" string flag, then Publish
 ```
 

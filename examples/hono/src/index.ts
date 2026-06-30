@@ -24,5 +24,6 @@ app.route(
   }),
 );
 
-export default { port: 3000, fetch: app.fetch };
-console.log("Hono listening on http://localhost:3000 (panel at /flags)");
+const port = Number(process.env.PORT) || 3000;
+console.log(`Hono listening on http://localhost:${port} (panel at /flags)`);
+export default { port, fetch: app.fetch };

@@ -10,6 +10,8 @@ import { Elysia } from "elysia";
 import { flagsPanel } from "@xtandard/flags/elysia";
 import { createFileStorage } from "@xtandard/flags/storage/file";
 
+const port = Number(process.env.PORT) || 3000;
+
 new Elysia()
   .get("/", () => "App is running. Admin panel at /flags")
   .mount(
@@ -22,6 +24,6 @@ new Elysia()
       runtimeStorage: createFileStorage({ dir: "./.flags/runtime" }),
     }),
   )
-  .listen(3000);
+  .listen(port);
 
-console.log("Elysia listening on http://localhost:3000 (panel at /flags)");
+console.log(`Elysia listening on http://localhost:${port} (panel at /flags)`);

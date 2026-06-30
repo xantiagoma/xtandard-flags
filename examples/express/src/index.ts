@@ -27,4 +27,5 @@ app.use(
 
 app.get("/", (_req, res) => res.send("App is running. Admin panel at /flags"));
 
-app.listen(3000, () => console.log("Express on http://localhost:3000 (panel at /flags)"));
+const port = Number(process.env.PORT) || 3000;
+app.listen(port, () => console.log(`Express on http://localhost:${port} (panel at /flags)`));
