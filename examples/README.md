@@ -7,6 +7,7 @@ Each example is a standalone mini-project — copy it out, `bun install`, run.
 | [`elysia/`](./elysia)                         | Mount the admin panel under `/flags` in an Elysia app (file storage).               |
 | [`hono/`](./hono)                             | Mount the admin panel under `/flags` in a Hono app (file storage).                  |
 | [`express/`](./express)                       | Mount the admin panel under `/flags` in an Express app (file storage).              |
+| [`auth/`](./auth)                             | Auth + authorization flexibility: none/basic/header/cookie/JWT/query + RBAC.        |
 | [`openfeature-redis/`](./openfeature-redis)   | Evaluate flags at runtime via the OpenFeature provider over Redis.                  |
 | [`ofrep/`](./ofrep)                           | Remote evaluation via **OFREP** over plain HTTP — bulk/single, ETag/304, live SSE.  |
 | [`ofrep-clients/`](./ofrep-clients)           | Consume flags from **Python, Go, and plain TypeScript** via OpenFeature + OFREP.    |

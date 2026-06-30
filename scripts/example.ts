@@ -60,6 +60,13 @@ const EXAMPLES: Record<string, ExampleConfig> = {
     preferredPort: 3000,
     panelPath: "/flags",
   },
+  auth: {
+    dir: "examples/auth",
+    kind: "server",
+    run: ["bun", "run", "start"],
+    preferredPort: 3000,
+    note: "auth/authz flexibility demo — set AUTH_DEMO=none|basic|header|query|cookie|jwt|rbac",
+  },
   "storage-drivers": {
     dir: "examples/storage-drivers",
     kind: "script",

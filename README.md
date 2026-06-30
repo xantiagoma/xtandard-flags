@@ -361,6 +361,7 @@ shows flags driving real behavior (change a flag, publish, watch the app change)
 | [`elysia/`](examples/elysia)                       | Mount the panel + a route whose response a flag controls.            |
 | [`hono/`](examples/hono)                           | Same, on Hono.                                                       |
 | [`express/`](examples/express)                     | Same, on Express.                                                    |
+| [`auth/`](examples/auth)                           | Auth + RBAC flexibility: none/basic/header/cookie/JWT/query.         |
 | [`flags-sdk/`](examples/flags-sdk)                 | Next.js + Vercel Flags SDK; panel mounted + a home page flags drive. |
 | [`openfeature-redis/`](examples/openfeature-redis) | Evaluate at runtime via the OpenFeature provider over Redis.         |
 | [`ofrep/`](examples/ofrep)                         | Remote eval via **OFREP** over HTTP — bulk/single, ETag/304, SSE.    |
