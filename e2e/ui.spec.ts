@@ -186,6 +186,31 @@ test("unsaved changes block in-app nav (Segments tab); Revert discards them", as
   await expect(page).toHaveURL(/\/segments/);
 });
 
+test("archived flag can be permanently deleted (type-to-confirm)", async ({ page }) => {
+  // Create a throwaway flag, archive it, then hard-delete from the Archived tab.
+  await page.goto("/");
+  await page.getByRole("button", { name: "New flag" }).click();
+  await page.getByPlaceholder("my.feature-flag_v2").fill("e2e-delete-me");
+  await page.getByRole("button", { name: "Continue to editor" }).click();
+  await page.getByRole("button", { name: "Create flag" }).click();
+  await expect(page.getByText("e2e-delete-me")).toBeVisible();
+
+  await page.getByRole("button", { name: "Archive e2e-delete-me" }).click();
+  await page.getByRole("button", { name: /^Archived/ }).click();
+  await expect(page.getByText("e2e-delete-me")).toBeVisible();
+
+  await page.getByRole("button", { name: "Delete e2e-delete-me permanently" }).click();
+  const confirm = page.getByRole("button", { name: "Delete permanently" });
+  await expect(confirm).toBeDisabled(); // until the key is typed
+  await page.getByLabel(/Type .* to confirm/).fill("e2e-delete-me");
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+
+  // Dialog closes on success and the flag row is gone from the list.
+  await expect(page.getByText("Delete flag permanently")).toBeHidden();
+  await expect(page.locator("button").filter({ hasText: "e2e-delete-me" })).toHaveCount(0);
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

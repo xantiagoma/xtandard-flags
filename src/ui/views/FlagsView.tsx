@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useSearchParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, ChevronRight, Flag, Archive, ArchiveRestore } from "lucide-react";
+import { Search, Plus, ChevronRight, Flag, Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { Dialog } from "@base-ui-components/react/dialog";
 import type { Flag as FlagType, FlagType as FlagKind } from "../types.ts";
-import { listFlags, updateFlag, archiveFlag, restoreFlag } from "../api.ts";
+import { listFlags, updateFlag, archiveFlag, restoreFlag, deleteFlag } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
 import { Button, Badge } from "../components/ui-bits.tsx";
-import { ToggleSwitch } from "../components/primitives.tsx";
+import { ToggleSwitch, TextInput } from "../components/primitives.tsx";
 import { cn } from "../lib/utils.ts";
 import { isStale, scheduleStatus, staleCount } from "../lib/lifecycle.ts";
 import { FlagDetail } from "./FlagDetail.tsx";
@@ -152,6 +153,20 @@ export function FlagsView({
     onError: (_err, { archive }) => {
       toast.add("error", archive ? "Failed to archive flag" : "Failed to restore flag");
     },
+  });
+
+  // Hard delete (archived flags only) — irreversible, behind a type-to-confirm dialog.
+  const [deleteTarget, setDeleteTarget] = useState<FlagType | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const deleteMutation = useMutation({
+    mutationFn: (flag: FlagType) => deleteFlag(projectKey, environmentKey, flag.key),
+    onSuccess: () => {
+      toast.add("success", "Flag deleted");
+      qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      setDeleteTarget(null);
+      setConfirmText("");
+    },
+    onError: () => toast.add("error", "Failed to delete flag"),
   });
 
   const flags = query.data ?? [];
@@ -428,6 +443,22 @@ export function FlagsView({
                       </button>
                     )}
 
+                    {/* Permanent delete — archived flags only (irreversible) */}
+                    {!readonly && flag.archivedAt && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmText("");
+                          setDeleteTarget(flag);
+                        }}
+                        className="shrink-0 rounded-md p-1.5 text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive"
+                        aria-label={`Delete ${flag.key} permanently`}
+                        title="Delete permanently"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
+
                     {/* Chevron */}
                     <button
                       onClick={() => onOpen(flag.key)}
@@ -450,6 +481,73 @@ export function FlagsView({
         onClose={() => setCreateOpen(false)}
         onCreate={handleCreateSeed}
       />
+
+      {/* Permanent-delete confirmation (type the key to confirm) */}
+      <Dialog.Root
+        open={deleteTarget !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setDeleteTarget(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
+          <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
+            <div className="border-b border-border px-5 py-4">
+              <Dialog.Title className="text-[15px] font-semibold text-foreground">
+                Delete flag permanently
+              </Dialog.Title>
+            </div>
+            <div className="flex flex-col gap-4 px-5 py-5">
+              <p className="text-[13px] text-muted-foreground">
+                This permanently removes{" "}
+                <code className="font-mono text-foreground">{deleteTarget?.key}</code> from the
+                draft — its config and history are gone and it can't be restored. (To take it out of
+                the runtime reversibly, archive instead.) Takes effect on the next publish.
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="delete-confirm"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Type <code className="font-mono text-foreground">{deleteTarget?.key}</code> to
+                  confirm
+                </label>
+                <TextInput
+                  id="delete-confirm"
+                  className="font-mono"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setDeleteTarget(null);
+                    if (
+                      e.key === "Enter" &&
+                      deleteTarget &&
+                      confirmText === deleteTarget.key &&
+                      !deleteMutation.isPending
+                    ) {
+                      deleteMutation.mutate(deleteTarget);
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+              <Button variant="secondary" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                loading={deleteMutation.isPending}
+                disabled={!deleteTarget || confirmText !== deleteTarget.key}
+                onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              >
+                Delete permanently
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

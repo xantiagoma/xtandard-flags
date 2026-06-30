@@ -4,6 +4,23 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — UI: scheduled/expired row badges + permanent delete (archived only)
+
+- **Row status badges** (FlagsView): next to "Stale", show **Expired** (past
+  `disableAt`, amber) / **Scheduled** (before `enableAt`, blue) via a new
+  `scheduleStatus(flag, now?)` in `ui/lib/lifecycle.ts`. Seed gained `spring-promo`
+  (future window → SCHEDULED) to complement `flash-sale-banner` (EXPIRED).
+- **Hard delete** wired into the UI (was API/CLI-only): a trash action on **archived**
+  rows only (forces archive-first so you can't nuke a live flag in one click), behind
+  a **type-the-key-to-confirm** dialog (danger button disabled until the key matches).
+  `deleteMutation` → `deleteFlag` + invalidate. Copy notes it's irreversible, suggests
+  archive instead, and that it takes effect on the next publish.
+- **e2e** +1 (13 total): create → archive → delete (confirm disabled until key typed,
+  row gone after). Verified live (badges + delete dialog, 0 console errors).
+- **Next (asked):** mirror Save's dirty-awareness on **Publish** — disable when the
+  draft equals the active snapshot, a draft/unpublished indicator, and a pre-publish
+  **diff** (likely `ohash` `diff`). Scoping next.
+
 ## 2026-06-30 — scheduled active window (enableAt/disableAt) — behavioral auto on/off
 
 User asked for an `expiredAt`-style auto-disable. Built it as a full **active window**
