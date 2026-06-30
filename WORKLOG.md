@@ -4,6 +4,25 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — interactive review round: UX polish, routing, branding, new operators
+
+Driven by a live review (the user clicking through the demo and asking "why is this clunky / what about X"). All small, CI-green commits; main green throughout. Demo: `bun run demo` → seeded standalone on :7788.
+
+- **Editable variant keys** (`11a43ee`): the variant _key_ (not just display name) is editable, with a cascading rename — `renameVariantInFlag` (`src/ui/lib/variants.ts`) rewrites defaultVariant, rule/fallthrough serves, split legs, overrides; refuses empty/dup.
+- **Creatable project/env combobox** (`ebd3ea5`): replaced the `<select>` switchers with a Base UI Combobox — select-style trigger + in-popup search + "Create …" item calling createProject/createEnvironment. (Gotcha: a controlled selection `value` object made Base UI wipe the input mid-keystroke; fixed by trigger+in-popup-search.)
+- **URL routing** (`7caf71b`, ADR 0005): wouter, pluggable location. Bundled SPA → browser history at basePath (SPA catch-all already exists); `<FlagsDashboard>` → hash by default (+`routing` prop hash|browser|memory|hook, `routerBase`). project/env in `?project&env`. FlagsView/SegmentsView refactored from internal selection state to route-driven (selectedKey + onOpen/onBack).
+- **Snapshot detail route + filters in URL** (`e43246f`): `/snapshots/:version`; flags list `?tab=archived` + `?q=` via useSearchParams. New-flag modal stays ephemeral.
+- **Audit fixes**: append-only audit (`fix(snapshot)` — was keyed by version, so a rollback to v1 overwrote v1's publish; now an ordered `AuditEntry[]` under `audit-log`). Also fixed an audit-view crash (`d34de75` — `by` is an Actor object, UI rendered it raw → React #31) + dropped the always-empty Flag column.
+- **Branding** (`@xtandard/flags` default everywhere; `5770b24` configurable navbar logo): `createFetchHandler({ title, logoUrl, hideIcon })` → `/config` + bootstrap → navbar; `TITLE`/`LOGO_URL`/`HIDE_ICON` env; `<FlagsDashboard>` props. Navbar wordmark was hardcoded before.
+- **Demo + run scripts**: `bun run demo` (boots in-memory standalone + seeds), `bun run seed:demo` (`scripts/seed-demo.ts`, comprehensive), and `bun run examples:<name>` (`scripts/example.ts`) with **free-port selection via get-port-please** (server examples honor `PORT` now).
+- **Flags SDK example** (`2221894`): `examples/flags-sdk` — Next.js app consuming us through the Vercel Flags SDK's OpenFeature adapter (`@flags-sdk/openfeature`). Self-contained (own deps/tsconfig, excluded from shared examples tsconfig); verified with `next dev`.
+- **Operators**: chip input for `in`/`notIn` (`b0af9d1` — no more commas; `TagInput` gained `lowercase={false}`); reordered the picker by frequency, semver last (`14c2e1b`); **`before`/`after` date operators** (`9d8773e`); **`notInSegment`** (`bd550c0` — negated membership; can't inline a negated AND, so resolved segments are embedded in `Snapshot.segments` when used, evaluator checks membership cycle-guarded); **generalized comparable coercion** (`6077250` — one `toComparable` for `>`/`<`/`before`/`after` handling number / numeric string / ISO date / `Date` / `Temporal.Instant|ZonedDateTime` / any `valueOf`-able object, via the standard `Symbol.toPrimitive`/`valueOf` hook — no guessed method names, never throws).
+- **Evaluator signature** is now `evaluateFlag(flag, context, allFlags?, segments?)` (both back-compat optional). `matchesRule`/`evaluateCondition` take an optional segments map.
+- **Docs**: README flag model + new `docs/OPERATORS.md`; `docs/UI.md` (routing/branding/demo); `docs/DEPLOYMENT.md` env vars; ADRs 0004 (OFREP) + 0005 (UI routing).
+- **Learning saved to memory**: run `bun run format` before _every_ commit incl. docs-only — CI `format:check` covers `.md` (a worklog-only commit went red once).
+
+**Next / not done:** npm publish still gated on user (NPM_TOKEN + tag). Possible follow-ups noted in conversation: multi-segment OR / richer segment builder (needs OR in rules), `Temporal.Duration`/`PlainDate` operators, a settings UI for branding. Append-only audit storage is per-env list (fine for admin write volume; not CAS-guarded).
+
 ## 2026-06-29 — optional backlog Phases A–D (archiving, lifecycle, owner, bootstrap, segments, prerequisites, OFREP)
 
 Worked the handoff's optional backlog in order; each phase a small PR-sized, CI-green commit (commits `f4d6172`…`d1304e5`). 440 vitest (44 new) + 6 browser e2e, all green incl. coverage with live Redis/Mongo/Postgres.

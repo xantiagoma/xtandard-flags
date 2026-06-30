@@ -32,7 +32,33 @@ The panel handler (`createFetchHandler`) dispatches in this order:
 3. **404** — a path that looks like a static asset (`/assets/main.abc123.js`) but is not found.
 4. **SPA fallback** — everything else (including `/`, `/flags/my-flag`, etc.) returns the injected `index.html`.
 
-This means the SPA can use client-side routing freely — any unknown path falls through to `index.html` and React Router (or equivalent) handles it.
+This means the SPA can use client-side routing freely — any unknown path falls through to `index.html`.
+
+---
+
+## Routing (wouter, pluggable)
+
+The dashboard routes views and selection via [wouter](https://github.com/molefrog/wouter), with a pluggable location strategy (see [ADR 0005](ADR/0005-ui-routing.md)):
+
+- **Bundled SPA** → **browser-history** routing based at `basePath` (clean paths like `/flags/my-flag`); the SPA-catch-all above makes deep links survive refresh.
+- **`<FlagsDashboard>` embed** → **hash** routing by default (`#/…`) so it never touches the host app's router. Override with the `routing` prop: `"hash" | "browser" | "memory"` or a custom wouter hook (+ `routerBase`).
+
+Routes: `/` (+ `/flags`), `/flags/:key` (`/flags/new` = create), `/segments(/:key)`, `/snapshots(/:version)`, `/audit`. The selected **project/environment** ride in the query (`?project=&env=`) and are preserved across navigation; the flags list also persists its filter (`?tab=archived`) and search (`?q=`). The "new flag" modal is intentionally ephemeral (the editor itself is the route).
+
+## Branding
+
+The navbar is configurable via `createFetchHandler({ title, logoUrl, hideIcon })` (or `TITLE` / `LOGO_URL` / `HIDE_ICON` env vars on the standalone, or props on `<FlagsDashboard>`):
+
+- `title` — wordmark text (default `@xtandard/flags`).
+- `logoUrl` — a logo image shown in place of the icon + wordmark (height-constrained, max-width 320px).
+- `hideIcon` — drop the default glyph (title only). `logoUrl` takes precedence.
+
+## One-command demo
+
+```bash
+bun run demo        # boots a throwaway in-memory standalone + seeds a full dataset
+bun run seed:demo   # seeds an already-running server ($BASE_URL)
+```
 
 ---
 

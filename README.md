@@ -145,13 +145,22 @@ flags return the caller's default with `FLAG_NOT_FOUND`.
 Every flag — even boolean — is variant-based. Evaluation order:
 
 1. **Disabled** → default variant (`DISABLED`)
-2. **Exact override** on the bucketing key (`STATIC`)
-3. **Targeting rules**, first match wins (`TARGETING_MATCH` / `SPLIT`)
-4. **Fallthrough** — fixed variant or deterministic weighted split (`STATIC` / `SPLIT`)
-5. Invalid config → caller default (`ERROR`); missing flag → caller default (`FLAG_NOT_FOUND`)
+2. **Prerequisites** — every depended-on flag must resolve to its required variant, else default (`PREREQUISITE_FAILED`)
+3. **Exact override** on the bucketing key (`STATIC`)
+4. **Targeting rules**, first match wins (`TARGETING_MATCH` / `SPLIT`)
+5. **Fallthrough** — fixed variant or deterministic weighted split (`STATIC` / `SPLIT`)
+6. Invalid config → caller default (`ERROR`); missing flag → caller default (`FLAG_NOT_FOUND`)
 
 Splits are deterministic: `same flagKey + same targetingKey + same salt → same variant`
 (MurmurHash3, never `Math.random`). Weights need not total 100.
+
+Targeting rules are an AND of **conditions** — see the full operator reference in
+[docs/OPERATORS.md](docs/OPERATORS.md) (equality, membership, string, numeric,
+**date** `before`/`after`, **semver**, **`inSegment`/`notInSegment`**). Flags also
+carry organizational metadata: **tags**, **owner**, **archiving** (`archivedAt`,
+excluded from snapshots), and **stale detection** (`expectedLifetimeDays`).
+**Reusable segments** are named audiences referenced by rules; **prerequisites**
+express flag-to-flag dependencies (acyclic, validated at publish).
 
 ## Bring your own everything
 
@@ -211,7 +220,7 @@ xtandard-flags inspect     # print the active snapshot
 
 - [Architecture](docs/ARCHITECTURE.md) · [Getting started](docs/GETTING_STARTED.md)
 - [Storage](docs/STORAGE.md) · [Auth](docs/AUTH.md) · [Authorization](docs/AUTHORIZATION.md)
-- [OpenFeature](docs/OPENFEATURE.md) · [UI](docs/UI.md) · [Adapters](docs/ADAPTERS.md)
+- [OpenFeature](docs/OPENFEATURE.md) · [UI](docs/UI.md) · [Operators](docs/OPERATORS.md) · [Adapters](docs/ADAPTERS.md)
 - [Deployment](docs/DEPLOYMENT.md) · [Testing](docs/TESTING.md) · [Releases](docs/RELEASES.md)
 - ADRs in [docs/ADR](docs/ADR/)
 - **API reference** (TSDoc): `bun run docs:api` → generates `docs/api` (TypeDoc).

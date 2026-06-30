@@ -192,7 +192,9 @@ Any runtime that accepts `(Request) => Response | Promise<Response>` can use `cr
 | `auth`                  | `AuthProvider`          | anonymous                 | Authentication provider.                            |
 | `authorization`         | `AuthorizationProvider` | allow all                 | Authorization provider.                             |
 | `readonly`              | `boolean`               | `false`                   | Block all mutating operations.                      |
-| `title`                 | `string`                | `"Xtandard Flags"`        | Title shown in the UI.                              |
+| `title`                 | `string`                | `"@xtandard/flags"`       | Navbar wordmark shown in the UI.                    |
+| `logoUrl`               | `string`                | —                         | Logo image URL (replaces the navbar icon+wordmark). |
+| `hideIcon`              | `boolean`               | `false`                   | Hide the default navbar icon (title only).          |
 | `defaultProjectKey`     | `string`                | `"default"`               | Default project for the core.                       |
 | `defaultEnvironmentKey` | `string`                | `"production"`            | Default environment for the core.                   |
 | `uiDir`                 | `string`                | dist/ui beside the module | Directory to serve the bundled UI from.             |
