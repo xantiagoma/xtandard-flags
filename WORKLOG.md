@@ -4,6 +4,22 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — drop the default navbar icon (wordmark-only branding)
+
+The navbar no longer shows the built-in flag glyph. Branding is now just: the
+**title wordmark** by default (`@xtandard/flags`), replaced by the **logo** when
+`logoUrl` is set. Since the default icon is gone, the `hideIcon` option had no
+purpose — removed it across the chain (pre-1.0, no dead config):
+
+- `App.tsx`: brand renders `logoUrl ? <img> : <wordmark>`; dropped the `<Flag>` glyph
+  box + its `lucide-react` import, the `hideIcon` prop, and `brandHideIcon`.
+- Removed `hideIcon`/`HIDE_ICON` from `create-fetch-handler`, `routes`,
+  `render-index-html` (BootstrapConfig), `ui/types` (FlagsConfig), `react.tsx`
+  (`FlagsDashboardProps`), and the standalone server env.
+- Docs: ADAPTERS / DEPLOYMENT / UI updated (logo replaces the wordmark; no glyph).
+- Verified live (screenshot: wordmark only, 0 flag glyphs in header, 0 errors);
+  12/12 e2e, full gate green.
+
 ## 2026-06-30 — in-app nav guard + Revert button (closes the unsaved-changes gap)
 
 Follow-up to the unsaved-changes guard: the `beforeunload` listener only catches

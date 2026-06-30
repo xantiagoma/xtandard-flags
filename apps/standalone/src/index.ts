@@ -98,7 +98,6 @@ async function main(): Promise<void> {
   const basePath = env("BASE_PATH", "");
   const title = env("TITLE", "@xtandard/flags");
   const logoUrl = env("LOGO_URL") || undefined;
-  const hideIcon = bool("HIDE_ICON", false);
   const readonly = bool("READONLY", false);
   const authMode = env("AUTH_MODE", "none");
 
@@ -140,7 +139,6 @@ async function main(): Promise<void> {
     runtimeStorage,
     title,
     logoUrl,
-    hideIcon,
     readonly,
     uiDir,
     auth: buildAuth(),

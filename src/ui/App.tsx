@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Router, Switch, Route, useLocation, useSearchParams, type BaseLocationHook } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Flag, CloudUpload, Lock } from "lucide-react";
+import { CloudUpload, Lock } from "lucide-react";
 import type { FlagsConfig } from "./types.ts";
 import { FlagsApiError } from "./types.ts";
 import {
@@ -121,23 +121,20 @@ export function App({
   locationHook,
   base = "",
   logoUrl,
-  hideIcon,
 }: {
   locationHook?: BaseLocationHook;
   base?: string;
   /** Override the navbar logo image (otherwise taken from server `/config`). */
   logoUrl?: string;
-  /** Override hiding the navbar icon (otherwise from server `/config`). */
-  hideIcon?: boolean;
 }): React.ReactElement {
   return (
     <Router hook={locationHook ?? useHashLocation} base={base}>
-      <AppShell logoUrl={logoUrl} hideIcon={hideIcon} />
+      <AppShell logoUrl={logoUrl} />
     </Router>
   );
 }
 
-function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean }) {
+function AppShell({ logoUrl }: { logoUrl?: string }) {
   const bootstrap = getBootstrap();
   const toast = useToast();
   const qc = useQueryClient();
@@ -198,7 +195,6 @@ function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean 
   // Branding: explicit props win, then server /config, then defaults.
   const brandTitle = config?.title || "@xtandard/flags";
   const brandLogoUrl = logoUrl ?? config?.logoUrl;
-  const brandHideIcon = hideIcon ?? config?.hideIcon ?? false;
 
   const projectsQuery = useQuery({
     queryKey: ["projects"],
@@ -266,8 +262,8 @@ function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean 
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          {/* Logo + wordmark. A configured logoUrl replaces the icon (and the
-              wordmark); otherwise the icon shows unless hidden, with the title. */}
+          {/* Brand: a configured logoUrl shows as the logo; otherwise the title
+              wordmark. No default icon. */}
           <div className="flex items-center gap-2 shrink-0">
             {brandLogoUrl ? (
               <img
@@ -275,12 +271,7 @@ function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean 
                 alt={brandTitle}
                 className="h-7 max-w-[320px] object-contain"
               />
-            ) : brandHideIcon ? null : (
-              <div className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
-                <Flag className="size-4" strokeWidth={2.5} />
-              </div>
-            )}
-            {!brandLogoUrl && (
+            ) : (
               <span className="text-sm font-semibold tracking-tight">{brandTitle}</span>
             )}
           </div>

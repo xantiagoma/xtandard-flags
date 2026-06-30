@@ -8,26 +8,25 @@ The standalone app (`apps/standalone/src/index.ts`) reads all configuration from
 
 ### Environment Variables
 
-| Variable                 | Default                    | Description                                                           |
-| ------------------------ | -------------------------- | --------------------------------------------------------------------- |
-| `PORT`                   | `3000`                     | TCP port to listen on.                                                |
-| `BASE_PATH`              | `""`                       | URL prefix, e.g. `"/flags"`. Must match the path you expose.          |
-| `TITLE`                  | `"@xtandard/flags"`        | Navbar wordmark, shown in the admin UI and `/healthcheck`.            |
-| `LOGO_URL`               | `""`                       | Logo image URL shown in place of the navbar icon + wordmark.          |
-| `HIDE_ICON`              | `false`                    | Hide the default navbar icon (title only). Ignored if `LOGO_URL` set. |
-| `SOURCE_STORAGE_DRIVER`  | `"memory"`                 | Driver for source storage: `redis`, `file`, `unstorage`, `memory`.    |
-| `RUNTIME_STORAGE_DRIVER` | `"memory"`                 | Driver for runtime storage: `redis`, `file`, `unstorage`, `memory`.   |
-| `REDIS_URL`              | `"redis://localhost:6379"` | Redis connection URL (used when driver is `redis`).                   |
-| `SOURCE_PREFIX`          | `"xtandard:flags:source"`  | Redis key prefix for source storage.                                  |
-| `RUNTIME_PREFIX`         | `"xtandard:flags:runtime"` | Redis key prefix for runtime storage.                                 |
-| `SOURCE_FILE_DIR`        | `"./data/source"`          | Directory for file-backed source storage.                             |
-| `RUNTIME_FILE_DIR`       | `"./data/runtime"`         | Directory for file-backed runtime storage.                            |
-| `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` or `basic`.                               |
-| `AUTH_USERNAME`          | `"admin"`                  | Username for `basic` auth mode.                                       |
-| `AUTH_PASSWORD_HASH`     | `""`                       | scrypt hash of the admin password (preferred). See [Auth](AUTH.md).   |
-| `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                       |
-| `READONLY`               | `false`                    | Set to `1` or `true` to block all mutating operations.                |
-| `UI_DIR`                 | resolved from module path  | Override the bundled UI directory (e.g. in custom Docker images).     |
+| Variable                 | Default                    | Description                                                         |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------- |
+| `PORT`                   | `3000`                     | TCP port to listen on.                                              |
+| `BASE_PATH`              | `""`                       | URL prefix, e.g. `"/flags"`. Must match the path you expose.        |
+| `TITLE`                  | `"@xtandard/flags"`        | Navbar wordmark, shown in the admin UI and `/healthcheck`.          |
+| `LOGO_URL`               | `""`                       | Logo image URL shown in place of the title wordmark.                |
+| `SOURCE_STORAGE_DRIVER`  | `"memory"`                 | Driver for source storage: `redis`, `file`, `unstorage`, `memory`.  |
+| `RUNTIME_STORAGE_DRIVER` | `"memory"`                 | Driver for runtime storage: `redis`, `file`, `unstorage`, `memory`. |
+| `REDIS_URL`              | `"redis://localhost:6379"` | Redis connection URL (used when driver is `redis`).                 |
+| `SOURCE_PREFIX`          | `"xtandard:flags:source"`  | Redis key prefix for source storage.                                |
+| `RUNTIME_PREFIX`         | `"xtandard:flags:runtime"` | Redis key prefix for runtime storage.                               |
+| `SOURCE_FILE_DIR`        | `"./data/source"`          | Directory for file-backed source storage.                           |
+| `RUNTIME_FILE_DIR`       | `"./data/runtime"`         | Directory for file-backed runtime storage.                          |
+| `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` or `basic`.                             |
+| `AUTH_USERNAME`          | `"admin"`                  | Username for `basic` auth mode.                                     |
+| `AUTH_PASSWORD_HASH`     | `""`                       | scrypt hash of the admin password (preferred). See [Auth](AUTH.md). |
+| `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                     |
+| `READONLY`               | `false`                    | Set to `1` or `true` to block all mutating operations.              |
+| `UI_DIR`                 | resolved from module path  | Override the bundled UI directory (e.g. in custom Docker images).   |
 
 ### Healthcheck
 

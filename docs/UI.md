@@ -47,11 +47,12 @@ Routes: `/` (+ `/flags`), `/flags/:key` (`/flags/new` = create), `/segments(/:ke
 
 ## Branding
 
-The navbar is configurable via `createFetchHandler({ title, logoUrl, hideIcon })` (or `TITLE` / `LOGO_URL` / `HIDE_ICON` env vars on the standalone, or props on `<FlagsDashboard>`):
+The navbar is configurable via `createFetchHandler({ title, logoUrl })` (or `TITLE` / `LOGO_URL` env vars on the standalone, or props on `<FlagsDashboard>`):
 
-- `title` — wordmark text (default `@xtandard/flags`).
-- `logoUrl` — a logo image shown in place of the icon + wordmark (height-constrained, max-width 320px).
-- `hideIcon` — drop the default glyph (title only). `logoUrl` takes precedence.
+- `title` — wordmark text (default `@xtandard/flags`), shown when no `logoUrl` is set.
+- `logoUrl` — a logo image shown in place of the title wordmark (height-constrained, max-width 320px).
+
+There is no default glyph — the navbar shows the title wordmark, or your logo when `logoUrl` is set.
 
 ## One-command demo
 
