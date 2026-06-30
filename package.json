@@ -29,7 +29,6 @@
   "files": [
     "dist",
     "bin",
-    "docs",
     "LICENSE",
     "README.md"
   ],
@@ -348,7 +347,8 @@
     "test:bun": "bun test ./test/*.bun.test.ts",
     "build:react": "vite build --config vite.react.config.ts && tsc -p tsconfig.react.json",
     "docs:api": "typedoc",
-    "typecheck:examples": "tsc -p examples/tsconfig.json"
+    "typecheck:examples": "tsc -p examples/tsconfig.json",
+    "release": "changelogen --release --push"
   },
   "dependencies": {
     "ohash": "^2.0.11",

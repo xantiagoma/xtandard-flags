@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/logo-256.png" alt="@xtandard/flags" width="128" height="128" />
+  <img src="https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/logo-256.png" alt="@xtandard/flags" width="128" height="128" />
 </p>
 
 <h1 align="center">@xtandard/flags</h1>
@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/assets/ui-flags.png" alt="The @xtandard/flags admin dashboard" width="860" />
+  <img src="https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/ui-flags.png" alt="The @xtandard/flags admin dashboard" width="860" />
 </p>
 
 > **The control plane can be down — and your applications keep evaluating flags.**
@@ -335,12 +335,12 @@ bun run examples:elysia     # → ▶ elysia → http://localhost:NNNN/flags
 
 ## Screenshots
 
-|                                                     |                                                               |
-| --------------------------------------------------- | ------------------------------------------------------------- |
-| ![Flag editor](docs/assets/ui-editor.png)           | ![Snapshots with $schema](docs/assets/ui-snapshot-detail.png) |
-| **Flag editor** — variants, rules, query targeting  | **Snapshots** — immutable versions, download/import JSON      |
-| ![Publish diff](docs/assets/ui-publish-diff.png)    | ![Audit diff](docs/assets/ui-audit.png)                       |
-| **Publish** — git-style diff of unpublished changes | **Audit** — per-version diff of every change                  |
+|                                                                                                                   |                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| ![Flag editor](https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/ui-editor.png)        | ![Snapshots with $schema](https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/ui-snapshot-detail.png) |
+| **Flag editor** — variants, rules, query targeting                                                                | **Snapshots** — immutable versions, download/import JSON                                                                       |
+| ![Publish diff](https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/ui-publish-diff.png) | ![Audit diff](https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/ui-audit.png)                       |
+| **Publish** — git-style diff of unpublished changes                                                               | **Audit** — per-version diff of every change                                                                                   |
 
 ## CLI
 
@@ -368,10 +368,14 @@ without installing.
 
 ## Project status
 
-Early but functional (`v0.1`). The headless runtime (evaluator, snapshots,
+Functional and tested (`v0.x`). The headless runtime (evaluator, snapshots,
 provider, storage), admin API, auth/authz, framework adapters, bundled UI,
-standalone Docker app, and CLI are implemented and tested. APIs may still shift
-before `1.0`.
+standalone Docker app, and CLI are all implemented and covered by tests.
+
+Versioning follows [**ZeroVer**](https://0ver.org): the major stays at `0`
+indefinitely (no planned `1.0`). Within `0.x`, a **minor** bump (`0.x.0`) may
+carry breaking changes and a **patch** (`0.x.y`) is fixes + additive changes —
+so pin with `^0.x.y`. See [docs/RELEASES.md](docs/RELEASES.md).
 
 ## License
 

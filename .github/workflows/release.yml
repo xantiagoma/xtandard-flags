@@ -1,7 +1,14 @@
 name: Release
 
 # Publishes to npm when a version tag is pushed (e.g. v0.1.0).
-# Generate tags/changelogs locally with `bun run release` (changelogen), then push.
+#
+# First release:    git tag v0.1.0 && git push origin v0.1.0
+# Ongoing releases: bun run release   (changelogen bumps from conventional
+#                   commits, writes CHANGELOG.md, commits, tags, and pushes —
+#                   which triggers this workflow).
+#
+# Requires the NPM_TOKEN secret: an npm automation token with publish rights to
+# the @xtandard scope.
 on:
   push:
     tags:

@@ -2,15 +2,22 @@
 
 ---
 
-## Versioning
+## Versioning — ZeroVer (`0.x.x` forever)
 
-`@xtandard/flags` follows [Semantic Versioning](https://semver.org). The current version is `0.1.0` — early but functional. APIs may shift before `1.0`.
+`@xtandard/flags` follows [**ZeroVer**](https://0ver.org) ("0-based versioning"):
+the major version stays at `0` **indefinitely** — there is no planned `1.0`. This is
+the same convention `@xtandard/lib` uses, and the same one plenty of widely-used
+packages quietly run on. It's an honest signal that the API can still evolve, not a
+statement that the software is unfinished.
 
-- **Patch** (`0.1.x`) — bug fixes, non-breaking tweaks.
-- **Minor** (`0.x.0`) — additive features, backwards-compatible.
-- **Major** (`x.0.0`) — breaking changes.
+Within `0.x`, increments follow [SemVer](https://semver.org) **as npm interprets
+`0.x` ranges** (a caret range like `^0.4.1` allows `0.4.x` but not `0.5.0`):
 
-Breaking changes before `1.0` may occur on minor version bumps.
+- **Minor** (`0.x.0`) — breaking changes / significant features.
+- **Patch** (`0.x.y`) — bug fixes and backwards-compatible additions.
+
+So pin with `^0.x.y` to get fixes without surprise breakage, and read the
+[CHANGELOG](../CHANGELOG.md) before bumping the minor.
 
 ---
 
@@ -19,24 +26,39 @@ Breaking changes before `1.0` may occur on minor version bumps.
 Changelogs are generated from conventional commits using [changelogen](https://github.com/unjs/changelogen):
 
 ```bash
-bunx changelogen --release
+bun run release   # = changelogen --release --push
 ```
 
-This bumps the version in `package.json`, generates/updates `CHANGELOG.md`, and creates a git tag.
+This bumps the version in `package.json` (from the commits since the last tag),
+generates/updates `CHANGELOG.md`, creates a release commit + git tag, and pushes —
+which triggers the publish workflow below.
+
+---
+
+## Prerequisites (one-time)
+
+- An npm **automation token** with publish rights to the `@xtandard` scope, stored
+  as the **`NPM_TOKEN`** GitHub Actions secret.
+- The `@xtandard` scope must exist on npm (the package publishes with `--access public`).
 
 ---
 
 ## Release Flow (GitHub Actions)
 
-The release workflow (`.github/workflows/release.yml`) is triggered by pushing a version tag (`v*`):
+Quality gates (lint, format, typecheck, unit + bun + e2e tests) run on every push via
+the **CI** workflow. The **Release** workflow (`.github/workflows/release.yml`) is
+separate and triggered by pushing a version tag (`v*`):
 
-1. Run `bun install --frozen-lockfile`.
-2. Run `bun run check` (lint + format check + typecheck).
-3. Run `bun run test`.
-4. Run `bun run build` (lib + UI).
-5. Publish to npm with `--provenance` (requires `id-token: write` permission in the workflow).
+1. `bun install --frozen-lockfile`
+2. `bun run build` (lib + UI + react)
+3. `bunx publint` (package-correctness check)
+4. `npm publish --provenance --access public` (auth via `NPM_TOKEN`)
 
-npm provenance links the published package to the specific GitHub Actions run that built it, so consumers can verify the build chain.
+**First release:** `git tag v0.1.0 && git push origin v0.1.0`.
+**Ongoing releases:** `bun run release`.
+
+npm provenance links the published package to the specific GitHub Actions run that
+built it (`id-token: write` in the workflow), so consumers can verify the build chain.
 
 ---
 
