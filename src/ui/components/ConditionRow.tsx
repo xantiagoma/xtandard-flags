@@ -4,26 +4,35 @@ import type { Condition } from "../types.ts";
 import { TextInput, Dropdown } from "./primitives.tsx";
 import { TagInput } from "./TagInput.tsx";
 
-/** Operator options shown in the condition editor (shared by flags & segments). */
+/**
+ * Operator options shown in the condition editor (shared by flags & segments),
+ * ordered roughly by how often they're reached for — everyday equality/membership
+ * first, presence + numeric in the middle, niche semver last.
+ */
 export const CONDITION_OPERATORS: { value: string; label: string }[] = [
+  // Everyday
   { value: "equals", label: "equals" },
   { value: "notEquals", label: "not equals" },
   { value: "in", label: "in (any of)" },
   { value: "notIn", label: "not in (any of)" },
+  { value: "inSegment", label: "in segment" },
+  // Strings
   { value: "contains", label: "contains" },
   { value: "notContains", label: "not contains" },
   { value: "startsWith", label: "starts with" },
   { value: "endsWith", label: "ends with" },
+  // Presence
+  { value: "exists", label: "exists" },
+  { value: "notExists", label: "not exists" },
+  // Numeric
   { value: "greaterThan", label: ">" },
   { value: "greaterThanOrEqual", label: ">=" },
   { value: "lessThan", label: "<" },
   { value: "lessThanOrEqual", label: "<=" },
+  // Version strings (niche)
   { value: "semverEquals", label: "semver =" },
   { value: "semverGreaterThan", label: "semver >" },
   { value: "semverLessThan", label: "semver <" },
-  { value: "exists", label: "exists" },
-  { value: "notExists", label: "not exists" },
-  { value: "inSegment", label: "in segment" },
 ];
 
 export const NO_VALUE_OPS = new Set(["exists", "notExists"]);
