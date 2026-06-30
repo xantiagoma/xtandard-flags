@@ -50,3 +50,47 @@ describe("date operators — before/after", () => {
     ).toBe(false);
   });
 });
+
+describe("comparable coercion — Date / Temporal-like / valueOf", () => {
+  test("a real Date instance in the context (in-process) compares", () => {
+    expect(evaluateCondition(cond("after", "2026-01-01"), { ts: new Date("2026-07-01") })).toBe(
+      true,
+    );
+    expect(evaluateCondition(cond("before", "2026-01-01"), { ts: new Date("2026-07-01") })).toBe(
+      false,
+    );
+  });
+
+  test("a Temporal-like object (epochMilliseconds) compares", () => {
+    const instant = { epochMilliseconds: Date.parse("2026-07-01T00:00:00Z") };
+    expect(evaluateCondition(cond("after", "2026-01-01T00:00:00Z"), { ts: instant })).toBe(true);
+  });
+
+  test("any object with a numeric valueOf is comparable (the standard JS hook)", () => {
+    const comparable = { valueOf: () => 150 };
+    expect(evaluateCondition(cond("greaterThan", 100), { ts: comparable })).toBe(true);
+    expect(evaluateCondition(cond("lessThan", 100), { ts: comparable })).toBe(false);
+  });
+
+  test("numeric operators also accept Dates and ISO strings now", () => {
+    expect(
+      evaluateCondition(cond("greaterThan", "2026-01-01"), { ts: new Date("2026-07-01") }),
+    ).toBe(true);
+    expect(evaluateCondition(cond("lessThan", "2026-12-31"), { ts: "2026-06-30" })).toBe(true);
+  });
+
+  test("plain numbers/strings still take the numeric path (a year string is a number)", () => {
+    expect(evaluateCondition(cond("greaterThan", 5), { ts: "10" })).toBe(true);
+    expect(evaluateCondition(cond("greaterThan", "2000"), { ts: "2026" })).toBe(true);
+  });
+
+  test("an object whose valueOf throws fails closed (no throw)", () => {
+    const bad = {
+      valueOf() {
+        throw new Error("nope");
+      },
+    };
+    expect(() => evaluateCondition(cond("after", 1), { ts: bad })).not.toThrow();
+    expect(evaluateCondition(cond("after", 1), { ts: bad })).toBe(false);
+  });
+});

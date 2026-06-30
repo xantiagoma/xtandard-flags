@@ -105,31 +105,43 @@ function looseEquals(a: unknown, b: unknown): boolean {
   return false;
 }
 
-function toFiniteNumber(v: unknown): number | undefined {
-  if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
-  if (typeof v === "string" && v.trim() !== "") {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : undefined;
-  }
-  return undefined;
-}
-
 /**
- * Parse a date/time to epoch milliseconds. Accepts an ISO-8601 string (via the
- * built-in `Date` parser — no dependency) or an epoch-millis number. Returns
- * `undefined` for anything unparseable, so date conditions fail closed.
+ * Coerce a value to a **comparable scalar** for the ordering operators
+ * (`>`, `>=`, `<`, `<=`, `before`, `after`). Zero-dependency and never throws —
+ * on anything it can't compare it returns `undefined`, so the condition fails
+ * closed. Handles, in order:
+ *  - numbers and numeric strings;
+ *  - ISO-8601 date strings (via the built-in `Date` parser → epoch ms);
+ *  - `Date` instances and `Temporal.Instant` / `Temporal.ZonedDateTime`
+ *    (their `epochMilliseconds`);
+ *  - any object implementing the standard JS coercion protocol
+ *    (`Symbol.toPrimitive` / `valueOf`) that yields a finite number.
+ *
+ * It deliberately uses `valueOf`/`Symbol.toPrimitive` — the language's own
+ * "make me comparable" hook — rather than guessing custom method names, which
+ * keeps the hot path safe and predictable. (Calendar/relative types like
+ * `Temporal.PlainDate` or `Temporal.Duration`, which expose no epoch and refuse
+ * numeric coercion, are intentionally not comparable here.)
  */
-function toEpochMillis(v: unknown): number | undefined {
+function toComparable(v: unknown): number | undefined {
   if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
-  if (typeof v === "string" && v.trim() !== "") {
-    const t = Date.parse(v);
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (s === "") return undefined;
+    const n = Number(s);
+    if (Number.isFinite(n)) return n;
+    const t = Date.parse(s);
     return Number.isNaN(t) ? undefined : t;
   }
-  if (v instanceof Date) {
-    const t = v.getTime();
-    return Number.isNaN(t) ? undefined : t;
+  if (v === null || typeof v !== "object") return undefined;
+  try {
+    const epochMs = (v as { epochMilliseconds?: unknown }).epochMilliseconds;
+    if (typeof epochMs === "number" && Number.isFinite(epochMs)) return epochMs;
+    const n = Number(v); // invokes Symbol.toPrimitive / valueOf (Date → ms, custom Comparable)
+    return Number.isFinite(n) ? n : undefined;
+  } catch {
+    return undefined;
   }
-  return undefined;
 }
 
 interface Semver {
@@ -234,8 +246,8 @@ export function evaluateCondition(
     case "greaterThanOrEqual":
     case "lessThan":
     case "lessThanOrEqual": {
-      const a = toFiniteNumber(actual);
-      const b = toFiniteNumber(expected);
+      const a = toComparable(actual);
+      const b = toComparable(expected);
       if (a === undefined || b === undefined) return false;
       if (op === "greaterThan") return a > b;
       if (op === "greaterThanOrEqual") return a >= b;
@@ -253,8 +265,8 @@ export function evaluateCondition(
     }
     case "before":
     case "after": {
-      const a = toEpochMillis(actual);
-      const b = toEpochMillis(expected);
+      const a = toComparable(actual);
+      const b = toComparable(expected);
       if (a === undefined || b === undefined) return false;
       return op === "before" ? a < b : a > b;
     }
