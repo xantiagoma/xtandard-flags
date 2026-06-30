@@ -4,6 +4,32 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — productization push (release prep): logo, README, adapters, examples, mermaid
+
+Big multi-stream release-prep pass (driven via `/loop`):
+
+- **Storage adapters** (new): `storage/libsql` (Turso/libSQL — SQLite over the
+  edge; optional `@libsql/client` peer; compiles without it via runtime-only
+  dynamic import) and `storage/cloudflare-kv` (wraps a Workers `KVNamespace`
+  binding; **no peer dep**, cursor pagination, prefix namespacing). Wired
+  entries/pack/exports/peer; tests (cloudflare-kv vitest fake binding; libsql
+  bun:sqlite-backed fake → real SQL). STORAGE.md + "Choosing a backend" matrix.
+- **Brand + README**: logo (1080 + 256/128) in a centered header with
+  npm/CI/license/types badges; two **mermaid** diagrams (two-plane architecture,
+  evaluation order — both validated); storage matrix; examples grid; screenshot
+  gallery. Recaptured all UI screenshots at 2x (flags, editor w/ sift query,
+  segments, snapshots w/ `$schema`, audit diff, publish git-diff, dark).
+- **ARCHITECTURE.md**: ASCII → mermaid (two-plane, publish sequence, eval-order);
+  fixed the eval chain to include schedule + prerequisites + FLAG_NOT_FOUND.
+- **Examples upgraded** (subagent, verified live): elysia/hono/express now mount
+  the panel AND serve a flag-driven page (OpenFeature provider over the shared
+  runtime dir, 2s refresh, seed-on-boot); flags-sdk mounts the panel via a Next
+  catch-all Route Handler + a home page flags visibly drive. New storage
+  examples in flight (postgres+redis, turso, cloudflare-workers).
+- **Status**: 552 vitest + 7 bun green; typecheck/examples/lint/format/build
+  green; mermaid validated. Commits pushed incrementally. Remaining: finish +
+  commit storage examples, then the full release gate.
+
 ## 2026-06-30 — snapshot JSON download / import + public JSON Schema
 
 Round-trip a version's JSON through the `/snapshots` view:
