@@ -20,6 +20,7 @@
  */
 
 import { hashToUnitInterval } from "./hash.ts";
+import { tryCatchSync } from "./try-catch.ts";
 import type {
   Condition,
   ConditionOperator,
@@ -106,6 +107,23 @@ function looseEquals(a: unknown, b: unknown): boolean {
 }
 
 /**
+ * Equality used by `equals`/`notEquals`/`in`/`notIn`/`contains`. Primitives keep
+ * the string-loose semantics of {@link looseEquals}; when a side is a **value
+ * object** (Temporal, a `valueOf`-able type, …) or a **bigint**, fall back to
+ * {@link compareValues} `=== 0` so e.g. a `Temporal.PlainDate` equals its ISO
+ * string and `5n` equals `5`.
+ */
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (looseEquals(a, b)) return true;
+  const rich = (v: unknown) => typeof v === "bigint" || (v !== null && typeof v === "object");
+  if (rich(a) || rich(b)) {
+    const c = compareValues(a, b);
+    if (c !== undefined) return c === 0;
+  }
+  return false;
+}
+
+/**
  * Coerce a value to a **comparable scalar number**. The numeric tier of
  * {@link compareValues}; handles numbers, numeric strings, ISO-8601 date strings
  * (→ epoch ms), `Date`, anything with a numeric `valueOf`/`Symbol.toPrimitive`,
@@ -126,75 +144,73 @@ function toComparable(v: unknown): number | undefined {
     return Number.isNaN(t) ? undefined : t;
   }
   if (v === null || typeof v !== "object") return undefined;
-  try {
-    const epochMs = (v as { epochMilliseconds?: unknown }).epochMilliseconds;
-    if (typeof epochMs === "number" && Number.isFinite(epochMs)) return epochMs;
-    const n = Number(v); // invokes Symbol.toPrimitive / valueOf (Date → ms, custom Comparable)
-    return Number.isFinite(n) ? n : undefined;
-  } catch {
-    return undefined;
-  }
+  const epochMs = (v as { epochMilliseconds?: unknown }).epochMilliseconds;
+  if (typeof epochMs === "number" && Number.isFinite(epochMs)) return epochMs;
+  // Number(v) invokes Symbol.toPrimitive / valueOf (Date → ms, custom Comparable);
+  // it can throw (e.g. Temporal types) — fail closed.
+  const [n] = tryCatchSync(() => Number(v));
+  return typeof n === "number" && Number.isFinite(n) ? n : undefined;
 }
 
-// Temporal types that define a total order via a static `compare`. PlainMonthDay
-// is intentionally absent — it has no `compare` (a month-day isn't orderable).
-const TEMPORAL_ORDERED = [
-  "Instant",
-  "ZonedDateTime",
-  "PlainDateTime",
-  "PlainDate",
-  "PlainTime",
-  "PlainYearMonth",
-  "Duration",
-] as const;
+// Static "parse" method names tried (in order) to coerce the other side to a
+// class's type, then the constructor itself (`new Klass(v)`, then `Klass(v)`) as a
+// fallback. `from` covers Temporal and most modern value-object libraries.
+const PARSE_STATICS = ["from", "fromString", "fromJSON", "parse"] as const;
+
+/** Coerce `v` to an instance of `Klass`: static parser → `new Klass(v)` → `Klass(v)`. */
+function coerceToType(Klass: Record<string, unknown>, v: unknown): unknown {
+  const parse = PARSE_STATICS.map((m) => Klass[m]).find((f) => typeof f === "function") as
+    | ((value: unknown) => unknown)
+    | undefined;
+  if (parse) return parse.call(Klass, v);
+  const [built, err] = tryCatchSync(() => new (Klass as unknown as new (x: unknown) => unknown)(v));
+  return err ? (Klass as unknown as (x: unknown) => unknown)(v) : built;
+}
 
 /**
- * Compare two values using a matching `Temporal.X.compare` (with `Temporal.X.from`
- * to parse the stored string/threshold side), when `globalThis.Temporal` exists and
- * either side is such an instance. This is how epoch-less calendar/wall-clock types
- * (`PlainDate`, `PlainTime`, …) are ordered correctly. Returns `-1|0|1`, or
- * `undefined` if not applicable / not parseable (e.g. a `Duration` with calendar
- * units that needs `relativeTo`). Never throws.
+ * Compare `x` (an object instance) against `other` using **x's own class statics**,
+ * duck-typed via its constructor: if `x.constructor` exposes a static `compare(a,b)`
+ * and a static parser (`from`/`fromString`/`fromJSON`/`parse`), parse `other` to the
+ * same type and compare. Returns `-1|0|1` for `compare(x, other)`, or `undefined`.
+ *
+ * This needs no `globalThis.Temporal` and no hardcoded type list — it works for the
+ * whole Temporal family (`PlainDate`, `Duration`, …) and any custom Comparable that
+ * follows the same convention. Never throws.
  */
-function temporalCompare(a: unknown, b: unknown): number | undefined {
-  const T = (globalThis as { Temporal?: Record<string, unknown> }).Temporal;
-  if (!T) return undefined;
-  const aObj = typeof a === "object" && a !== null;
-  const bObj = typeof b === "object" && b !== null;
-  if (!aObj && !bObj) return undefined;
-  for (const name of TEMPORAL_ORDERED) {
-    const Cls = T[name] as
-      | ((new (...args: never[]) => object) & {
-          compare(x: unknown, y: unknown): number;
-          from(v: unknown): unknown;
-        })
-      | undefined;
-    if (typeof Cls !== "function" || typeof Cls.compare !== "function") continue;
-    const aIs = a instanceof Cls;
-    const bIs = b instanceof Cls;
-    if (!aIs && !bIs) continue;
-    try {
-      const c = Cls.compare(aIs ? a : Cls.from(a), bIs ? b : Cls.from(b));
-      return c < 0 ? -1 : c > 0 ? 1 : 0;
-    } catch {
-      return undefined;
-    }
-  }
-  return undefined;
+function compareViaConstructor(x: unknown, other: unknown): number | undefined {
+  if (x === null || typeof x !== "object") return undefined;
+  const Klass = (x as { constructor?: unknown }).constructor as
+    | (((new (...a: never[]) => object) & {
+        compare?: (a: unknown, b: unknown) => number;
+      }) &
+        Record<string, unknown>)
+    | undefined;
+  if (typeof Klass !== "function" || typeof Klass.compare !== "function") return undefined;
+  const [c] = tryCatchSync(() => {
+    const rhs =
+      other instanceof Klass ? other : coerceToType(Klass as Record<string, unknown>, other);
+    return Klass.compare!(x, rhs);
+  });
+  return typeof c === "number" && Number.isFinite(c) ? Math.sign(c) : undefined;
 }
 
 /**
  * Order two values for the comparison operators, returning `-1|0|1`, or
  * `undefined` when they aren't comparable (→ the condition fails closed). Tiers:
- *  1. **Temporal** — `Temporal.PlainDate`/`PlainTime`/`Instant`/… via their own
- *     `compare`/`from` (correct for epoch-less types);
- *  2. **BigInt** — exact `bigint` ordering (mixed `bigint`/number is allowed by JS);
+ *  1. **Value-object compare** — a side's `constructor.compare` + a static parser
+ *     ({@link compareViaConstructor}); covers the whole Temporal family
+ *     (`PlainDate`/`PlainTime`/`Duration`/…) and any custom Comparable, with no
+ *     `globalThis` dependency.
+ *  2. **BigInt** — exact `bigint` ordering (mixed `bigint`/number is allowed by JS).
  *  3. **Numeric scalar** — {@link toComparable} (number, numeric/ISO string, `Date`,
- *     `valueOf`-able objects).
+ *     `valueOf`/`Symbol.toPrimitive`).
  */
 function compareValues(a: unknown, b: unknown): number | undefined {
-  const t = temporalCompare(a, b);
-  if (t !== undefined) return t;
+  // Try a's class, then b's (inverting the sign since that compares b-vs-a).
+  const direct = compareViaConstructor(a, b);
+  if (direct !== undefined) return direct;
+  const reverse = compareViaConstructor(b, a);
+  if (reverse !== undefined) return reverse === 0 ? 0 : (-reverse as -1 | 1);
 
   if (typeof a === "bigint" || typeof b === "bigint") {
     const av = typeof a === "bigint" ? a : toComparable(a);
@@ -290,18 +306,18 @@ export function evaluateCondition(
     case "notExists":
       return actual === undefined || actual === null;
     case "equals":
-      return looseEquals(actual, expected);
+      return valuesEqual(actual, expected);
     case "notEquals":
-      return !looseEquals(actual, expected);
+      return !valuesEqual(actual, expected);
     case "in":
-      return Array.isArray(expected) && expected.some((e) => looseEquals(e, actual));
+      return Array.isArray(expected) && expected.some((e) => valuesEqual(e, actual));
     case "notIn":
-      return !(Array.isArray(expected) && expected.some((e) => looseEquals(e, actual)));
+      return !(Array.isArray(expected) && expected.some((e) => valuesEqual(e, actual)));
     case "contains":
-      if (Array.isArray(actual)) return actual.some((e) => looseEquals(e, expected));
+      if (Array.isArray(actual)) return actual.some((e) => valuesEqual(e, expected));
       return String(actual).includes(String(expected));
     case "notContains":
-      if (Array.isArray(actual)) return !actual.some((e) => looseEquals(e, expected));
+      if (Array.isArray(actual)) return !actual.some((e) => valuesEqual(e, expected));
       return !String(actual).includes(String(expected));
     case "startsWith":
       return typeof actual === "string" && actual.startsWith(String(expected));

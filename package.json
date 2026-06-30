@@ -328,7 +328,6 @@
     "@base-ui-components/react": "1.0.0-rc.0",
     "@electric-sql/pglite": "^0.2.0",
     "@elysiajs/eden": "^1.4",
-    "@js-temporal/polyfill": "^0.5.1",
     "@openfeature/server-sdk": "^1.16.0",
     "@playwright/test": "^1.49.0",
     "@tailwindcss/vite": "^4.0.0",

@@ -34,6 +34,7 @@ import type {
 import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
 import { evaluateFlag } from "./evaluator.ts";
 import { inlineSegmentsInFlag, resolveSegments, validateSegmentReferences } from "./segments.ts";
+import { tryCatchSync } from "./try-catch.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 import {
   assertValidDraft,
@@ -566,11 +567,8 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       } else {
         flags = (await loadDraft(p, e)).flags;
         segments = await loadSegments(p, e);
-        try {
-          evalSegments = resolveSegments(segments);
-        } catch {
-          evalSegments = {};
-        }
+        const [resolved] = tryCatchSync(() => resolveSegments(segments!));
+        evalSegments = resolved ?? {};
       }
       // Build the resolved (segment-inlined) map once. Prerequisites resolve other
       // flags, so the evaluator needs the whole map, not just the target flag.
@@ -581,12 +579,10 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
           resolvedFlags[key] = flag;
           continue;
         }
-        try {
-          resolvedFlags[key] = inlineSegmentsInFlag(flag, segments);
-        } catch {
-          // Dangling/cyclic segment ref in the draft → report as an error result.
-          inlineFailed.add(key);
-        }
+        const [inlined, err] = tryCatchSync(() => inlineSegmentsInFlag(flag, segments!));
+        // Dangling/cyclic segment ref in the draft → report as an error result.
+        if (err) inlineFailed.add(key);
+        else resolvedFlags[key] = inlined;
       }
 
       const keys = input.flagKey
