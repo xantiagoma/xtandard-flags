@@ -1,0 +1,5 @@
+node_modules
+.next
+.flags-data
+bun.lock
+*.tsbuildinfo
