@@ -16,7 +16,7 @@ Worked the handoff's optional backlog in order; each phase a small PR-sized, CI-
 - **C — Prerequisites** (effort M): `prerequisites {flagKey,variant}[]`. Evaluator signature now `evaluateFlag(flag, context, allFlags?)` (back-compat); checked after the enabled gate, before overrides/rules; unmet/missing/cyclic → default with new reason `PREREQUISITE_FAILED`. Provider passes `snapshot.flags`; `core.evaluate` builds the resolved (segment-inlined) map and threads it. `validatePrerequisiteGraph` (dangling + DFS cycle) runs in `validateDraft`. UI: Prerequisites editor (flag + required-variant pickers).
 - **D — OFREP**: `POST /ofrep/v1/evaluate/flags` (+ `/{key}`) reusing `core.evaluate(active)`; OpenFeature-shaped JSON; same auth + `flag:read`; project/env default w/ query override. `src/server/ofrep.ts` payload shaping. ADR `0004-ofrep-endpoint.md` documents the request-path caveat (opt-in; in-process provider stays recommended).
 
-Every phase: OpenAPI schema/paths updated, Eden-typed Elysia surface updated where applicable. Learning: run `bun run typecheck` (it checks `test/*.ts`) *after* writing tests — a test type error slipped the A3 commit red and was fixed in A4.
+Every phase: OpenAPI schema/paths updated, Eden-typed Elysia surface updated where applicable. Learning: run `bun run typecheck` (it checks `test/*.ts`) _after_ writing tests — a test type error slipped the A3 commit red and was fixed in A4.
 
 **Next (Phase E, only if asked):** scheduling, approval workflows, experiment analytics — large (scheduler/state/reviewer-auth/analytics infra).
 

@@ -18,6 +18,7 @@ import { useToast } from "../components/Toast.tsx";
 import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
 import { ConditionRow } from "../components/ConditionRow.tsx";
+import { renameVariantInFlag } from "../lib/variants.ts";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import {
   ToggleSwitch,
@@ -166,6 +167,96 @@ function VariantValueEditor({
       placeholder={type === "number" ? "0" : "value"}
       onChange={(e) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
     />
+  );
+}
+
+/**
+ * One row in the Variations editor. The variant **key** is editable (except for
+ * boolean flags); renames are committed on blur/Enter and rejected if empty or a
+ * duplicate (cascade of references is handled by the parent's `onRenameKey`).
+ */
+function VariantRow({
+  index,
+  variantKey,
+  variant,
+  type,
+  readonly,
+  canRemove,
+  onRenameKey,
+  onChangeName,
+  onChangeValue,
+  onRemove,
+}: {
+  index: number;
+  variantKey: string;
+  variant: Variant;
+  type: FlagType;
+  readonly: boolean;
+  canRemove: boolean;
+  onRenameKey: (oldKey: string, newKey: string) => boolean;
+  onChangeName: (name: string) => void;
+  onChangeValue: (value: unknown) => void;
+  onRemove: () => void;
+}) {
+  const [keyDraft, setKeyDraft] = useState(variantKey);
+  useEffect(() => setKeyDraft(variantKey), [variantKey]);
+
+  const keyEditable = !readonly && type !== "boolean";
+  const commitKey = () => {
+    const next = keyDraft.trim();
+    if (next === variantKey) return;
+    if (!next || !onRenameKey(variantKey, next)) setKeyDraft(variantKey);
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-3">
+      <div className="flex items-center gap-2">
+        <span
+          className={cn("size-2.5 shrink-0 rounded-sm", VARIANT_DOTS[index % VARIANT_DOTS.length])}
+        />
+        {keyEditable ? (
+          <input
+            value={keyDraft}
+            onChange={(e) => setKeyDraft(e.target.value)}
+            onBlur={commitKey}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") setKeyDraft(variantKey);
+            }}
+            spellCheck={false}
+            aria-label={`Variant key (${variantKey})`}
+            className="w-36 rounded border border-transparent bg-transparent px-1 font-mono text-[13px] font-medium text-foreground outline-none hover:border-input focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        ) : (
+          <span className="font-mono text-[13px] font-medium text-foreground">{variantKey}</span>
+        )}
+        <input
+          value={variant.name ?? ""}
+          onChange={(e) => onChangeName(e.target.value)}
+          disabled={readonly}
+          className="flex-1 bg-transparent text-[13px] text-muted-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
+          placeholder="Display name (optional)"
+        />
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="text-muted-foreground hover:text-destructive"
+            aria-label={`Remove variant ${variantKey}`}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        )}
+      </div>
+      <div className="mt-2 pl-[18px]">
+        <VariantValueEditor
+          type={type}
+          value={variant.value}
+          disabled={readonly || type === "boolean"}
+          onChange={onChangeValue}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -587,6 +678,18 @@ export function FlagDetail({
   const patch = <K extends keyof Flag>(k: K, v: Flag[K]) => setForm((f) => ({ ...f, [k]: v }));
   const variantKeys = Object.keys(form.variants);
 
+  /**
+   * Rename a variant key, cascading to every in-flag reference (defaultVariant,
+   * serves, split legs, overrides) via {@link renameVariantInFlag}. Returns false
+   * (no-op) when the new key is empty or already taken.
+   */
+  const renameVariantKey = (oldKey: string, newKey: string): boolean => {
+    const next = renameVariantInFlag(form, oldKey, newKey);
+    if (!next) return false;
+    setForm(next);
+    return true;
+  };
+
   const handleSave = () => {
     if (isCreate) {
       if (!form.key) {
@@ -759,53 +862,27 @@ export function FlagDetail({
             {variantKeys.map((key, i) => {
               const variant = form.variants[key]!;
               return (
-                <div key={key} className="rounded-lg border border-border bg-background/40 p-3">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "size-2.5 shrink-0 rounded-sm",
-                        VARIANT_DOTS[i % VARIANT_DOTS.length],
-                      )}
-                    />
-                    <span className="font-mono text-[13px] font-medium text-foreground">{key}</span>
-                    <input
-                      value={variant.name ?? ""}
-                      onChange={(e) =>
-                        patch("variants", {
-                          ...form.variants,
-                          [key]: { ...variant, name: e.target.value },
-                        })
-                      }
-                      disabled={readonly}
-                      className="flex-1 bg-transparent text-[13px] text-muted-foreground outline-none placeholder:text-muted-foreground/60 disabled:opacity-70"
-                      placeholder="Display name (optional)"
-                    />
-                    {!readonly && form.type !== "boolean" && variantKeys.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = { ...form.variants };
-                          delete next[key];
-                          patch("variants", next);
-                        }}
-                        className="text-muted-foreground hover:text-destructive"
-                        aria-label={`Remove variant ${key}`}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-2 pl-[18px]">
-                    <VariantValueEditor
-                      type={form.type}
-                      value={variant.value}
-                      disabled={readonly || form.type === "boolean"}
-                      onChange={(v) =>
-                        patch("variants", { ...form.variants, [key]: { ...variant, value: v } })
-                      }
-                    />
-                  </div>
-                </div>
+                <VariantRow
+                  key={key}
+                  index={i}
+                  variantKey={key}
+                  variant={variant}
+                  type={form.type}
+                  readonly={readonly}
+                  canRemove={!readonly && form.type !== "boolean" && variantKeys.length > 1}
+                  onRenameKey={renameVariantKey}
+                  onChangeName={(name) =>
+                    patch("variants", { ...form.variants, [key]: { ...variant, name } })
+                  }
+                  onChangeValue={(value) =>
+                    patch("variants", { ...form.variants, [key]: { ...variant, value } })
+                  }
+                  onRemove={() => {
+                    const next = { ...form.variants };
+                    delete next[key];
+                    patch("variants", next);
+                  }}
+                />
               );
             })}
             {!readonly && form.type !== "boolean" && (
@@ -815,7 +892,11 @@ export function FlagDetail({
                 size="sm"
                 icon={<Plus className="size-3.5" />}
                 onClick={() => {
-                  const newKey = `variant${variantKeys.length + 1}`;
+                  // Pick the first `variantN` that isn't already taken (keys are
+                  // now editable, so length+1 alone could collide with a rename).
+                  let n = variantKeys.length + 1;
+                  while (`variant${n}` in form.variants) n++;
+                  const newKey = `variant${n}`;
                   const defaultVal: Record<FlagType, unknown> = {
                     boolean: true,
                     string: "",
