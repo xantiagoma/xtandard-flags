@@ -67,6 +67,33 @@ async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
   }
 }
 
+/**
+ * A human-readable, log-safe description of where a storage role persists data —
+ * for the `serve` startup banner. File/SQLite paths are resolved to absolute so
+ * "where did my flags go?" is obvious; connection-string drivers print only the
+ * driver name (never the URL, which may carry credentials).
+ */
+async function describeStorage(role: "SOURCE" | "RUNTIME"): Promise<string> {
+  const { resolve } = await import("node:path");
+  const driver = (env(`${role}_STORAGE_DRIVER`, "file") as Driver) || "file";
+  const r = role.toLowerCase();
+  switch (driver) {
+    case "file":
+      return `file → ${resolve(env(`${role}_FILE_DIR`, `./.flags/${r}`))}`;
+    case "sqlite":
+      return `sqlite → ${resolve(env(`${role}_SQLITE_PATH`, `./.flags/${r}.sqlite`))}`;
+    case "memory":
+      return "memory (ephemeral — not persisted)";
+    case "redis":
+    case "postgres":
+    case "mongodb":
+    case "unstorage":
+      return driver;
+    default:
+      return driver;
+  }
+}
+
 /** Build the auth + authorization providers from env (mirrors the standalone app). */
 async function buildAuth(): Promise<{ auth: AuthProvider; authorization: AuthorizationProvider }> {
   const mode = env("AUTH_MODE", "none");
@@ -373,6 +400,13 @@ export async function run(argv: string[]): Promise<number> {
           }
           return panel.fetch(request);
         };
+
+        const [sourceDesc, runtimeDesc] = await Promise.all([
+          describeStorage("SOURCE"),
+          describeStorage("RUNTIME"),
+        ]);
+        process.stdout.write(`[xtandard/flags] storage source:  ${sourceDesc}\n`);
+        process.stdout.write(`[xtandard/flags] storage runtime: ${runtimeDesc}\n`);
 
         await startServer(port, handler);
         process.stdout.write(

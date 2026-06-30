@@ -20,6 +20,15 @@ PORT=4000 \
 
 `serve` honors the same environment variables documented below and works under both Node (`npx`, via a `node:http` bridge) and Bun (`bunx`, via `Bun.serve`). It serves the bundled SPA from the package's `dist/ui`, the JSON API, OFREP, the OpenAPI document, and `GET /healthcheck`. Use it for local development, a single small node, or anywhere a container is overkill; reach for the Docker image when you want a pinned, reproducible runtime.
 
+> **Where does it store data?** Unlike the Docker image (which defaults to `memory`), the CLI defaults to **file** storage under `./.flags/` in the current working directory — `./.flags/source` (drafts/history/audit) and `./.flags/runtime` (published snapshots), created lazily on first write. `serve` prints the resolved paths on startup:
+>
+> ```
+> [xtandard/flags] storage source:  file → /abs/path/.flags/source
+> [xtandard/flags] storage runtime: file → /abs/path/.flags/runtime
+> ```
+>
+> Because the default is relative to the cwd, set an absolute `SOURCE_FILE_DIR` / `RUNTIME_FILE_DIR` (or a non-file driver) for a stable location.
+
 ### Environment Variables
 
 | Variable                 | Default                    | Description                                                         |

@@ -133,7 +133,10 @@ PORT=4000 \
 ```
 
 `serve` runs under both Node (`npx`) and Bun (`bunx`). With no env it defaults to
-in-process file storage and no auth — fine for a quick local look, but set
+**file** storage under `./.flags/` in the current directory (a `source/` and a
+`runtime/` subdir) and no auth — fine for a quick local look. It prints the
+resolved storage paths on startup; set an absolute `SOURCE_FILE_DIR` /
+`RUNTIME_FILE_DIR` (or a different driver) to persist elsewhere, and set
 `AUTH_MODE=basic` before exposing it.
 
 ### Or embed the admin panel in your app
