@@ -25,6 +25,13 @@ function formatDate(str: string | undefined): string {
   }
 }
 
+/** The actor `by` may be an object (server) or a string (legacy) — render a label. */
+function formatActor(by: AuditEntry["by"]): string {
+  if (!by) return "—";
+  if (typeof by === "string") return by;
+  return by.name ?? by.email ?? by.id ?? "—";
+}
+
 function actionBadge(action: string): string {
   if (action.includes("publish")) return "bg-success/10 text-success border-success/20";
   if (action.includes("rollback")) return "bg-warning/10 text-warning border-warning/20";
@@ -65,7 +72,7 @@ export function AuditView({ projectKey, environmentKey }: Props) {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-border">
-                  {["Action", "Flag", "Version", "By", "At", "Message"].map((h) => (
+                  {["Action", "Version", "By", "At", "Message"].map((h) => (
                     <th
                       key={h}
                       className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
@@ -88,14 +95,14 @@ export function AuditView({ projectKey, environmentKey }: Props) {
                         {entry.action}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-[12px] text-accent">
-                      {entry.flagKey ?? "—"}
-                    </td>
                     <td className="px-4 py-3 font-mono text-[12px] text-muted-foreground">
                       {entry.version ?? "—"}
+                      {entry.action === "rollback" && entry.fromVersion ? (
+                        <span className="text-muted-foreground/50"> ← {entry.fromVersion}</span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-[12px] text-muted-foreground">
-                      {entry.by ?? "—"}
+                      {formatActor(entry.by)}
                     </td>
                     <td className="px-4 py-3 text-[12px] text-muted-foreground tabular-nums whitespace-nowrap">
                       {formatDate(entry.at)}

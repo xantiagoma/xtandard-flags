@@ -99,7 +99,10 @@ export interface AuditEntry {
   id?: string;
   action: string;
   version?: string;
-  by?: string;
+  /** Actor who made the change (server sends an object; older data may be a string). */
+  by?: { id: string; email?: string; name?: string } | string | null;
+  /** For rollback: the version that was active before. */
+  fromVersion?: string;
   at?: string;
   message?: string;
   flagKey?: string;
