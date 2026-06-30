@@ -29,12 +29,16 @@ export type ConditionOperator =
   | "exists"
   | "notExists"
   | "inSegment"
-  | "notInSegment";
+  | "notInSegment"
+  | "matches"
+  | "notMatches";
 
 export interface Condition {
   attribute: string;
   operator: ConditionOperator;
   value?: unknown;
+  /** For `matches`/`notMatches`: name of the registered query matcher. */
+  matcher?: string;
 }
 
 export interface Rule {

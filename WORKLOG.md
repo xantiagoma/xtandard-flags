@@ -4,6 +4,27 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — `matches`/`notMatches` UI: CodeMirror JSON editor
+
+UI half of the query-matcher feature (core was the prior commit).
+
+- **`src/ui/components/JsonCodeEditor.tsx`** (new): controlled CodeMirror 6 editor —
+  `@codemirror/{state,view,commands,language,lang-json}` (devDeps, bundled into
+  `dist/ui` + `dist/react.js`). Line numbers + JSON highlighting + history + bracket
+  matching + placeholder; no autocomplete/lint (kept light). Create-once view, value
+  reconciled via a transaction, `readOnly` via a `Compartment`.
+- **`ConditionRow.tsx`**: added `matches (query)` / `not matches (query)` to the
+  operator picker; when selected, renders a matcher-name input (`matcher (default)`)
+  - the JSON editor full-width. Local `draft`/`jsonError` buffer — pushes a parsed
+    value only when valid (object), shows "Invalid JSON" / "Query must be a JSON object"
+    otherwise; switching into match mode seeds `{}` and resets the draft. `ui/types.ts`
+    Condition gained `matcher?`.
+- **Verified live** (demo + Playwright screenshot): operator switch, editor render +
+  highlighting, matcher field, JSON validation error all work; **0 console errors**.
+- **e2e:** `e2e/ui.spec.ts` +1 (9 total) — asserts the editor + matcher field appear
+  on selecting `matches`. Bundle grew (CodeMirror): `dist/react.js` ~565KB→~1.06MB.
+- Gate green: typecheck/lint/format, 493 unit + 9 e2e, build, publint.
+
 ## 2026-06-30 — `matches`/`notMatches` operator + pluggable query matchers (core)
 
 Follow-up to the comparator work: a way to evaluate a **JSON query document** against

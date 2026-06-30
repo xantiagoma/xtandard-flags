@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { Condition } from "../types.ts";
+import { JsonCodeEditor } from "./JsonCodeEditor.tsx";
 import { TextInput, Dropdown } from "./primitives.tsx";
 import { TagInput } from "./TagInput.tsx";
 
@@ -33,6 +34,9 @@ export const CONDITION_OPERATORS: { value: string; label: string }[] = [
   // Dates (ISO-8601 or epoch ms)
   { value: "before", label: "before (date)" },
   { value: "after", label: "after (date)" },
+  // Query documents (pluggable matcher: sift, regex, …)
+  { value: "matches", label: "matches (query)" },
+  { value: "notMatches", label: "not matches (query)" },
   // Version strings (niche)
   { value: "semverEquals", label: "semver =" },
   { value: "semverGreaterThan", label: "semver >" },
@@ -41,6 +45,10 @@ export const CONDITION_OPERATORS: { value: string; label: string }[] = [
 
 export const NO_VALUE_OPS = new Set(["exists", "notExists"]);
 export const COMMA_OPS = new Set(["in", "notIn"]);
+export const MATCH_OPS = new Set(["matches", "notMatches"]);
+
+const isObjectValue = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === "object" && !Array.isArray(v);
 
 /**
  * A single condition editor row: attribute · operator · value. When the operator
@@ -64,6 +72,36 @@ export function ConditionRow({
 }) {
   const noValue = NO_VALUE_OPS.has(condition.operator);
   const isSegment = condition.operator === "inSegment" || condition.operator === "notInSegment";
+  const isMatch = MATCH_OPS.has(condition.operator);
+
+  // `matches`/`notMatches` edit a JSON query in a code editor. `draft` holds the
+  // raw editor text (null → derive from the model); we only push a parsed value
+  // up when it's valid JSON, surfacing an error otherwise.
+  const [draft, setDraft] = useState<string | null>(null);
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const editorValue =
+    draft ?? (isObjectValue(condition.value) ? JSON.stringify(condition.value, null, 2) : "");
+
+  const handleJsonChange = (text: string) => {
+    setDraft(text);
+    if (text.trim() === "") {
+      setJsonError(null);
+      onChange({ ...condition, value: {} });
+      return;
+    }
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      if (!isObjectValue(parsed)) {
+        setJsonError("Query must be a JSON object");
+        return;
+      }
+      setJsonError(null);
+      onChange({ ...condition, value: parsed });
+    } catch {
+      setJsonError("Invalid JSON");
+    }
+  };
+
   const valueStr =
     condition.value === undefined
       ? ""
@@ -91,7 +129,7 @@ export function ConditionRow({
         </span>
       ) : (
         <TextInput
-          placeholder="attribute"
+          placeholder={isMatch ? "attribute (optional)" : "attribute"}
           value={condition.attribute}
           disabled={readonly}
           className="w-32 font-mono"
@@ -100,12 +138,39 @@ export function ConditionRow({
       )}
       <Dropdown
         value={condition.operator}
-        onValueChange={(op) => onChange({ ...condition, operator: op as Condition["operator"] })}
+        onValueChange={(op) => {
+          const next: Condition = { ...condition, operator: op as Condition["operator"] };
+          // Entering query mode: seed an object value + reset the editor draft.
+          if (MATCH_OPS.has(op) && !isObjectValue(condition.value)) next.value = {};
+          setDraft(null);
+          setJsonError(null);
+          onChange(next);
+        }}
         options={CONDITION_OPERATORS.map((o) => ({ value: o.value, label: o.label }))}
         disabled={readonly}
         className="w-36"
       />
-      {isSegment ? (
+      {isMatch ? (
+        <>
+          <TextInput
+            placeholder="matcher (default)"
+            value={condition.matcher ?? ""}
+            disabled={readonly}
+            className="w-28 font-mono"
+            onChange={(e) => onChange({ ...condition, matcher: e.target.value || undefined })}
+          />
+          <div className="w-full">
+            <JsonCodeEditor value={editorValue} onChange={handleJsonChange} readOnly={readonly} />
+            {jsonError ? (
+              <p className="mt-1 text-xs text-destructive">{jsonError}</p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                JSON query for the “{condition.matcher || "default"}” matcher
+              </p>
+            )}
+          </div>
+        </>
+      ) : isSegment ? (
         segmentOptions.length > 0 ? (
           <Dropdown
             value={currentSegment}

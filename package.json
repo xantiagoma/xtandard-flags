@@ -336,6 +336,11 @@
   },
   "devDependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/state": "^6.7.0",
+    "@codemirror/view": "^6.43.4",
     "@electric-sql/pglite": "^0.2.0",
     "@elysiajs/eden": "^1.4",
     "@openfeature/server-sdk": "^1.16.0",

@@ -111,6 +111,26 @@ test("routes views and flags in the URL (deep-linkable)", async ({ page }) => {
   await expect(page.getByText("e2e-checkout").first()).toBeVisible();
 });
 
+test("matches operator shows the JSON query editor + matcher field", async ({ page }) => {
+  await page.goto("/flags/e2e-checkout");
+  await expect(page.getByText("Basics")).toBeVisible();
+
+  // Add a targeting rule + condition, then switch the operator to `matches`.
+  await page.getByRole("button", { name: "Add rule" }).click();
+  await page.getByRole("button", { name: "Add condition" }).first().click();
+
+  const operator = page.getByRole("combobox").filter({ hasText: "equals" }).first();
+  await operator.click();
+  await page.getByRole("option").filter({ hasText: "matches (query)" }).first().click();
+
+  // The CodeMirror JSON editor + matcher-name field appear.
+  await expect(page.locator(".cm-content").first()).toBeVisible();
+  const matcher = page.getByPlaceholder("matcher (default)");
+  await expect(matcher).toBeVisible();
+  await matcher.fill("sift");
+  await expect(page.getByText(/JSON query for the .*sift.* matcher/)).toBeVisible();
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);
