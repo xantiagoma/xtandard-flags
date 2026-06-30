@@ -11,7 +11,16 @@ import {
   ArrowDown,
   Percent,
 } from "lucide-react";
-import type { Flag, FlagOwner, FlagType, Rule, Serve, Variant } from "../types.ts";
+import type {
+  DurationUnit,
+  Flag,
+  FlagOwner,
+  FlagType,
+  LifecyclePolicy,
+  Rule,
+  Serve,
+  Variant,
+} from "../types.ts";
 import { FlagsApiError } from "../types.ts";
 import { createFlag, updateFlag, listSegments, listFlags } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
@@ -118,6 +127,193 @@ function Field({
       <label className="mb-1.5 block text-[13px] font-medium">{label}</label>
       {children}
       {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+const UNIT_OPTIONS: { value: DurationUnit; label: string }[] = [
+  { value: "seconds", label: "seconds" },
+  { value: "minutes", label: "minutes" },
+  { value: "hours", label: "hours" },
+  { value: "days", label: "days" },
+];
+
+/** ISO → a short local date-time with a relative suffix, e.g. "Jun 29, 2026, 14:05 (3 days ago)". */
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const abs = d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const diffDays = Math.round((Date.now() - d.getTime()) / 86_400_000);
+  const rel = diffDays <= 0 ? "today" : diffDays === 1 ? "yesterday" : `${diffDays} days ago`;
+  return `${abs} (${rel})`;
+}
+
+/** ISO → `YYYY-MM-DDTHH:mm` (local) for a `datetime-local` input. */
+function isoToLocalInput(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/**
+ * Editor for a flag's stale-detection {@link LifecyclePolicy} — **advisory only**
+ * (drives the "stale" badge; never enables/disables/archives). Off, a relative
+ * **duration** (value + unit, from created/updated, with an optional idle grace),
+ * or an absolute **datetime** deadline.
+ */
+function LifecycleField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value?: LifecyclePolicy;
+  onChange: (v: LifecyclePolicy | undefined) => void;
+  disabled?: boolean;
+}) {
+  const mode = !value ? "none" : value.expiry.kind;
+  const expiry = value?.expiry;
+
+  const setMode = (m: "none" | "duration" | "datetime") => {
+    if (disabled) return;
+    if (m === "none") return onChange(undefined);
+    if (m === "duration")
+      return onChange({ expiry: { kind: "duration", value: 90, unit: "days", from: "createdAt" } });
+    onChange({ expiry: { kind: "datetime", at: new Date().toISOString() } });
+  };
+
+  return (
+    <div className="sm:col-span-2">
+      <label className="mb-1.5 block text-[13px] font-medium">Stale detection</label>
+      <Segmented
+        value={mode}
+        onValueChange={(m) => setMode(m as "none" | "duration" | "datetime")}
+        options={[
+          { value: "none", label: "Off" },
+          { value: "duration", label: "After a duration" },
+          { value: "datetime", label: "On a date" },
+        ]}
+        size="sm"
+      />
+
+      {expiry?.kind === "duration" && value && (
+        <div className="mt-3 space-y-3 rounded-lg border border-border bg-background/40 p-3">
+          <div>
+            <span className="text-xs font-medium">Expected lifetime</span>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <TextInput
+                type="number"
+                min={0}
+                className="w-24"
+                value={expiry.value}
+                disabled={disabled}
+                onChange={(e) =>
+                  onChange({ ...value, expiry: { ...expiry, value: Number(e.target.value) } })
+                }
+              />
+              <Dropdown
+                className="w-28"
+                value={expiry.unit}
+                options={UNIT_OPTIONS}
+                disabled={disabled}
+                onValueChange={(u) =>
+                  onChange({ ...value, expiry: { ...expiry, unit: u as DurationUnit } })
+                }
+              />
+              <span className="text-xs text-muted-foreground">from</span>
+              <Dropdown
+                className="w-36"
+                value={expiry.from}
+                options={[
+                  { value: "createdAt", label: "created" },
+                  { value: "updatedAt", label: "last updated" },
+                ]}
+                disabled={disabled}
+                onValueChange={(f) =>
+                  onChange({
+                    ...value,
+                    expiry: { ...expiry, from: f as "createdAt" | "updatedAt" },
+                  })
+                }
+              />
+            </div>
+          </div>
+          <div>
+            <span className="text-xs font-medium">Idle grace</span>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <TextInput
+                type="number"
+                min={0}
+                className="w-24"
+                placeholder="7"
+                value={value.idle?.value ?? ""}
+                disabled={disabled}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  onChange({
+                    ...value,
+                    idle:
+                      raw === ""
+                        ? undefined
+                        : { value: Number(raw), unit: value.idle?.unit ?? "days" },
+                  });
+                }}
+              />
+              <Dropdown
+                className="w-28"
+                value={value.idle?.unit ?? "days"}
+                options={UNIT_OPTIONS}
+                disabled={disabled || !value.idle}
+                onValueChange={(u) =>
+                  onChange({
+                    ...value,
+                    idle: { value: value.idle?.value ?? 7, unit: u as DurationUnit },
+                  })
+                }
+              />
+              <span className="text-xs text-muted-foreground">
+                untouched this long before it's flagged (default 7 days)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {expiry?.kind === "datetime" && value && (
+        <div className="mt-3 rounded-lg border border-border bg-background/40 p-3">
+          <span className="text-xs font-medium">Expires on</span>
+          <div className="mt-1">
+            <TextInput
+              type="datetime-local"
+              className="w-60"
+              value={isoToLocalInput(expiry.at)}
+              disabled={disabled}
+              onChange={(e) => {
+                const local = e.target.value;
+                onChange({
+                  ...value,
+                  expiry: { kind: "datetime", at: local ? new Date(local).toISOString() : "" },
+                });
+              }}
+            />
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Flagged stale once past this date (hard deadline — idle is ignored).
+          </p>
+        </div>
+      )}
+
+      <p className="mt-2 text-xs text-muted-foreground">
+        Advisory only — shows a “stale” badge to remind you to clean up. It never disables or
+        archives the flag.
+      </p>
     </div>
   );
 }
@@ -754,6 +950,12 @@ export function FlagDetail({
           {form.description && (
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{form.description}</p>
           )}
+          {!isCreate && (form.createdAt || form.updatedAt) && (
+            <p className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              {form.createdAt && <span>Created {formatTimestamp(form.createdAt)}</span>}
+              {form.updatedAt && <span>Updated {formatTimestamp(form.updatedAt)}</span>}
+            </p>
+          )}
         </div>
       </div>
 
@@ -791,22 +993,11 @@ export function FlagDetail({
                   disabled={readonly}
                 />
               </Field>
-              <Field
-                label="Expected lifetime (days)"
-                hint="Flags older than this and idle are flagged as stale. Leave blank for permanent flags."
-              >
-                <TextInput
-                  type="number"
-                  min={0}
-                  value={form.expectedLifetimeDays ?? ""}
-                  placeholder="e.g. 90"
-                  disabled={readonly}
-                  onChange={(e) => {
-                    const raw = e.target.value;
-                    patch("expectedLifetimeDays", raw === "" ? undefined : Number(raw));
-                  }}
-                />
-              </Field>
+              <LifecycleField
+                value={form.lifecycle}
+                disabled={readonly}
+                onChange={(lifecycle) => patch("lifecycle", lifecycle)}
+              />
               <Field label="Owner" hint="Who maintains this flag.">
                 <TextInput
                   value={form.owner?.name ?? ""}

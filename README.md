@@ -167,7 +167,9 @@ box); for types that don't follow that convention — Dinero, Decimal — regist
 [**custom comparator**](docs/OPERATORS.md#custom-comparators) (`registerComparator`,
 or a `comparators` option on the provider/core). Flags also
 carry organizational metadata: **tags**, **owner**, **archiving** (`archivedAt`,
-excluded from snapshots), and **stale detection** (`expectedLifetimeDays`).
+excluded from snapshots), and **stale detection** (a `lifecycle` policy — a duration
+from created/updated, or a datetime deadline, with an idle grace; advisory only, it
+never changes behavior).
 **Reusable segments** are named audiences referenced by rules; **prerequisites**
 express flag-to-flag dependencies (acyclic, validated at publish).
 

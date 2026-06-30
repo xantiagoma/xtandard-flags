@@ -4,6 +4,38 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — lifecycle policy: flexible expiry (duration/datetime) + per-flag idle
+
+Replaced `Flag.expectedLifetimeDays?: number` with a richer **advisory** stale-detection
+policy (still never affects evaluation/enable/archive — confirmed with the user):
+
+```
+lifecycle?: {
+  expiry: { kind:"duration", value, unit:seconds|minutes|hours|days, from:createdAt|updatedAt }
+         | { kind:"datetime", at },
+  idle?: { value, unit }   // duration only; default 7 days
+}
+```
+
+- **Duration** expiry is idle-gated (stale = past lifetime AND untouched > idle grace);
+  **datetime** is a hard deadline (idle ignored). Idle grace is now per-flag + any unit.
+- **schema.ts**: new `DurationUnit`/`FlagDuration`/`LifecycleExpiry`/`LifecyclePolicy`
+  (exported). **lifecycle.ts** + **ui/lib/lifecycle.ts** rewritten. **validation.ts**
+  (valibot union) + **openapi.ts** (oneOf) updated.
+- **UI**: `LifecycleField` in FlagDetail — Segmented Off/Duration/Datetime, value+unit+
+  anchor, idle value+unit, datetime-local picker; clear "advisory only, never disables/
+  archives" note. Also **surfaces created/updated timestamps** under the flag title
+  (`formatTimestamp`, abs + relative) — previously not shown anywhere.
+- **Vocabulary clarified for the user:** _idle_ = time since last edit (an input);
+  _stale_ = the verdict (past expiry [AND idle, for durations]).
+- **Seed**: new-checkout/legacy-promo/enterprise-rollout → duration policies;
+  winter-theme → a datetime deadline (past → demoes the hard-deadline stale badge).
+- **Tests**: lifecycle.test.ts rewritten (16) incl. units, updatedAt anchor, per-flag
+  idle, datetime hard deadline. Verified live (editor + timestamps + stale banner, 0
+  console errors). README updated. Gate green: 517 unit + 12 e2e, build, publint.
+- **Next (separate, asked):** an `expiredAt` that _behaviorally_ auto-disables — distinct
+  from this advisory policy; needs an evaluator-time decision (see discussion).
+
 ## 2026-06-30 — JSON variant editor (CodeMirror) + clearer Test Targeting
 
 Two UI polish items from live review:

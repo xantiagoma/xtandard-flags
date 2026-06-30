@@ -283,11 +283,42 @@ export interface Flag {
   /** ISO-8601 timestamp updated on every change (stamped by {@link ./core.FlagsCore.upsertFlag}). */
   updatedAt?: string;
   /**
-   * Expected lifetime in days. When set, a flag older than this and idle for a
-   * while is flagged as **stale** (see {@link ./lifecycle.flagStaleness}) — a hint
-   * to clean it up. Purely organizational; does not affect evaluation.
+   * Optional expiry policy for **stale-flag detection** (see
+   * {@link ./lifecycle.flagStaleness}). Purely organizational — it only drives the
+   * dashboard's "stale" badge / health score. It never enables/disables/archives a
+   * flag, is never read by the evaluator, and is not part of the compiled snapshot.
    */
-  expectedLifetimeDays?: number;
+  lifecycle?: LifecyclePolicy;
+}
+
+/** Time unit for a {@link FlagDuration}. */
+export type DurationUnit = "seconds" | "minutes" | "hours" | "days";
+
+/** A duration as an authored value + unit (kept faithful for round-tripping in the UI). */
+export interface FlagDuration {
+  value: number;
+  unit: DurationUnit;
+}
+
+/**
+ * When a flag is considered past its expected lifetime: either a **relative
+ * duration** from `createdAt`/`updatedAt`, or an **absolute datetime** (a hard
+ * deadline).
+ */
+export type LifecycleExpiry =
+  | { kind: "duration"; value: number; unit: DurationUnit; from: "createdAt" | "updatedAt" }
+  | { kind: "datetime"; at: string };
+
+/**
+ * A flag's stale-detection policy. `expiry` says *when* it's overdue. For a
+ * **duration** expiry the flag is only flagged once it's also been **idle** longer
+ * than `idle` (default 7 days) — so an actively-edited flag isn't nagged. A
+ * **datetime** expiry is a hard deadline (idle is ignored).
+ */
+export interface LifecyclePolicy {
+  expiry: LifecycleExpiry;
+  /** Idle grace for duration expiry (default 7 days). Ignored for datetime expiry. */
+  idle?: FlagDuration;
 }
 
 /** Identity captured on snapshot/audit records. */

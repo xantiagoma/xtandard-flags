@@ -115,6 +115,24 @@ const ownerSchema = v.object({
   team: v.optional(v.string()),
 });
 
+const durationUnitSchema = v.picklist(["seconds", "minutes", "hours", "days"]);
+const flagDurationSchema = v.object({
+  value: v.pipe(v.number(), v.minValue(0)),
+  unit: durationUnitSchema,
+});
+const lifecycleSchema = v.object({
+  expiry: v.union([
+    v.object({
+      kind: v.literal("duration"),
+      value: v.pipe(v.number(), v.minValue(0)),
+      unit: durationUnitSchema,
+      from: v.picklist(["createdAt", "updatedAt"]),
+    }),
+    v.object({ kind: v.literal("datetime"), at: v.pipe(v.string(), v.minLength(1)) }),
+  ]),
+  idle: v.optional(flagDurationSchema),
+});
+
 const flagTypeSchema = v.picklist(["boolean", "string", "number", "json"]);
 
 /** Structural schema for a {@link Flag}. Semantic checks run separately. */
@@ -135,7 +153,7 @@ export const flagSchema = v.object({
   archivedAt: v.optional(v.nullable(v.string())),
   createdAt: v.optional(v.string()),
   updatedAt: v.optional(v.string()),
-  expectedLifetimeDays: v.optional(v.pipe(v.number(), v.minValue(0))),
+  lifecycle: v.optional(lifecycleSchema),
 });
 
 /** A single validation problem with a dotted path into the offending data. */

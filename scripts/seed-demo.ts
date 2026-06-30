@@ -90,7 +90,7 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     fallthrough: { variant: "off" },
     tags: ["checkout", "beta"],
     owner: { name: "Ada Lovelace", email: "ada@example.com", team: "Growth" },
-    expectedLifetimeDays: 90,
+    lifecycle: { expiry: { kind: "duration", value: 90, unit: "days", from: "createdAt" } },
     prerequisites: [{ flagKey: "kill-switch", variant: "on" }],
     rules: [
       {
@@ -161,7 +161,7 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     variants: { on: { value: true }, off: { value: false } },
     fallthrough: { variant: "off" },
     tags: ["deprecated"],
-    expectedLifetimeDays: 30,
+    lifecycle: { expiry: { kind: "duration", value: 30, unit: "days", from: "createdAt" } },
     createdAt: daysAgo(140),
     updatedAt: daysAgo(120),
   });
@@ -347,7 +347,7 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     fallthrough: { variant: "off" },
     tags: ["enterprise", "rollout", "experiment"],
     owner: { name: "Radia Perlman", email: "radia@example.com", team: "Platform" },
-    expectedLifetimeDays: 60,
+    lifecycle: { expiry: { kind: "duration", value: 60, unit: "days", from: "createdAt" } },
     prerequisites: [{ flagKey: "kill-switch", variant: "on" }],
     overrides: [
       { targetingKey: "user-design-partner", variant: "on" },
@@ -415,6 +415,8 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     variants: { on: { value: true }, off: { value: false } },
     fallthrough: { variant: "off" },
     tags: ["seasonal"],
+    // Absolute-deadline expiry (advisory): past end-of-winter → shows stale.
+    lifecycle: { expiry: { kind: "datetime", at: daysAgo(30) } },
   });
   await call("POST", `${prod}/publish`, { message: "Add winter-theme flag" });
 

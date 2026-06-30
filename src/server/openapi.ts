@@ -182,10 +182,43 @@ const schemas = {
         type: "string",
         description: "ISO-8601 last-update timestamp (server-stamped).",
       },
-      expectedLifetimeDays: {
-        type: "number",
-        minimum: 0,
-        description: "Expected lifetime in days; drives stale-flag detection.",
+      lifecycle: {
+        type: "object",
+        description:
+          "Stale-flag detection policy (advisory only). expiry: { kind: 'duration', value, unit, from: 'createdAt'|'updatedAt' } | { kind: 'datetime', at }; optional idle { value, unit }.",
+        required: ["expiry"],
+        properties: {
+          expiry: {
+            oneOf: [
+              {
+                type: "object",
+                required: ["kind", "value", "unit", "from"],
+                properties: {
+                  kind: { type: "string", enum: ["duration"] },
+                  value: { type: "number", minimum: 0 },
+                  unit: { type: "string", enum: ["seconds", "minutes", "hours", "days"] },
+                  from: { type: "string", enum: ["createdAt", "updatedAt"] },
+                },
+              },
+              {
+                type: "object",
+                required: ["kind", "at"],
+                properties: {
+                  kind: { type: "string", enum: ["datetime"] },
+                  at: { type: "string" },
+                },
+              },
+            ],
+          },
+          idle: {
+            type: "object",
+            required: ["value", "unit"],
+            properties: {
+              value: { type: "number", minimum: 0 },
+              unit: { type: "string", enum: ["seconds", "minutes", "hours", "days"] },
+            },
+          },
+        },
       },
     },
   },

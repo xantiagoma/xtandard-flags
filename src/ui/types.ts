@@ -104,7 +104,21 @@ export interface Flag {
   archivedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
-  expectedLifetimeDays?: number;
+  lifecycle?: LifecyclePolicy;
+}
+
+export type DurationUnit = "seconds" | "minutes" | "hours" | "days";
+export interface FlagDuration {
+  value: number;
+  unit: DurationUnit;
+}
+export type LifecycleExpiry =
+  | { kind: "duration"; value: number; unit: DurationUnit; from: "createdAt" | "updatedAt" }
+  | { kind: "datetime"; at: string };
+export interface LifecyclePolicy {
+  expiry: LifecycleExpiry;
+  /** Idle grace for duration expiry (default 7 days). Ignored for datetime expiry. */
+  idle?: FlagDuration;
 }
 
 export interface FlagsConfig {
