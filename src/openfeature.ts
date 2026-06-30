@@ -30,6 +30,8 @@
  * @module
  */
 
+import type { ComparatorRegistry } from "./comparators.ts";
+import { withComparators } from "./comparators.ts";
 import { evaluateFlag } from "./evaluator.ts";
 import { activeVersionKey, snapshotsPrefix } from "./keys.ts";
 import type {
@@ -122,6 +124,13 @@ export interface OpenFeatureProviderOptions {
   refreshIntervalMs?: number;
   /** Optional logger for non-fatal load/refresh problems. */
   logger?: ProviderLogger;
+  /**
+   * Custom comparators for value-object types in the evaluation context (e.g.
+   * Dinero, Decimal). Layered over the process-wide registry from
+   * {@link ./comparators.registerComparator} for evaluations made by this
+   * provider. See {@link ./comparators.ComparatorRegistry}.
+   */
+  comparators?: ComparatorRegistry;
 }
 
 /**
@@ -422,11 +431,9 @@ export function createOpenFeatureProvider(
     }
 
     // 3. Evaluate. Pass the whole snapshot so prerequisites + segments resolve.
-    const evaluation = evaluateFlag(
-      flag,
-      toInternalContext(context),
-      snapshot.flags,
-      snapshot.segments,
+    // Layer any instance comparators over the global registry for this call.
+    const evaluation = withComparators(options.comparators, () =>
+      evaluateFlag(flag, toInternalContext(context), snapshot!.flags, snapshot!.segments),
     );
 
     // 3a. Evaluation error (or missing value) → caller default + ERROR.

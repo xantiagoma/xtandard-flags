@@ -156,7 +156,11 @@ Splits are deterministic: `same flagKey + same targetingKey + same salt → same
 
 Targeting rules are an AND of **conditions** — see the full operator reference in
 [docs/OPERATORS.md](docs/OPERATORS.md) (equality, membership, string, numeric,
-**date** `before`/`after`, **semver**, **`inSegment`/`notInSegment`**). Flags also
+**date** `before`/`after`, **semver**, **`inSegment`/`notInSegment`**). Ordering and
+equality understand value objects (the whole Temporal family + `BigInt` out of the
+box); for types that don't follow that convention — Dinero, Decimal — register a
+[**custom comparator**](docs/OPERATORS.md#custom-comparators) (`registerComparator`,
+or a `comparators` option on the provider/core). Flags also
 carry organizational metadata: **tags**, **owner**, **archiving** (`archivedAt`,
 excluded from snapshots), and **stale detection** (`expectedLifetimeDays`).
 **Reusable segments** are named audiences referenced by rules; **prerequisites**

@@ -4,6 +4,45 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — pluggable comparators for custom value-object types (Dinero, Decimal)
+
+User asked for a `predicate → { compare, parser?, serializer? }` registry (à la
+`@xtandard/lib` codec options) configurable "when initializing," and whether
+OpenFeature restricts it. Answer: **no OF restriction** — comparison runs in-process
+on the live context value vs the JSON-stored `value`; nothing crosses the SDK
+boundary (the OF context type is advisory). Scoped this pass to **compare-only**
+(serialize round-trip for _storing_ rich values is a deferred follow-up); wiring is
+**global default + per-instance override** (ADR 0007).
+
+- **`src/comparators.ts`** (new, zero-dep, never-throws): `registerComparator(predicate,
+{ compare, parser? })` → process-wide registry (returns dispose; `clearComparators()`
+  resets). `withComparators(registry, fn)` layers an instance `Map`/tuple-array over
+  the global for one **synchronous** evaluation (restored in `finally` — safe because
+  the evaluator never `await`s). `compareViaComparators(a,b) → { matched, order? }`.
+- **`src/evaluator.ts`**: `compareValues` gains **tier 0** (registry) above the existing
+  constructor/bigint/numeric tiers. A matched comparator **owns** the comparison — a
+  throwing predicate is non-matching; a throwing/non-finite `compare` fails the
+  condition **closed** (no fall-through that would misread the object). Equality
+  (`equals`/`in`/…) inherits it via `compareValues === 0`.
+- **Wiring (Both):** `OpenFeatureProviderOptions.comparators` and
+  `FlagsCoreOptions.comparators` thread through `withComparators` at the two
+  `evaluateFlag` call sites (`openfeature.ts`, `core.ts:evaluate`). Chose registry +
+  dynamic scope over threading a param — `compareValues` is many hops below
+  `evaluateFlag` and the positional signature + call sites would all churn.
+- **Exports:** `registerComparator`/`clearComparators`/`withComparators` + types
+  (`ComparatorPredicate`/`Handlers`/`Entry`/`Registry`/`Result`) from the package root.
+- **Tests:** `test/comparators.test.ts` (30) — Dinero-style Money (factory, no static
+  compare): ordering/equality/`in`, parser-lift, fail-closed (throwing compare +
+  throwing predicate), no-regression, dispose, scope precedence/restore/Map+array, and
+  provider + core init-option integration.
+- **Docs:** OPERATORS.md (tier 0 + new "Custom comparators" section with a Dinero
+  example), README operator paragraph, **ADR 0007**.
+- **Gate green:** typecheck (+examples), lint, format, 470 tests (+30; 26 live-svc
+  skips), build, publint "All good!".
+- **Next / deferred:** the `serializer` half — storing rich objects as condition/variant
+  values via a superjson-style tagged JSON round-trip (touches schema/snapshot/validation/
+  storage). Build only if rich _stored_ values are wanted; runtime comparison doesn't need it.
+
 ## 2026-06-30 — interactive review round: UX polish, routing, branding, new operators
 
 Driven by a live review (the user clicking through the demo and asking "why is this clunky / what about X"). All small, CI-green commits; main green throughout. Demo: `bun run demo` → seeded standalone on :7788.

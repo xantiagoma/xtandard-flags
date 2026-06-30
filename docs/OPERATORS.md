@@ -20,8 +20,15 @@ throw** — a type mismatch evaluates to `false`. Across rules, first match wins
 ## Comparable coercion (`>`, `>=`, `<`, `<=`, `before`, `after`)
 
 Ordering operators use a single zero-dependency, never-throws comparator
-(`compareValues → -1|0|1`, `undefined` = incomparable → `false`), with three tiers:
+(`compareValues → -1|0|1`, `undefined` = incomparable → `false`), with four tiers:
 
+0. **Registered comparators** (highest precedence) — for value-object types that
+   **don't** follow the static-`compare`/`from` convention of tier 1 (e.g.
+   [Dinero.js](https://dinerojs.com), Decimal.js, BigNumber). Register a predicate
+   plus a `compare` (and optional `parser`) via `registerComparator`; see
+   [**Custom comparators**](#custom-comparators) below. A matched comparator **owns**
+   the comparison — if it throws, the condition fails closed rather than falling
+   through to numeric coercion that would misread the object.
 1. **Value objects** — if a side is an object whose **constructor** exposes a static
    `compare(a, b)`, it parses the other side to that type (static
    `from`/`fromString`/`fromJSON`/`parse`, falling back to `new Klass(v)` then
@@ -51,6 +58,45 @@ never guesses arbitrary method names, so the request path stays pure.
 > OpenFeature provider receives a live JS object, so `Date`/`Temporal`/`bigint`
 > instances are compared directly (tiers 1–2). The stored condition `value` is
 > always a JSON primitive, parsed to the matching type as needed.
+
+## Custom comparators
+
+For value-object types that don't expose a `Temporal`-style static `compare`/`from`
+(tier 1) or a numeric `valueOf` (tier 3) — most money/decimal libraries — register
+a comparator. A predicate decides which values it owns; `compare` orders them; an
+optional `parser` lifts the **other** operand (typically the JSON-stored condition
+`value`) into the comparable type first. Everything is request-path safe: a throwing
+predicate or `compare` fails the operand pair **closed**, never propagating.
+
+```ts
+import { registerComparator } from "@xtandard/flags";
+import { dinero, lessThan, equal, type Dinero } from "dinero.js";
+
+const isDinero = (v: unknown): v is Dinero<number> =>
+  typeof v === "object" && v !== null && "calculator" in v && "toJSON" in v;
+
+registerComparator(isDinero, {
+  compare: (a, b) => (equal(a, b) ? 0 : lessThan(a, b) ? -1 : 1),
+  parser: (raw) => dinero(raw as Parameters<typeof dinero>[0]),
+});
+```
+
+Registered comparators also back **equality** (`equals`/`notEquals`/`in`/`notIn`)
+through `compareValues === 0`, so the same registration handles ordering and
+membership. Comparison runs entirely **in-process** on the live context value — so
+there's no OpenFeature constraint to work around; the only boundary is that the
+stored condition `value` must stay JSON (which is what `parser` reconstructs from).
+
+Two layers, both available:
+
+- **Global default** — `registerComparator(predicate, handlers)` mutates a
+  process-wide registry consulted by every evaluation (including the bare
+  `evaluateFlag`). Returns a dispose function; `clearComparators()` resets all.
+- **Per-instance override** — pass `comparators` (a `Map` or array of
+  `[predicate, handlers]` tuples) to `createOpenFeatureProvider({ comparators })`
+  or `createFlagsCore({ comparators })`. Instance entries layer **over** the global
+  default for that instance's evaluations. `withComparators(registry, fn)` exposes
+  the same synchronous scoping directly.
 
 ## Segments & prerequisites
 

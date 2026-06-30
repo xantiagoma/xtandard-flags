@@ -64,6 +64,16 @@ export {
 } from "./evaluator.ts";
 export type { FlagEvaluation, SegmentMap, SplitInput } from "./evaluator.ts";
 
+// Pluggable comparators for custom value-object types (request-path safe)
+export { clearComparators, registerComparator, withComparators } from "./comparators.ts";
+export type {
+  ComparatorEntry,
+  ComparatorHandlers,
+  ComparatorPredicate,
+  ComparatorRegistry,
+  ComparatorResult,
+} from "./comparators.ts";
+
 // Hashing
 export { hashToUnitInterval, murmur3 } from "./hash.ts";
 

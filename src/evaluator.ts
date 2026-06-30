@@ -19,6 +19,7 @@
  * @module
  */
 
+import { compareViaComparators } from "./comparators.ts";
 import { hashToUnitInterval } from "./hash.ts";
 import { tryCatchSync } from "./try-catch.ts";
 import type {
@@ -197,6 +198,11 @@ function compareViaConstructor(x: unknown, other: unknown): number | undefined {
 /**
  * Order two values for the comparison operators, returning `-1|0|1`, or
  * `undefined` when they aren't comparable (→ the condition fails closed). Tiers:
+ *  0. **Registered comparators** — a {@link ./comparators.registerComparator}
+ *     predicate matches a side ({@link compareViaComparators}); for value-object
+ *     types that don't follow the static-`compare` convention (Dinero, Decimal,
+ *     …). Takes precedence: an explicit registration is an explicit opt-in, and a
+ *     matched-but-failing comparator fails closed rather than falling through.
  *  1. **Value-object compare** — a side's `constructor.compare` + a static parser
  *     ({@link compareViaConstructor}); covers the whole Temporal family
  *     (`PlainDate`/`PlainTime`/`Duration`/…) and any custom Comparable, with no
@@ -206,6 +212,11 @@ function compareViaConstructor(x: unknown, other: unknown): number | undefined {
  *     `valueOf`/`Symbol.toPrimitive`).
  */
 function compareValues(a: unknown, b: unknown): number | undefined {
+  // 0. Registered comparators win: a matched predicate owns the comparison
+  // (an unmatched registry returns matched:false and we fall through).
+  const viaRegistry = compareViaComparators(a, b);
+  if (viaRegistry.matched) return viaRegistry.order;
+
   // Try a's class, then b's (inverting the sign since that compares b-vs-a).
   const direct = compareViaConstructor(a, b);
   if (direct !== undefined) return direct;
