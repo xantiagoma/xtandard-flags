@@ -106,25 +106,17 @@ function looseEquals(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Coerce a value to a **comparable scalar** for the ordering operators
- * (`>`, `>=`, `<`, `<=`, `before`, `after`). Zero-dependency and never throws —
- * on anything it can't compare it returns `undefined`, so the condition fails
- * closed. Handles, in order:
- *  - numbers and numeric strings;
- *  - ISO-8601 date strings (via the built-in `Date` parser → epoch ms);
- *  - `Date` instances and `Temporal.Instant` / `Temporal.ZonedDateTime`
- *    (their `epochMilliseconds`);
- *  - any object implementing the standard JS coercion protocol
- *    (`Symbol.toPrimitive` / `valueOf`) that yields a finite number.
- *
- * It deliberately uses `valueOf`/`Symbol.toPrimitive` — the language's own
- * "make me comparable" hook — rather than guessing custom method names, which
- * keeps the hot path safe and predictable. (Calendar/relative types like
- * `Temporal.PlainDate` or `Temporal.Duration`, which expose no epoch and refuse
- * numeric coercion, are intentionally not comparable here.)
+ * Coerce a value to a **comparable scalar number**. The numeric tier of
+ * {@link compareValues}; handles numbers, numeric strings, ISO-8601 date strings
+ * (→ epoch ms), `Date`, anything with a numeric `valueOf`/`Symbol.toPrimitive`,
+ * and `bigint` (via `Number`). Returns `undefined` if it can't. Never throws.
  */
 function toComparable(v: unknown): number | undefined {
   if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+  if (typeof v === "bigint") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : undefined;
+  }
   if (typeof v === "string") {
     const s = v.trim();
     if (s === "") return undefined;
@@ -142,6 +134,79 @@ function toComparable(v: unknown): number | undefined {
   } catch {
     return undefined;
   }
+}
+
+// Temporal types that define a total order via a static `compare`. PlainMonthDay
+// is intentionally absent — it has no `compare` (a month-day isn't orderable).
+const TEMPORAL_ORDERED = [
+  "Instant",
+  "ZonedDateTime",
+  "PlainDateTime",
+  "PlainDate",
+  "PlainTime",
+  "PlainYearMonth",
+  "Duration",
+] as const;
+
+/**
+ * Compare two values using a matching `Temporal.X.compare` (with `Temporal.X.from`
+ * to parse the stored string/threshold side), when `globalThis.Temporal` exists and
+ * either side is such an instance. This is how epoch-less calendar/wall-clock types
+ * (`PlainDate`, `PlainTime`, …) are ordered correctly. Returns `-1|0|1`, or
+ * `undefined` if not applicable / not parseable (e.g. a `Duration` with calendar
+ * units that needs `relativeTo`). Never throws.
+ */
+function temporalCompare(a: unknown, b: unknown): number | undefined {
+  const T = (globalThis as { Temporal?: Record<string, unknown> }).Temporal;
+  if (!T) return undefined;
+  const aObj = typeof a === "object" && a !== null;
+  const bObj = typeof b === "object" && b !== null;
+  if (!aObj && !bObj) return undefined;
+  for (const name of TEMPORAL_ORDERED) {
+    const Cls = T[name] as
+      | ((new (...args: never[]) => object) & {
+          compare(x: unknown, y: unknown): number;
+          from(v: unknown): unknown;
+        })
+      | undefined;
+    if (typeof Cls !== "function" || typeof Cls.compare !== "function") continue;
+    const aIs = a instanceof Cls;
+    const bIs = b instanceof Cls;
+    if (!aIs && !bIs) continue;
+    try {
+      const c = Cls.compare(aIs ? a : Cls.from(a), bIs ? b : Cls.from(b));
+      return c < 0 ? -1 : c > 0 ? 1 : 0;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Order two values for the comparison operators, returning `-1|0|1`, or
+ * `undefined` when they aren't comparable (→ the condition fails closed). Tiers:
+ *  1. **Temporal** — `Temporal.PlainDate`/`PlainTime`/`Instant`/… via their own
+ *     `compare`/`from` (correct for epoch-less types);
+ *  2. **BigInt** — exact `bigint` ordering (mixed `bigint`/number is allowed by JS);
+ *  3. **Numeric scalar** — {@link toComparable} (number, numeric/ISO string, `Date`,
+ *     `valueOf`-able objects).
+ */
+function compareValues(a: unknown, b: unknown): number | undefined {
+  const t = temporalCompare(a, b);
+  if (t !== undefined) return t;
+
+  if (typeof a === "bigint" || typeof b === "bigint") {
+    const av = typeof a === "bigint" ? a : toComparable(a);
+    const bv = typeof b === "bigint" ? b : toComparable(b);
+    if (av === undefined || bv === undefined) return undefined;
+    return av < bv ? -1 : av > bv ? 1 : 0;
+  }
+
+  const an = toComparable(a);
+  const bn = toComparable(b);
+  if (an === undefined || bn === undefined) return undefined;
+  return an < bn ? -1 : an > bn ? 1 : 0;
 }
 
 interface Semver {
@@ -246,13 +311,12 @@ export function evaluateCondition(
     case "greaterThanOrEqual":
     case "lessThan":
     case "lessThanOrEqual": {
-      const a = toComparable(actual);
-      const b = toComparable(expected);
-      if (a === undefined || b === undefined) return false;
-      if (op === "greaterThan") return a > b;
-      if (op === "greaterThanOrEqual") return a >= b;
-      if (op === "lessThan") return a < b;
-      return a <= b;
+      const c = compareValues(actual, expected);
+      if (c === undefined) return false;
+      if (op === "greaterThan") return c > 0;
+      if (op === "greaterThanOrEqual") return c >= 0;
+      if (op === "lessThan") return c < 0;
+      return c <= 0;
     }
     case "semverEquals":
     case "semverGreaterThan":
@@ -265,10 +329,9 @@ export function evaluateCondition(
     }
     case "before":
     case "after": {
-      const a = toComparable(actual);
-      const b = toComparable(expected);
-      if (a === undefined || b === undefined) return false;
-      return op === "before" ? a < b : a > b;
+      const c = compareValues(actual, expected);
+      if (c === undefined) return false;
+      return op === "before" ? c < 0 : c > 0;
     }
     case "inSegment":
       // Normally inlined at compile time; if a snapshot embeds segments, resolve.

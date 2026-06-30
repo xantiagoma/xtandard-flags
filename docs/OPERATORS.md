@@ -19,26 +19,34 @@ throw** — a type mismatch evaluates to `false`. Across rules, first match wins
 
 ## Comparable coercion (`>`, `>=`, `<`, `<=`, `before`, `after`)
 
-All ordering operators coerce both sides to one comparable scalar via a single
-zero-dependency, never-throws helper (`toComparable`), in this order:
+Ordering operators use a single zero-dependency, never-throws comparator
+(`compareValues → -1|0|1`, `undefined` = incomparable → `false`), with three tiers:
 
-1. **numbers** and **numeric strings**
-2. **ISO-8601 date strings** → epoch ms (built-in `Date.parse`)
-3. **`Date`** instances and **`Temporal.Instant` / `Temporal.ZonedDateTime`** (their `epochMilliseconds`)
-4. any object implementing the **standard JS coercion hook** (`Symbol.toPrimitive` / `valueOf`) that yields a finite number
+1. **Temporal** — if `globalThis.Temporal` exists and either side is a `Temporal`
+   instance with a total order (`Instant`, `ZonedDateTime`, `PlainDateTime`,
+   `PlainDate`, `PlainTime`, `PlainYearMonth`, `Duration`), it compares via that
+   type's own static `compare` + `from` (so the stored ISO string/threshold is
+   parsed with `Temporal.X.from`). This is how **epoch-less** types like
+   `PlainDate`/`PlainTime` are ordered correctly. (`PlainMonthDay` has no
+   `compare` — not orderable; a `Duration` with calendar units needs `relativeTo`,
+   so it fails closed.)
+2. **BigInt** — exact `bigint` ordering (beyond `Number` precision); mixed
+   `bigint`/number compares by magnitude.
+3. **Numeric scalar** (`toComparable`) — numbers, numeric strings, **ISO-8601 date
+   strings** (`Date.parse` → epoch ms), `Date` instances, and any object with a
+   numeric `valueOf`/`Symbol.toPrimitive`.
 
-So `count > 100`, `lastSeen after "2026-01-01"`, and `signupTs > <epoch>` all work,
-and any custom _Comparable_ type that implements `valueOf` participates for free —
-without the evaluator calling guessed method names (keeping the request path pure).
-
-**Not comparable:** calendar/relative `Temporal` types (`PlainDate`, `Duration`)
-expose no epoch and refuse numeric coercion, so they fail closed. Anything
-unparseable → the condition is `false`.
+So `count > 100`, `lastSeen after "2026-01-01"`, `signupTs > <epoch>`,
+`appBuild > 9007199254740993n`, and a `Temporal.PlainDate` context value vs an ISO
+threshold all work. Custom _Comparable_ types participate via either the standard
+`valueOf` hook (tier 3) or a `Temporal`-style static `compare`/`from`. The evaluator
+never guesses arbitrary method names, so the request path stays pure.
 
 > Note on context shape: over HTTP (OFREP/bootstrap) the evaluation context is
-> JSON, so rich types arrive as strings/numbers. The **in-process** OpenFeature
-> provider receives a live JS object, so `Date`/`Temporal` instances are compared
-> directly. The stored condition `value` is always a JSON primitive.
+> JSON, so rich types arrive as strings/numbers (tier 3). The **in-process**
+> OpenFeature provider receives a live JS object, so `Date`/`Temporal`/`bigint`
+> instances are compared directly (tiers 1–2). The stored condition `value` is
+> always a JSON primitive, parsed to the matching type as needed.
 
 ## Segments & prerequisites
 
