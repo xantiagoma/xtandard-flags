@@ -141,6 +141,7 @@ async function main(): Promise<void> {
     logoUrl,
     readonly,
     uiDir,
+    streaming: bool("STREAMING", false),
     auth: buildAuth(),
     authorization: authMode === "basic" ? rolesAuthorization({}) : noAuthorization(),
   });

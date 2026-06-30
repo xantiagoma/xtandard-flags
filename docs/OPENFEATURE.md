@@ -200,3 +200,66 @@ await provider.refresh();
 console.log(provider.lastUpdatedAt); // ISO timestamp or null
 console.log(provider.stale); // boolean
 ```
+
+---
+
+## Remote evaluation (OFREP)
+
+The in-process provider above is the recommended path for JS/TS. For **other
+languages** (or clients/edges that can't evaluate in-process), the panel speaks
+the **OpenFeature Remote Evaluation Protocol (OFREP)** — a standard HTTP/JSON
+contract. Any language's OpenFeature SDK + the generic OFREP provider, pointed at
+your panel URL, evaluates against the active published snapshot. (Trade-off: this
+puts the control plane in the request path — see [ADR 0004](ADR/0004-ofrep-endpoint.md).)
+
+Endpoints (under your `basePath`, e.g. `/flags/ofrep/...`):
+
+| Method + path                         | Purpose                                            |
+| ------------------------------------- | -------------------------------------------------- |
+| `POST /ofrep/v1/evaluate/flags/{key}` | Evaluate a single flag for the posted `context`.   |
+| `POST /ofrep/v1/evaluate/flags`       | Bulk-evaluate all flags for the posted `context`.  |
+| `GET /ofrep/v1/stream`                | SSE config-change stream (**opt-in** — see below). |
+
+Project/environment default to the handler's configured pair; override with
+`?projectKey=&environmentKey=`. All endpoints honor the same RBAC (`flag:read`).
+
+```bash
+curl -s -X POST localhost:3000/ofrep/v1/evaluate/flags/new-checkout \
+  -H 'content-type: application/json' \
+  -d '{"context":{"targetingKey":"user-42","country":"FR"}}'
+# → {"key":"new-checkout","value":true,"variant":"on","reason":"TARGETING_MATCH",
+#    "metadata":{"version":"v3","flagType":"boolean"}}
+```
+
+**Flag metadata.** Each evaluation carries `metadata` with the active snapshot
+`version` and the `flagType` — useful for debugging and cache reasoning.
+
+**Caching (ETag / `304`).** The bulk response returns a strong **`ETag`** derived
+from `(project, env, active version, context)`. Send it back via `If-None-Match`
+and an unchanged poll gets **`304 Not Modified`** with no body — so frequent
+polling is cheap.
+
+```bash
+etag=$(curl -sD - -o /dev/null -X POST localhost:3000/ofrep/v1/evaluate/flags \
+  -H 'content-type: application/json' -d '{"context":{"targetingKey":"u1"}}' | awk '/etag/{print $2}')
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/ofrep/v1/evaluate/flags \
+  -H 'content-type: application/json' -H "if-none-match: $etag" -d '{"context":{"targetingKey":"u1"}}'
+# → 304
+```
+
+**Real-time updates (SSE, opt-in).** Enable `streaming: true` on `createFetchHandler`
+(or `STREAMING=1` for the standalone / `serve`). The bulk response then advertises
+an `eventStreams` URL, and clients can `GET /ofrep/v1/stream` to receive a
+`configuration_changed` event whenever a publish/rollback changes the active
+snapshot — re-fetch immediately instead of waiting for the next poll.
+
+```
+event: configuration_changed
+data: {"version":"v4"}
+```
+
+Notes: SSE needs a runtime that streams a `Response` body — **Bun, the standalone
+`serve` (Node or Bun), Hono, Elysia**; it is **not** delivered through the
+buffering Express adapter. Change detection currently tracks the **default**
+project/environment. Polling + ETag (above) remains the default and fully
+sufficient path; SSE is a latency optimization.

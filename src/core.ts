@@ -28,6 +28,7 @@ import type {
   EnvironmentMeta,
   EvaluationContext,
   Flag,
+  FlagType,
   FlagValue,
   ProjectMeta,
   Segment,
@@ -56,6 +57,8 @@ export interface FlagEvaluationResult {
   variant: string | undefined;
   reason: EvaluationReason;
   errorCode?: FlagErrorCode;
+  /** The flag's declared type (`boolean`/`string`/`number`/`json`), when known. */
+  flagType?: FlagType;
 }
 
 /** Input to {@link FlagsCore.evaluate}. */
@@ -765,6 +768,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
           variant: r.variant,
           reason: r.reason,
           errorCode: r.errorCode,
+          flagType: resolvedFlags[key]?.type,
         };
       });
     },

@@ -181,6 +181,25 @@ async function startServer(port: number, fetch: FetchHandler): Promise<void> {
         const response = await fetch(request);
         res.statusCode = response.status;
         response.headers.forEach((value, key) => res.setHeader(key, value));
+        // Stream SSE (text/event-stream) instead of buffering — long-lived body.
+        if (
+          response.body &&
+          (response.headers.get("content-type") ?? "").includes("text/event-stream")
+        ) {
+          const reader = response.body.getReader();
+          let aborted = false;
+          res.on("close", () => {
+            aborted = true;
+            void reader.cancel().catch(() => {});
+          });
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done || aborted) break;
+            res.write(Buffer.from(value));
+          }
+          res.end();
+          return;
+        }
         res.end(Buffer.from(await response.arrayBuffer()));
       } catch (err) {
         res.statusCode = 500;
@@ -373,6 +392,7 @@ export async function run(argv: string[]): Promise<number> {
           );
         }
 
+        const streaming = env("STREAMING") === "1" || env("STREAMING").toLowerCase() === "true";
         const panel = createFetchHandler({
           basePath,
           sourceStorage,
@@ -382,6 +402,7 @@ export async function run(argv: string[]): Promise<number> {
           readonly,
           auth,
           authorization,
+          streaming,
         });
 
         const normalizedBase =

@@ -22,6 +22,8 @@ import {
 import { DraftValidationError } from "../validation.ts";
 import { buildImportSchema, buildOpenApiDocument } from "./openapi.ts";
 import { toOfrepBulkResponse, toOfrepEvaluation } from "./ofrep.ts";
+import type { SseManager } from "./sse.ts";
+import { murmur3 } from "../hash.ts";
 import type { Draft, Flag, Segment } from "../schema.ts";
 
 /** Everything the API router needs. */
@@ -33,6 +35,8 @@ export interface ApiContext {
   readonly: boolean;
   basePath: string;
   logoUrl?: string;
+  /** Opt-in OFREP SSE broadcaster (present only when `streaming` is enabled). */
+  sse?: SseManager;
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -554,6 +558,17 @@ export async function handleApiRequest(
     }
 
     // --- OFREP: OpenFeature Remote Evaluation Protocol (opt-in; see ADR 0004) ---
+    // OFREP SSE stream (opt-in): GET /ofrep/v1/stream — pushes config-change events.
+    if (ctx.sse && path === ctx.sse.path && method === "GET") {
+      const denied = await authorize("flag:read", {
+        type: "environment",
+        projectKey: ctx.core.options.defaultProjectKey,
+        environmentKey: ctx.core.options.defaultEnvironmentKey,
+      });
+      if (denied) return denied;
+      return ctx.sse.handle();
+    }
+
     // Project/env aren't in the OFREP path; default to the handler's configured
     // pair, overridable via ?projectKey=&environmentKey=.
     if (path.startsWith("/ofrep/v1/evaluate/flags")) {
@@ -567,18 +582,23 @@ export async function handleApiRequest(
         return parsed.context ?? {};
       };
 
+      const resolvedProject = projectKey ?? ctx.core.options.defaultProjectKey;
+      const resolvedEnv = environmentKey ?? ctx.core.options.defaultEnvironmentKey;
+
       // Single flag: /ofrep/v1/evaluate/flags/:key
       const single = match("/ofrep/v1/evaluate/flags/:key", path);
       if (single && method === "POST") {
         const denied = await authorize("flag:read", {
           type: "environment",
-          projectKey: projectKey ?? ctx.core.options.defaultProjectKey,
-          environmentKey: environmentKey ?? ctx.core.options.defaultEnvironmentKey,
+          projectKey: resolvedProject,
+          environmentKey: resolvedEnv,
         });
         if (denied) return denied;
         const { key } = single.params;
+        const context = await ofrepContext();
+        const version = await ctx.core.getActiveVersion(projectKey, environmentKey);
         const results = await ctx.core.evaluate({
-          context: await ofrepContext(),
+          context,
           flagKey: key,
           source: "active",
           projectKey,
@@ -588,24 +608,43 @@ export async function handleApiRequest(
         if (!result) {
           return error(404, `flag "${key}" not found`, { key, errorCode: "FLAG_NOT_FOUND" });
         }
-        return json(toOfrepEvaluation(result));
+        return json(toOfrepEvaluation(result, { version }));
       }
 
       // Bulk: /ofrep/v1/evaluate/flags
       if (path === "/ofrep/v1/evaluate/flags" && method === "POST") {
         const denied = await authorize("flag:read", {
           type: "environment",
-          projectKey: projectKey ?? ctx.core.options.defaultProjectKey,
-          environmentKey: environmentKey ?? ctx.core.options.defaultEnvironmentKey,
+          projectKey: resolvedProject,
+          environmentKey: resolvedEnv,
         });
         if (denied) return denied;
+        const context = await ofrepContext();
+        const version = await ctx.core.getActiveVersion(projectKey, environmentKey);
+
+        // The bulk result is a pure function of (project, env, active version,
+        // context) → use that as a strong ETag so unchanged polls get a 304 with
+        // no body (OFREP bulk caching).
+        const etag = `"${(murmur3(`${resolvedProject}|${resolvedEnv}|${version ?? ""}|${JSON.stringify(context)}`) >>> 0).toString(16)}"`;
+        if (request.headers.get("if-none-match") === etag) {
+          return new Response(null, { status: 304, headers: { etag } });
+        }
+
         const results = await ctx.core.evaluate({
-          context: await ofrepContext(),
+          context,
           source: "active",
           projectKey,
           environmentKey,
         });
-        return json(toOfrepBulkResponse(results));
+        // Advertise the SSE stream so OFREP clients can subscribe for live updates.
+        const eventStreams = ctx.sse ? [{ url: `${ctx.basePath}${ctx.sse.path}` }] : undefined;
+        return new Response(
+          JSON.stringify(toOfrepBulkResponse(results, { version }, eventStreams)),
+          {
+            status: 200,
+            headers: { "content-type": "application/json; charset=utf-8", etag },
+          },
+        );
       }
     }
 

@@ -27,9 +27,30 @@ export interface OfrepEvaluation {
   metadata: Record<string, string | number | boolean>;
 }
 
+/** Extra flag metadata the server attaches to each OFREP evaluation. */
+export interface OfrepMetaInput {
+  /** Active snapshot version that produced the value (e.g. `"v3"`). */
+  version?: string | null;
+}
+
+/** Build the OFREP `metadata` object from the result + server context. */
+function buildMetadata(
+  result: FlagEvaluationResult,
+  meta: OfrepMetaInput,
+): Record<string, string | number | boolean> {
+  const metadata: Record<string, string | number | boolean> = {};
+  if (meta.version) metadata.version = meta.version;
+  if (result.flagType) metadata.flagType = result.flagType;
+  return metadata;
+}
+
 /** Map one internal evaluation result to the OFREP shape. */
-export function toOfrepEvaluation(result: FlagEvaluationResult): OfrepEvaluation {
-  const out: OfrepEvaluation = { key: result.key, metadata: {} };
+export function toOfrepEvaluation(
+  result: FlagEvaluationResult,
+  meta: OfrepMetaInput = {},
+): OfrepEvaluation {
+  const metadata = buildMetadata(result, meta);
+  const out: OfrepEvaluation = { key: result.key, metadata };
   if (result.reason === "ERROR" || result.value === undefined) {
     out.errorCode = result.errorCode ?? "GENERAL";
     out.errorDetails = `evaluation of "${result.key}" produced no value`;
@@ -41,7 +62,19 @@ export function toOfrepEvaluation(result: FlagEvaluationResult): OfrepEvaluation
   return out;
 }
 
-/** Build the OFREP bulk response body (`{ flags: [...] }`). */
-export function toOfrepBulkResponse(results: FlagEvaluationResult[]): { flags: OfrepEvaluation[] } {
-  return { flags: results.map(toOfrepEvaluation) };
+/** The OFREP bulk response body. `eventStreams` advertises SSE endpoints (opt-in). */
+export interface OfrepBulkResponse {
+  flags: OfrepEvaluation[];
+  eventStreams?: Array<{ url: string }>;
+}
+
+/** Build the OFREP bulk response body (`{ flags: [...] }`, plus optional `eventStreams`). */
+export function toOfrepBulkResponse(
+  results: FlagEvaluationResult[],
+  meta: OfrepMetaInput = {},
+  eventStreams?: Array<{ url: string }>,
+): OfrepBulkResponse {
+  const body: OfrepBulkResponse = { flags: results.map((r) => toOfrepEvaluation(r, meta)) };
+  if (eventStreams && eventStreams.length > 0) body.eventStreams = eventStreams;
+  return body;
 }

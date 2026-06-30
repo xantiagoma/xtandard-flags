@@ -16,6 +16,7 @@ import { normalizeBasePath, stripBasePath } from "./base-path.ts";
 import { renderIndexHtml } from "./render-index-html.ts";
 import { buildOpenApiDocument } from "./openapi.ts";
 import { handleApiRequest, type ApiContext } from "./routes.ts";
+import { createSseManager } from "./sse.ts";
 import { looksLikeAsset, serveStaticAsset } from "./static-assets.ts";
 
 /** Options for the panel handler (shared by every framework adapter). */
@@ -44,6 +45,12 @@ export interface FlagsPanelOptions {
   uiDir?: string;
   /** Reuse an existing core instead of constructing one. */
   core?: FlagsCore;
+  /**
+   * Enable the opt-in OFREP SSE stream (`{basePath}/ofrep/v1/stream`) that pushes
+   * `configuration_changed` events on publish/rollback. Requires a streaming
+   * runtime (Bun, the standalone `serve`, Hono, Elysia). Default `false`.
+   */
+  streaming?: boolean;
 }
 
 /** Return shape of {@link createFetchHandler}. */
@@ -127,6 +134,7 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
     readonly,
     basePath,
     logoUrl: options.logoUrl,
+    sse: options.streaming ? createSseManager({ core }) : undefined,
   };
 
   async function fetch(request: Request): Promise<Response> {

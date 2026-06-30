@@ -103,3 +103,93 @@ describe("ofrep — HTTP", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("ofrep — compliance: metadata, ETag/304, SSE", () => {
+  const BASE = "/api/projects/default/environments/production";
+
+  /** Build a handler, seed two flags, publish; return a raw `fetch`. */
+  const seed = async (streaming = false) => {
+    const { fetch } = createFetchHandler({ sourceStorage: createMemoryStorage(), streaming });
+    const send = (path: string, init: RequestInit = {}) =>
+      fetch(new Request(`http://localhost${path}`, init));
+    const post = (path: string, body?: unknown, headers: Record<string, string> = {}) =>
+      send(path, {
+        method: "POST",
+        headers: {
+          ...(body !== undefined ? { "content-type": "application/json" } : {}),
+          ...headers,
+        },
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    await post(`${BASE}/flags`, booleanFlag());
+    await post(`${BASE}/flags`, themeFlag());
+    await post(`${BASE}/publish`, {});
+    return { fetch, send, post };
+  };
+
+  test("evaluations carry metadata: snapshot version + flag type", async () => {
+    const { post } = await seed();
+    const res = await post("/ofrep/v1/evaluate/flags", { context: { targetingKey: "u1" } });
+    const body = (await res.json()) as {
+      flags: { key: string; metadata: { version?: string; flagType?: string } }[];
+    };
+    const bool = body.flags.find((f) => f.key === "new-dashboard")!;
+    expect(bool.metadata.version).toBe("v1");
+    expect(bool.metadata.flagType).toBe("boolean");
+    const str = body.flags.find((f) => f.key === "theme")!;
+    expect(str.metadata.flagType).toBe("string");
+  });
+
+  test("single evaluation also carries version metadata", async () => {
+    const { post } = await seed();
+    const res = await post("/ofrep/v1/evaluate/flags/theme", { context: { targetingKey: "u1" } });
+    expect(((await res.json()) as { metadata: { version?: string } }).metadata.version).toBe("v1");
+  });
+
+  test("bulk returns an ETag and a matching If-None-Match yields 304", async () => {
+    const { post } = await seed();
+    const ctxBody = { context: { targetingKey: "u1" } };
+    const first = await post("/ofrep/v1/evaluate/flags", ctxBody);
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+
+    const cached = await post("/ofrep/v1/evaluate/flags", ctxBody, { "if-none-match": etag! });
+    expect(cached.status).toBe(304);
+    expect(cached.headers.get("etag")).toBe(etag);
+    expect((await cached.text()).length).toBe(0);
+  });
+
+  test("ETag changes after a new publish", async () => {
+    const { post } = await seed();
+    const ctxBody = { context: { targetingKey: "u1" } };
+    const etag1 = (await post("/ofrep/v1/evaluate/flags", ctxBody)).headers.get("etag");
+    // publish again → new active version → new ETag
+    await post(`${BASE}/flags`, themeFlag({ description: "changed" }));
+    await post(`${BASE}/publish`, {});
+    const etag2 = (await post("/ofrep/v1/evaluate/flags", ctxBody)).headers.get("etag");
+    expect(etag2).not.toBe(etag1);
+  });
+
+  test("streaming OFF (default): no stream endpoint, no eventStreams", async () => {
+    const { send, post } = await seed(false);
+    const stream = await send("/ofrep/v1/stream");
+    expect(stream.status).toBe(404);
+    const body = (await post("/ofrep/v1/evaluate/flags", {})) as Response;
+    expect("eventStreams" in (await body.json())).toBe(false);
+  });
+
+  test("streaming ON: SSE stream opens and bulk advertises eventStreams", async () => {
+    const { send, post } = await seed(true);
+
+    const bulk = await (await post("/ofrep/v1/evaluate/flags", {})).json();
+    expect(bulk.eventStreams).toEqual([{ url: "/ofrep/v1/stream" }]);
+
+    const stream = await send("/ofrep/v1/stream");
+    expect(stream.status).toBe(200);
+    expect(stream.headers.get("content-type")).toContain("text/event-stream");
+    const reader = stream.body!.getReader();
+    const { value } = await reader.read();
+    expect(new TextDecoder().decode(value!)).toContain("connected");
+    await reader.cancel();
+  });
+});

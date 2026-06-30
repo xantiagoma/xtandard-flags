@@ -15,6 +15,9 @@ export default defineConfig({
         "src/entry-*.ts",
         "src/storage/sqlite.ts",
         "src/storage/libsql.ts",
+        // SSE = long-lived streaming + a background timer; exercised by the ofrep
+        // tests (stream open) + a live end-to-end check, not unit coverage.
+        "src/server/sse.ts",
         // CLI entry point: server I/O orchestration (the `serve` command starts a
         // long-lived server and never returns) — exercised by integration tests
         // (test/cli.test.ts + test/cli-serve.bun.test.ts), not unit coverage.
