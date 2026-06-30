@@ -12,6 +12,10 @@ interface Props {
   projectKey: string;
   environmentKey: string;
   readonly: boolean;
+  /** Routed selection: the version whose detail dialog is open, or undefined. */
+  selectedVersion?: string;
+  onOpen: (version: string) => void;
+  onBack: () => void;
 }
 
 function formatDate(str: string | undefined): string {
@@ -130,10 +134,16 @@ function SnapshotDetailDialog({
   );
 }
 
-export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
+export function SnapshotsView({
+  projectKey,
+  environmentKey,
+  readonly,
+  selectedVersion,
+  onOpen,
+  onBack,
+}: Props) {
   const toast = useToast();
   const qc = useQueryClient();
-  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
 
   const query = useQuery({
     queryKey: ["snapshots", projectKey, environmentKey],
@@ -148,7 +158,7 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
       qc.invalidateQueries({ queryKey: ["snapshots", projectKey, environmentKey] });
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
       toast.add("success", `Rolled back to version ${version}`);
-      setSelectedVersion(null);
+      onBack();
     },
     onError: (err: unknown) => {
       if (err instanceof FlagsApiError) toast.add("error", err.body.error);
@@ -159,7 +169,7 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
   const data = query.data;
   const versions = data?.versions ?? [];
   const active = data?.active ?? null;
-  const selectedIsActive = selectedVersion !== null && selectedVersion === active;
+  const selectedIsActive = selectedVersion != null && selectedVersion === active;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -202,7 +212,7 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
                   <tr
                     key={v.version}
                     className="cursor-pointer hover:bg-secondary/30 transition-colors"
-                    onClick={() => setSelectedVersion(v.version)}
+                    onClick={() => onOpen(v.version)}
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
@@ -233,7 +243,7 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
                           className="text-warning hover:text-warning"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedVersion(v.version);
+                            onOpen(v.version);
                           }}
                         >
                           Roll back
@@ -249,11 +259,11 @@ export function SnapshotsView({ projectKey, environmentKey, readonly }: Props) {
       )}
 
       <SnapshotDetailDialog
-        open={selectedVersion !== null}
-        onClose={() => setSelectedVersion(null)}
+        open={selectedVersion != null}
+        onClose={onBack}
         projectKey={projectKey}
         environmentKey={environmentKey}
-        version={selectedVersion}
+        version={selectedVersion ?? null}
         isActive={selectedIsActive}
         readonly={readonly}
         onRollback={(version, message) => rollbackMutation.mutate({ version, message })}

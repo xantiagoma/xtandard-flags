@@ -341,12 +341,17 @@ function AppShell() {
               />
             )}
           </Route>
-          <Route path="/snapshots">
-            <SnapshotsView
-              projectKey={projectKey}
-              environmentKey={environmentKey}
-              readonly={readonly}
-            />
+          <Route path="/snapshots/:version?">
+            {(params) => (
+              <SnapshotsView
+                projectKey={projectKey}
+                environmentKey={environmentKey}
+                readonly={readonly}
+                selectedVersion={params.version}
+                onOpen={(v) => go(`/snapshots/${encodeURIComponent(v)}`)}
+                onBack={() => go("/snapshots")}
+              />
+            )}
           </Route>
           <Route path="/audit">
             <AuditView projectKey={projectKey} environmentKey={environmentKey} />

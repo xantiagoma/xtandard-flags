@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Plus, ChevronRight, Flag, Archive, ArchiveRestore } from "lucide-react";
 import type { Flag as FlagType, FlagType as FlagKind } from "../types.ts";
@@ -86,8 +87,24 @@ export function FlagsView({
   onOpen,
   onBack,
 }: Props) {
-  const [search, setSearch] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
+  // Filter state lives in the URL query so the view is shareable + refresh-safe:
+  // `?q=` for search (history-replaced, no spam) and `?tab=archived` for the toggle.
+  const [params, setParams] = useSearchParams();
+  const search = params.get("q") ?? "";
+  const showArchived = params.get("tab") === "archived";
+  const patchParams = (mut: (p: URLSearchParams) => void, replace = false) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        mut(next);
+        return next;
+      },
+      { replace },
+    );
+  const setSearch = (q: string) => patchParams((p) => (q ? p.set("q", q) : p.delete("q")), true);
+  const setShowArchived = (archived: boolean) =>
+    patchParams((p) => (archived ? p.set("tab", "archived") : p.delete("tab")));
+
   const [createOpen, setCreateOpen] = useState(false);
   // The create flow's seed (key + type) isn't in the URL; it's set by the modal
   // right before navigating to /flags/new.
