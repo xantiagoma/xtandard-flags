@@ -4,6 +4,14 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — sticky flag-detail action bar
+
+The "Save changes then publish to go live." bar (Cancel + Save/Create) is now a
+**sticky floating footer** (`sticky bottom-4 z-20` + shadow + backdrop) inside the
+scrollable `<main>`, so Save is always reachable on long flags (e.g. the kitchen-sink
+`enterprise-rollout`) without scrolling to the bottom. UI-only (`FlagDetail.tsx`);
+verified pinned mid-scroll via screenshot, 0 console errors, 10/10 e2e.
+
 ## 2026-06-30 — seed: `enterprise-rollout` kitchen-sink flag
 
 Added one flag that exercises (nearly) everything at once, for the demo + as a UI

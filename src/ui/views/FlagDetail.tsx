@@ -1074,9 +1074,9 @@ export function FlagDetail({
           </div>
         )}
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+        <div className="sticky bottom-4 z-20 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <span className="flex items-center gap-2 text-[13px] text-muted-foreground">
-            <CheckCircle2 className="size-4 text-success" />
+            <CheckCircle2 className="size-4 shrink-0 text-success" />
             {isCreate
               ? "Fill in the details and save to create."
               : "Save changes then publish to go live."}
