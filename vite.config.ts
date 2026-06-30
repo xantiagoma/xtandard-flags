@@ -10,7 +10,16 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/ui/**", "src/entry-*.ts", "src/storage/sqlite.ts", "src/storage/libsql.ts"],
+      exclude: [
+        "src/ui/**",
+        "src/entry-*.ts",
+        "src/storage/sqlite.ts",
+        "src/storage/libsql.ts",
+        // CLI entry point: server I/O orchestration (the `serve` command starts a
+        // long-lived server and never returns) — exercised by integration tests
+        // (test/cli.test.ts + test/cli-serve.bun.test.ts), not unit coverage.
+        "src/cli.ts",
+      ],
       reporter: ["text", "html", "lcov"],
       thresholds: { statements: 92, branches: 85, functions: 90, lines: 92 },
     },
@@ -25,6 +34,9 @@ export default defineConfig({
   },
   staged: {
     "*.{ts,tsx}": ["vp fmt", "vp lint"],
+    // Format docs/config too so a stray .md/.json/.yml doesn't fail CI's format check
+    // (CHANGELOG.md is covered by fmt.ignorePatterns above, so it's left alone).
+    "*.{md,mdx,json,jsonc,yml,yaml,css,html}": ["vp fmt"],
   },
   pack: {
     entry: [
