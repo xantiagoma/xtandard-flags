@@ -81,6 +81,10 @@ export interface FlagsConfig {
   authenticated?: boolean;
   defaultProjectKey: string;
   defaultEnvironmentKey: string;
+  /** Logo image URL shown in the navbar in place of the default icon. */
+  logoUrl?: string;
+  /** Hide the default navbar icon (ignored when `logoUrl` is set). */
+  hideIcon?: boolean;
 }
 
 export interface SnapshotSummary {

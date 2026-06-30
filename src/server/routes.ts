@@ -32,6 +32,8 @@ export interface ApiContext {
   title: string;
   readonly: boolean;
   basePath: string;
+  logoUrl?: string;
+  hideIcon?: boolean;
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -106,6 +108,8 @@ export async function handleApiRequest(
         : null,
       defaultProjectKey: ctx.core.options.defaultProjectKey,
       defaultEnvironmentKey: ctx.core.options.defaultEnvironmentKey,
+      logoUrl: ctx.logoUrl,
+      hideIcon: ctx.hideIcon,
     });
   }
 

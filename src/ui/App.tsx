@@ -119,18 +119,24 @@ function PublishDialog({
 export function App({
   locationHook,
   base = "",
+  logoUrl,
+  hideIcon,
 }: {
   locationHook?: BaseLocationHook;
   base?: string;
+  /** Override the navbar logo image (otherwise taken from server `/config`). */
+  logoUrl?: string;
+  /** Override hiding the navbar icon (otherwise from server `/config`). */
+  hideIcon?: boolean;
 }): React.ReactElement {
   return (
     <Router hook={locationHook ?? useHashLocation} base={base}>
-      <AppShell />
+      <AppShell logoUrl={logoUrl} hideIcon={hideIcon} />
     </Router>
   );
 }
 
-function AppShell() {
+function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean }) {
   const bootstrap = getBootstrap();
   const toast = useToast();
   const qc = useQueryClient();
@@ -176,6 +182,11 @@ function AppShell() {
 
   const config = configQuery.data ?? (bootstrap as FlagsConfig);
   const readonly = config?.readonly ?? false;
+
+  // Branding: explicit props win, then server /config, then defaults.
+  const brandTitle = config?.title || "@xtandard/flags";
+  const brandLogoUrl = logoUrl ?? config?.logoUrl;
+  const brandHideIcon = hideIcon ?? config?.hideIcon ?? false;
 
   const projectsQuery = useQuery({
     queryKey: ["projects"],
@@ -243,14 +254,23 @@ function AppShell() {
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          {/* Logo + wordmark */}
+          {/* Logo + wordmark. A configured logoUrl replaces the icon (and the
+              wordmark); otherwise the icon shows unless hidden, with the title. */}
           <div className="flex items-center gap-2 shrink-0">
-            <div className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
-              <Flag className="size-4" strokeWidth={2.5} />
-            </div>
-            <span className="text-sm font-semibold tracking-tight">
-              {config?.title || "@xtandard/flags"}
-            </span>
+            {brandLogoUrl ? (
+              <img
+                src={brandLogoUrl}
+                alt={brandTitle}
+                className="h-7 max-w-[320px] object-contain"
+              />
+            ) : brandHideIcon ? null : (
+              <div className="flex size-7 items-center justify-center rounded-md bg-foreground text-background">
+                <Flag className="size-4" strokeWidth={2.5} />
+              </div>
+            )}
+            {!brandLogoUrl && (
+              <span className="text-sm font-semibold tracking-tight">{brandTitle}</span>
+            )}
           </div>
 
           <span className="text-border select-none">/</span>

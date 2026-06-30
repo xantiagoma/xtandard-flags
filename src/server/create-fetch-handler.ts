@@ -33,6 +33,10 @@ export interface FlagsPanelOptions {
   readonly?: boolean;
   /** UI title shown in the page and bootstrap config. */
   title?: string;
+  /** Logo image URL shown in the navbar in place of the default icon. */
+  logoUrl?: string;
+  /** Hide the default navbar icon (ignored when `logoUrl` is set). */
+  hideIcon?: boolean;
   /** Default project key. Default `"default"`. */
   defaultProjectKey?: string;
   /** Default environment key. Default `"production"`. */
@@ -109,6 +113,8 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
     title,
     readonly,
     basePath,
+    logoUrl: options.logoUrl,
+    hideIcon: options.hideIcon,
   };
 
   async function fetch(request: Request): Promise<Response> {
@@ -140,6 +146,8 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
       readonly,
       defaultProjectKey: core.options.defaultProjectKey,
       defaultEnvironmentKey: core.options.defaultEnvironmentKey,
+      logoUrl: options.logoUrl,
+      hideIcon: options.hideIcon,
     });
     return new Response(html, {
       status: 200,

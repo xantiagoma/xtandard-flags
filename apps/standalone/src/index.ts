@@ -97,6 +97,8 @@ async function main(): Promise<void> {
   const port = Number(env("PORT", "3000"));
   const basePath = env("BASE_PATH", "");
   const title = env("TITLE", "@xtandard/flags");
+  const logoUrl = env("LOGO_URL") || undefined;
+  const hideIcon = bool("HIDE_ICON", false);
   const readonly = bool("READONLY", false);
   const authMode = env("AUTH_MODE", "none");
 
@@ -120,6 +122,8 @@ async function main(): Promise<void> {
     sourceStorage,
     runtimeStorage,
     title,
+    logoUrl,
+    hideIcon,
     readonly,
     uiDir,
     auth: buildAuth(),

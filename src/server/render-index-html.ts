@@ -17,6 +17,10 @@ export interface BootstrapConfig {
   readonly: boolean;
   defaultProjectKey: string;
   defaultEnvironmentKey: string;
+  /** Optional logo image URL shown in the navbar in place of the default icon. */
+  logoUrl?: string;
+  /** Hide the default navbar icon (ignored when `logoUrl` is set). */
+  hideIcon?: boolean;
 }
 
 const escapeJson = (value: unknown): string =>

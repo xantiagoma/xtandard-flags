@@ -55,6 +55,10 @@ export interface FlagsDashboardProps {
   routing?: "hash" | "browser" | "memory" | BaseLocationHook;
   /** Base path the panel is mounted at, used by `routing: "browser"` (e.g. `"/admin/flags"`). */
   routerBase?: string;
+  /** Navbar logo image URL (replaces the default icon + wordmark). Overrides server `/config`. */
+  logoUrl?: string;
+  /** Hide the default navbar icon (ignored when `logoUrl` is set). Overrides server `/config`. */
+  hideIcon?: boolean;
 }
 
 let fallbackClient: QueryClient | undefined;
@@ -73,6 +77,8 @@ export function FlagsDashboard({
   className,
   routing = "hash",
   routerBase = "",
+  logoUrl,
+  hideIcon,
 }: FlagsDashboardProps): React.ReactElement {
   // Set the API base synchronously so child queries (run on mount) use it.
   setApiBase(apiBaseUrl);
@@ -97,7 +103,7 @@ export function FlagsDashboard({
     <QueryClientProvider client={client}>
       <ToastProvider>
         <div className={className ? `xtandard-flags ${className}` : "xtandard-flags"}>
-          <App locationHook={hook} base={base} />
+          <App locationHook={hook} base={base} logoUrl={logoUrl} hideIcon={hideIcon} />
         </div>
       </ToastProvider>
     </QueryClientProvider>
