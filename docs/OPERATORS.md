@@ -27,9 +27,11 @@ Ordering operators use a single zero-dependency, never-throws comparator
    `PlainDate`, `PlainTime`, `PlainYearMonth`, `Duration`), it compares via that
    type's own static `compare` + `from` (so the stored ISO string/threshold is
    parsed with `Temporal.X.from`). This is how **epoch-less** types like
-   `PlainDate`/`PlainTime` are ordered correctly. (`PlainMonthDay` has no
-   `compare` — not orderable; a `Duration` with calendar units needs `relativeTo`,
-   so it fails closed.)
+   `PlainDate`/`PlainTime`/`PlainYearMonth` are ordered correctly, e.g. a
+   `Temporal.Duration` of 50 minutes vs the stored string `"PT1H"`. (`PlainMonthDay`
+   has no `compare`, so it isn't orderable; a `Duration` with **calendar** units
+   like `P1M` needs `relativeTo` and so fails closed — **time-unit** durations
+   like `PT1H` compare directly.)
 2. **BigInt** — exact `bigint` ordering (beyond `Number` precision); mixed
    `bigint`/number compares by magnitude.
 3. **Numeric scalar** (`toComparable`) — numbers, numeric strings, **ISO-8601 date
