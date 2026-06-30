@@ -1,0 +1,32 @@
+name = "xtandard-flags-edge"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# `@xtandard/flags`' fetch handler imports node:fs / node:path / node:url (for
+# serving the bundled SPA from disk). The Worker can't read a filesystem, so those
+# calls fail gracefully and the panel runs API-only — but the imports must still
+# resolve at bundle/runtime, which nodejs_compat provides.
+compatibility_flags = ["nodejs_compat"]
+
+# Two KV namespaces = split planes: FLAGS_SOURCE (drafts/history/audit) and
+# FLAGS_RUNTIME (published snapshots apps read).
+#
+# `wrangler dev` uses Miniflare's local KV simulation — the ids below are
+# placeholders and are NOT contacted locally, so this works offline with no
+# Cloudflare account. Before `wrangler deploy`, create real namespaces:
+#
+#   wrangler kv namespace create FLAGS_SOURCE
+#   wrangler kv namespace create FLAGS_RUNTIME
+#   wrangler kv namespace create FLAGS_SOURCE --preview
+#   wrangler kv namespace create FLAGS_RUNTIME --preview
+#
+# then paste the returned ids into `id` / `preview_id` below.
+[[kv_namespaces]]
+binding = "FLAGS_SOURCE"
+id = "0000000000000000000000000000000a"
+preview_id = "0000000000000000000000000000000b"
+
+[[kv_namespaces]]
+binding = "FLAGS_RUNTIME"
+id = "0000000000000000000000000000000c"
+preview_id = "0000000000000000000000000000000d"

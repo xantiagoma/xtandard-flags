@@ -1,0 +1,13 @@
+{
+  "name": "example-turso",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.0",
+    "@openfeature/server-sdk": "^1.16.0",
+    "@xtandard/flags": "file:../.."
+  }
+}

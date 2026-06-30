@@ -1,0 +1,32 @@
+# Backing stores for the postgres-redis example.
+#
+#   docker compose up -d        # start postgres + redis in the background
+#   bun install && bun run start
+#   docker compose down -v      # stop and wipe data
+#
+# Defaults match the example's env defaults:
+#   DATABASE_URL=postgres://flags:flags@localhost:5432/flags
+#   REDIS_URL=redis://localhost:6379
+services:
+  postgres:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: flags
+      POSTGRES_PASSWORD: flags
+      POSTGRES_DB: flags
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flags -d flags"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    # `notify-keyspace-events KEA` enables the keyspace notifications the Redis
+    # runtime adapter uses for `watch` — this is what makes a Publish propagate to
+    # running apps within milliseconds instead of waiting for the poll interval.
+    command: ["redis-server", "--notify-keyspace-events", "KEA"]
