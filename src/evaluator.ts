@@ -559,15 +559,36 @@ export function evaluateFlag(
   context: EvaluationContext,
   allFlags?: Record<string, Flag>,
   segments?: SegmentMap,
+  now: number = Date.now(),
 ): FlagEvaluation {
-  return evaluateFlagInternal(flag, context, allFlags ?? {}, segments ?? {}, new Set());
+  return evaluateFlagInternal(flag, context, allFlags ?? {}, segments ?? {}, new Set(), now);
+}
+
+/** Serve the default variant with a given reason (disabled / scheduled / expired / prerequisite). */
+function servedDefault(flag: Flag, reason: EvaluationReason): FlagEvaluation {
+  const value = variantValue(flag, flag.defaultVariant);
+  if (value === undefined) return error(`default variant "${flag.defaultVariant}" not found`);
+  return { value, variant: flag.defaultVariant, reason };
 }
 
 /** Serve the default variant because a prerequisite was not satisfied. */
 function prerequisiteFailed(flag: Flag): FlagEvaluation {
-  const value = variantValue(flag, flag.defaultVariant);
-  if (value === undefined) return error(`default variant "${flag.defaultVariant}" not found`);
-  return { value, variant: flag.defaultVariant, reason: "PREREQUISITE_FAILED" };
+  return servedDefault(flag, "PREREQUISITE_FAILED");
+}
+
+/**
+ * If the flag has an active window, whether `now` falls outside it: `EXPIRED`
+ * after `disableAt`, `SCHEDULED` before `enableAt`, or `null` when live. Unparseable
+ * bounds are ignored (fail open — the flag stays live).
+ */
+function scheduleState(flag: Flag, now: number): "SCHEDULED" | "EXPIRED" | null {
+  const s = flag.schedule;
+  if (!s) return null;
+  const disableAt = s.disableAt ? Date.parse(s.disableAt) : NaN;
+  if (!Number.isNaN(disableAt) && now > disableAt) return "EXPIRED";
+  const enableAt = s.enableAt ? Date.parse(s.enableAt) : NaN;
+  if (!Number.isNaN(enableAt) && now < enableAt) return "SCHEDULED";
+  return null;
 }
 
 /**
@@ -582,13 +603,14 @@ function evaluateFlagInternal(
   allFlags: Record<string, Flag>,
   segments: SegmentMap,
   chain: Set<string>,
+  now: number,
 ): FlagEvaluation {
   // 1. Disabled → default variant value.
-  if (!flag.enabled) {
-    const value = variantValue(flag, flag.defaultVariant);
-    if (value === undefined) return error(`default variant "${flag.defaultVariant}" not found`);
-    return { value, variant: flag.defaultVariant, reason: "DISABLED" };
-  }
+  if (!flag.enabled) return servedDefault(flag, "DISABLED");
+
+  // 1b. Outside the scheduled active window → default variant (behavioral).
+  const schedule = scheduleState(flag, now);
+  if (schedule) return servedDefault(flag, schedule);
 
   // 2. Prerequisites: every depended-on flag must resolve to its required variant.
   if (flag.prerequisites && flag.prerequisites.length > 0) {
@@ -598,7 +620,7 @@ function evaluateFlagInternal(
       if (nextChain.has(prereq.flagKey)) return prerequisiteFailed(flag);
       const prereqFlag = allFlags[prereq.flagKey];
       if (!prereqFlag) return prerequisiteFailed(flag);
-      const result = evaluateFlagInternal(prereqFlag, context, allFlags, segments, nextChain);
+      const result = evaluateFlagInternal(prereqFlag, context, allFlags, segments, nextChain, now);
       if (result.variant !== prereq.variant) return prerequisiteFailed(flag);
     }
   }

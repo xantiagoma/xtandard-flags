@@ -289,6 +289,28 @@ export interface Flag {
    * flag, is never read by the evaluator, and is not part of the compiled snapshot.
    */
   lifecycle?: LifecyclePolicy;
+  /**
+   * Optional **active window** (behavioral — enforced by the evaluator). Outside
+   * it the flag serves its **default variant**: reason `SCHEDULED` before
+   * {@link FlagSchedule.enableAt}, reason `EXPIRED` after
+   * {@link FlagSchedule.disableAt}. Unlike {@link Flag.lifecycle} (advisory), this
+   * actually changes what's served — checked against the current time at each
+   * evaluation, so it flips live without a re-publish. Does not modify
+   * {@link Flag.enabled} or archive the flag.
+   */
+  schedule?: FlagSchedule;
+}
+
+/**
+ * A flag's active time window. Both bounds optional (open-ended). The flag is
+ * "live" only within `[enableAt, disableAt]`; outside it serves its default
+ * variant. ISO-8601 instants.
+ */
+export interface FlagSchedule {
+  /** Before this instant the flag is not yet active (reason `SCHEDULED`). */
+  enableAt?: string;
+  /** After this instant the flag has expired (reason `EXPIRED`). */
+  disableAt?: string;
 }
 
 /** Time unit for a {@link FlagDuration}. */
@@ -406,6 +428,10 @@ export type EvaluationReason =
   | "TARGETING_MATCH"
   | "SPLIT"
   | "DISABLED"
+  /** Served the default variant because the current time is before {@link FlagSchedule.enableAt}. */
+  | "SCHEDULED"
+  /** Served the default variant because the current time is after {@link FlagSchedule.disableAt}. */
+  | "EXPIRED"
   | "PREREQUISITE_FAILED"
   | "CACHED"
   | "STALE"

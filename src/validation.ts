@@ -154,6 +154,9 @@ export const flagSchema = v.object({
   createdAt: v.optional(v.string()),
   updatedAt: v.optional(v.string()),
   lifecycle: v.optional(lifecycleSchema),
+  schedule: v.optional(
+    v.object({ enableAt: v.optional(v.string()), disableAt: v.optional(v.string()) }),
+  ),
 });
 
 /** A single validation problem with a dotted path into the offending data. */
@@ -316,6 +319,19 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
     checkServe(rule.serve, variantKeys, `${basePath}.rules[${i}].serve`, errors);
   });
   checkServe(flag.fallthrough, variantKeys, `${basePath}.fallthrough`, errors);
+
+  // Schedule window: enableAt must be before disableAt when both are set.
+  const sched = flag.schedule;
+  if (sched?.enableAt && sched.disableAt) {
+    const start = Date.parse(sched.enableAt);
+    const end = Date.parse(sched.disableAt);
+    if (!Number.isNaN(start) && !Number.isNaN(end) && start >= end) {
+      errors.push({
+        path: `${basePath}.schedule.disableAt`,
+        message: "disableAt must be after enableAt",
+      });
+    }
+  }
 
   return { valid: errors.length === 0, errors };
 }

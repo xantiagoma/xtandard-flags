@@ -105,6 +105,13 @@ export interface Flag {
   createdAt?: string;
   updatedAt?: string;
   lifecycle?: LifecyclePolicy;
+  schedule?: FlagSchedule;
+}
+
+/** Behavioral active window — outside it the flag serves its default variant. */
+export interface FlagSchedule {
+  enableAt?: string;
+  disableAt?: string;
 }
 
 export type DurationUnit = "seconds" | "minutes" | "hours" | "days";

@@ -220,6 +220,15 @@ const schemas = {
           },
         },
       },
+      schedule: {
+        type: "object",
+        description:
+          "Behavioral active window. Outside it the flag serves its default variant (reason SCHEDULED before enableAt, EXPIRED after disableAt). Enforced by the evaluator at request time.",
+        properties: {
+          enableAt: { type: "string", format: "date-time" },
+          disableAt: { type: "string", format: "date-time" },
+        },
+      },
     },
   },
   Draft: {

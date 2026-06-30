@@ -171,7 +171,10 @@ excluded from snapshots), and **stale detection** (a `lifecycle` policy — a du
 from created/updated, or a datetime deadline, with an idle grace; advisory only, it
 never changes behavior).
 **Reusable segments** are named audiences referenced by rules; **prerequisites**
-express flag-to-flag dependencies (acyclic, validated at publish).
+express flag-to-flag dependencies (acyclic, validated at publish). A flag can also
+carry a **scheduled active window** (`schedule.enableAt` / `disableAt`) — outside it
+the evaluator serves the default variant (reason `SCHEDULED` / `EXPIRED`); behavioral,
+checked live, and never flips `enabled` or archives.
 
 ## Bring your own everything
 

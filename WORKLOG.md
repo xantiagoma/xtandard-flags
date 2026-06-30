@@ -4,6 +4,32 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — scheduled active window (enableAt/disableAt) — behavioral auto on/off
+
+User asked for an `expiredAt`-style auto-disable. Built it as a full **active window**
+`schedule: { enableAt?, disableAt? }` (both ISO, optional). **Behavioral** (distinct
+from the advisory `lifecycle`): outside the window the flag serves its **default
+variant** — reason `SCHEDULED` before `enableAt`, `EXPIRED` after `disableAt`. Manual
+`enabled:false` still wins; it never flips `enabled` or archives. (ADR 0010.)
+
+- **Enforced in the evaluator** (chosen over a control-plane scheduler): `evaluateFlag`
+  gains an optional `now = Date.now()` threaded through prerequisite resolution; a
+  `scheduleState` gate runs right after the disabled gate. **Makes the evaluator
+  time-aware** — a deliberate, bounded departure from ADR 0002's pure determinism
+  (only flags with `schedule` are affected; `now` injectable for tests). Works live
+  (no re-publish), offline, no scheduler; composes with prerequisites.
+- **schema.ts**: `FlagSchedule` + `Flag.schedule`; `EvaluationReason` += `SCHEDULED`/
+  `EXPIRED` (exported). **openfeature.ts**: both map to OF `DISABLED`. **validation.ts**:
+  schedule schema + `enableAt < disableAt` check. **openapi.ts**: schedule on Flag.
+- **UI**: `ScheduleField` in FlagDetail — two `datetime-local` inputs + a live
+  Active/Scheduled/Expired status badge + "serves default outside the window" note.
+  TestTargeting reason map/help gained `SCHEDULED`/`EXPIRED`.
+- **Seed**: `flash-sale-banner` (enabled, window already passed → evaluates `EXPIRED`).
+- **Tests**: `test/schedule.test.ts` (8) — within/after/before window, manual-disable
+  precedence, unparseable bounds, default-`now`, expired-prerequisite composition.
+  Verified live: `/evaluate` → `EXPIRED`; editor + badge render, 0 console errors.
+- **Docs**: ADR 0010, README. Gate green: 525 unit + 12 e2e, build, publint.
+
 ## 2026-06-30 — lifecycle policy: flexible expiry (duration/datetime) + per-flag idle
 
 Replaced `Flag.expectedLifetimeDays?: number` with a richer **advisory** stale-detection

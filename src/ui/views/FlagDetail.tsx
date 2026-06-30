@@ -15,6 +15,7 @@ import type {
   DurationUnit,
   Flag,
   FlagOwner,
+  FlagSchedule,
   FlagType,
   LifecyclePolicy,
   Rule,
@@ -313,6 +314,76 @@ function LifecycleField({
       <p className="mt-2 text-xs text-muted-foreground">
         Advisory only — shows a “stale” badge to remind you to clean up. It never disables or
         archives the flag.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Editor for a flag's behavioral **active window** ({@link FlagSchedule}). Outside
+ * the window the flag serves its default variant (checked live at evaluation).
+ */
+function ScheduleField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value?: FlagSchedule;
+  onChange: (v: FlagSchedule | undefined) => void;
+  disabled?: boolean;
+}) {
+  const set = (patch: Partial<FlagSchedule>) => {
+    const next = { ...value, ...patch };
+    const clean: FlagSchedule = {};
+    if (next.enableAt) clean.enableAt = next.enableAt;
+    if (next.disableAt) clean.disableAt = next.disableAt;
+    onChange(clean.enableAt || clean.disableAt ? clean : undefined);
+  };
+  const toIso = (local: string) => (local ? new Date(local).toISOString() : undefined);
+
+  const now = Date.now();
+  const status: { label: string; tone: string } | null = !value
+    ? null
+    : value.disableAt && Date.parse(value.disableAt) < now
+      ? { label: "Expired — serving default", tone: "border-warning/40 bg-warning/10 text-warning" }
+      : value.enableAt && Date.parse(value.enableAt) > now
+        ? {
+            label: "Scheduled — not yet live",
+            tone: "border-chart-2/30 bg-chart-2/10 text-chart-2",
+          }
+        : { label: "Active", tone: "border-success/40 bg-success/10 text-success" };
+
+  return (
+    <div className="sm:col-span-2">
+      <div className="mb-1.5 flex items-center gap-2">
+        <label className="block text-[13px] font-medium">Schedule (active window)</label>
+        {status && <Badge className={status.tone}>{status.label}</Badge>}
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Enable at</span>
+          <TextInput
+            type="datetime-local"
+            className="w-56"
+            value={isoToLocalInput(value?.enableAt)}
+            disabled={disabled}
+            onChange={(e) => set({ enableAt: toIso(e.target.value) })}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Disable at</span>
+          <TextInput
+            type="datetime-local"
+            className="w-56"
+            value={isoToLocalInput(value?.disableAt)}
+            disabled={disabled}
+            onChange={(e) => set({ disableAt: toIso(e.target.value) })}
+          />
+        </label>
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        Outside this window the flag serves its <strong>default variant</strong> (checked live at
+        evaluation — flips without a re-publish). Leave blank for always-on.
       </p>
     </div>
   );
@@ -997,6 +1068,11 @@ export function FlagDetail({
                 value={form.lifecycle}
                 disabled={readonly}
                 onChange={(lifecycle) => patch("lifecycle", lifecycle)}
+              />
+              <ScheduleField
+                value={form.schedule}
+                disabled={readonly}
+                onChange={(schedule) => patch("schedule", schedule)}
               />
               <Field label="Owner" hint="Who maintains this flag.">
                 <TextInput

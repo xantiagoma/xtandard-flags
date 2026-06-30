@@ -334,6 +334,20 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     ],
   });
 
+  // --- Scheduled active window (behavioral): a flash sale whose window has passed.
+  // It's `enabled` but past `disableAt`, so it serves its default variant (EXPIRED).
+  await call("POST", `${prod}/flags`, {
+    key: "flash-sale-banner",
+    type: "boolean",
+    enabled: true,
+    description: "Time-boxed flash sale — auto on/off via a scheduled window",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "on" },
+    tags: ["marketing", "seasonal"],
+    schedule: { enableAt: daysAgo(3), disableAt: daysAgo(1) },
+  });
+
   // --- Kitchen-sink: prerequisite + overrides + nested groups (with a matches
   // leaf inside an AND, and a regex-matches inside a NOT) + a weighted-split serve.
   await call("POST", `${prod}/flags`, {
@@ -472,7 +486,8 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
   console.log("    home-layout (json), kill-switch, premium-features (matches: sift+regex,");
   console.log("    overrides), force-upgrade (semver), loyalty-reward (date), beta-program");
   console.log("    (notInSegment), advanced-targeting (AND/OR/NOT groups), enterprise-rollout");
-  console.log("    (kitchen-sink), legacy-promo (stale), old-banner (archived), winter-theme.");
+  console.log("    (kitchen-sink), flash-sale-banner (scheduled/expired), legacy-promo (stale),");
+  console.log("    old-banner (archived), winter-theme.");
   console.log("  Segments: eu-beta (inSegment), internal-staff (notInSegment).");
   console.log("  Prerequisite: new-checkout → kill-switch.");
   console.log("  Snapshots: v1, v2 · Audit: publish v1, publish v2, rollback → v1.");

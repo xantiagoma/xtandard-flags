@@ -206,6 +206,10 @@ export function toOpenFeatureReason(reason: EvaluationReason): string {
       return OF_REASON.SPLIT;
     case "DISABLED":
       return OF_REASON.DISABLED;
+    case "SCHEDULED":
+    case "EXPIRED":
+      // Outside the flag's active window — effectively disabled right now.
+      return OF_REASON.DISABLED;
     case "PREREQUISITE_FAILED":
       // Not an OpenFeature standard reason, but a valid free-form reason string
       // (LaunchDarkly uses the same). Surfaced verbatim so callers can branch on it.
