@@ -4,6 +4,21 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — snapshot syntax highlight + per-audit-entry diff
+
+Reuse the editors/diff viewer across the history surfaces:
+
+- **Snapshot detail** (`/snapshots/:version`): the raw `<pre>` JSON is now a read-only
+  **CodeMirror** `JsonCodeEditor` — syntax-highlighted + line numbers.
+- **Audit log** (`/audit`): rows with a version are **clickable** → a dialog showing the
+  **diff for that action** via the lazy `DiffViewer` (unified git-style). Publish vN →
+  `v{N-1} → vN`; rollback → `fromVersion → version`. Snapshots fetched client-side,
+  `{flags,segments}` compared with per-flag timestamps stripped. (The UI `SnapshotDetail`
+  type mislabels `flags` as an array — cast through `unknown`; the snapshot is a Record
+  at runtime.)
+- Verified live: snapshot v2 renders highlighted; clicking the rollback audit row shows
+  `v2 → v1` removing winter-theme. 0 console errors. Gate green: 531 unit + 13 e2e, build.
+
 ## 2026-06-30 — publish diff polish: timestamp filtering + git-style diff tab
 
 Building on the unpublished-changes diff:

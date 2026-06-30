@@ -7,6 +7,7 @@ import { FlagsApiError } from "../types.ts";
 import { useToast } from "../components/Toast.tsx";
 import { Button } from "../components/ui-bits.tsx";
 import { TextInput } from "../components/primitives.tsx";
+import { JsonCodeEditor } from "../components/JsonCodeEditor.tsx";
 
 interface Props {
   projectKey: string;
@@ -92,9 +93,11 @@ function SnapshotDetailDialog({
               <p className="text-[13px] text-destructive">Failed to load snapshot</p>
             )}
             {query.data && (
-              <pre className="overflow-x-auto whitespace-pre rounded-lg border border-border bg-secondary/40 p-4 font-mono text-[11px] text-foreground leading-relaxed">
-                {JSON.stringify(query.data, null, 2)}
-              </pre>
+              <JsonCodeEditor
+                value={JSON.stringify(query.data, null, 2)}
+                onChange={() => {}}
+                readOnly
+              />
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3 shrink-0">
