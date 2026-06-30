@@ -63,6 +63,7 @@ const conditionOperators = [
   "exists",
   "notExists",
   "inSegment",
+  "notInSegment",
 ];
 
 const schemas = {
@@ -179,6 +180,11 @@ const schemas = {
       createdAt: { type: "string", format: "date-time" },
       createdBy: { type: "object", nullable: true },
       flags: { type: "object", additionalProperties: { $ref: "#/components/schemas/Flag" } },
+      segments: {
+        type: "object",
+        additionalProperties: { $ref: "#/components/schemas/Segment" },
+        description: "Resolved segments embedded for notInSegment evaluation.",
+      },
     },
   },
   SnapshotSummary: {

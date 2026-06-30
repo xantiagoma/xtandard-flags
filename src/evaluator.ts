@@ -28,9 +28,31 @@ import type {
   Flag,
   FlagErrorCode,
   FlagValue,
+  Segment,
   Serve,
   SplitEntry,
 } from "./schema.ts";
+
+/** Resolved segments embedded in a snapshot, keyed by segment key. */
+export type SegmentMap = Record<string, Segment>;
+
+/**
+ * Whether the context satisfies a segment (AND of its conditions). `seen` guards
+ * against cyclic `notInSegment` references — a segment already on the stack is
+ * treated as non-matching rather than recursing forever.
+ */
+function matchesSegment(
+  key: string,
+  context: EvaluationContext,
+  segments: SegmentMap,
+  seen: Set<string>,
+): boolean {
+  if (seen.has(key)) return false;
+  const segment = segments[key];
+  if (!segment) return false;
+  const next = new Set(seen).add(key);
+  return segment.conditions.every((c) => evaluateCondition(c, context, segments, next));
+}
 
 /** The outcome of evaluating a single flag. `value` is `undefined` only on ERROR. */
 export interface FlagEvaluation {
@@ -175,7 +197,12 @@ export function compareSemver(a: unknown, b: unknown): number | undefined {
  * // → true
  * ```
  */
-export function evaluateCondition(condition: Condition, context: EvaluationContext): boolean {
+export function evaluateCondition(
+  condition: Condition,
+  context: EvaluationContext,
+  segments: SegmentMap = {},
+  seen: Set<string> = new Set(),
+): boolean {
   const actual = context[condition.attribute];
   const expected = condition.value;
   const op: ConditionOperator = condition.operator;
@@ -232,9 +259,11 @@ export function evaluateCondition(condition: Condition, context: EvaluationConte
       return op === "before" ? a < b : a > b;
     }
     case "inSegment":
-      // Segments are inlined at compile time, so the evaluator should never see
-      // this. If an unresolved reference slips through, it simply does not match.
-      return false;
+      // Normally inlined at compile time; if a snapshot embeds segments, resolve.
+      return typeof expected === "string" && matchesSegment(expected, context, segments, seen);
+    case "notInSegment":
+      // Negated membership — true unless the context is in the (resolved) segment.
+      return typeof expected !== "string" || !matchesSegment(expected, context, segments, seen);
     default: {
       // Exhaustiveness guard: unknown operators never match.
       const _never: never = op;
@@ -245,8 +274,12 @@ export function evaluateCondition(condition: Condition, context: EvaluationConte
 }
 
 /** All conditions must pass (logical AND). An empty condition list always matches. */
-export function matchesRule(conditions: Condition[], context: EvaluationContext): boolean {
-  return conditions.every((c) => evaluateCondition(c, context));
+export function matchesRule(
+  conditions: Condition[],
+  context: EvaluationContext,
+  segments: SegmentMap = {},
+): boolean {
+  return conditions.every((c) => evaluateCondition(c, context, segments));
 }
 
 /** Input to {@link pickVariant}. */
@@ -371,8 +404,9 @@ export function evaluateFlag(
   flag: Flag,
   context: EvaluationContext,
   allFlags?: Record<string, Flag>,
+  segments?: SegmentMap,
 ): FlagEvaluation {
-  return evaluateFlagInternal(flag, context, allFlags ?? {}, new Set());
+  return evaluateFlagInternal(flag, context, allFlags ?? {}, segments ?? {}, new Set());
 }
 
 /** Serve the default variant because a prerequisite was not satisfied. */
@@ -392,6 +426,7 @@ function evaluateFlagInternal(
   flag: Flag,
   context: EvaluationContext,
   allFlags: Record<string, Flag>,
+  segments: SegmentMap,
   chain: Set<string>,
 ): FlagEvaluation {
   // 1. Disabled → default variant value.
@@ -409,7 +444,7 @@ function evaluateFlagInternal(
       if (nextChain.has(prereq.flagKey)) return prerequisiteFailed(flag);
       const prereqFlag = allFlags[prereq.flagKey];
       if (!prereqFlag) return prerequisiteFailed(flag);
-      const result = evaluateFlagInternal(prereqFlag, context, allFlags, nextChain);
+      const result = evaluateFlagInternal(prereqFlag, context, allFlags, segments, nextChain);
       if (result.variant !== prereq.variant) return prerequisiteFailed(flag);
     }
   }
@@ -432,7 +467,7 @@ function evaluateFlagInternal(
   // 4. Targeting rules in order; first match wins.
   if (flag.rules && flag.rules.length > 0) {
     for (const rule of flag.rules) {
-      if (matchesRule(rule.conditions, context)) {
+      if (matchesRule(rule.conditions, context, segments)) {
         return resolveServe(flag, rule.serve, context, "TARGETING_MATCH");
       }
     }

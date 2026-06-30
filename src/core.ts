@@ -33,7 +33,7 @@ import type {
 } from "./schema.ts";
 import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
 import { evaluateFlag } from "./evaluator.ts";
-import { inlineSegmentsInFlag, validateSegmentReferences } from "./segments.ts";
+import { inlineSegmentsInFlag, resolveSegments, validateSegmentReferences } from "./segments.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 import {
   assertValidDraft,
@@ -554,15 +554,23 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const p = pk(input.projectKey);
       const e = ek(input.environmentKey);
       let flags: Record<string, Flag>;
-      // The active snapshot is already segment-inlined; the draft is not, so
-      // resolve segments on the fly for accurate pre-publish test targeting.
+      // The active snapshot is already inSegment-inlined (and embeds resolved
+      // segments for notInSegment); the draft is not, so resolve segments on the
+      // fly for accurate pre-publish test targeting.
       let segments: Record<string, Segment> | null = null;
+      let evalSegments: Record<string, Segment> = {};
       if (input.source === "active") {
         const snap = await source.getActiveSnapshot(p, e);
         flags = snap?.flags ?? {};
+        evalSegments = snap?.segments ?? {};
       } else {
         flags = (await loadDraft(p, e)).flags;
         segments = await loadSegments(p, e);
+        try {
+          evalSegments = resolveSegments(segments);
+        } catch {
+          evalSegments = {};
+        }
       }
       // Build the resolved (segment-inlined) map once. Prerequisites resolve other
       // flags, so the evaluator needs the whole map, not just the target flag.
@@ -590,7 +598,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
         if (inlineFailed.has(key)) {
           return { key, value: undefined, variant: undefined, reason: "ERROR" as const };
         }
-        const r = evaluateFlag(resolvedFlags[key]!, input.context, resolvedFlags);
+        const r = evaluateFlag(resolvedFlags[key]!, input.context, resolvedFlags, evalSegments);
         return {
           key,
           value: r.value,

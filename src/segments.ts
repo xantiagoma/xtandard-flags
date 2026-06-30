@@ -97,6 +97,29 @@ export function referencedSegmentKeys(flag: Flag): string[] {
   return [...keys];
 }
 
+/**
+ * Resolve every segment for embedding in a snapshot: `inSegment` conditions are
+ * inlined (so embedded segments hold only primitive + `notInSegment` conditions),
+ * which is what {@link ./evaluator.evaluateFlag} needs to check membership.
+ */
+export function resolveSegments(segments: Record<string, Segment>): Record<string, Segment> {
+  const out: Record<string, Segment> = {};
+  for (const [key, segment] of Object.entries(segments)) {
+    out[key] = { ...segment, conditions: expandConditions(segment.conditions, segments, [key]) };
+  }
+  return out;
+}
+
+/** True if any flag rule (after inlining) uses the `notInSegment` operator. */
+export function usesNotInSegment(flags: Record<string, Flag>): boolean {
+  for (const flag of Object.values(flags)) {
+    for (const rule of flag.rules ?? []) {
+      if (rule.conditions.some((c) => c.operator === "notInSegment")) return true;
+    }
+  }
+  return false;
+}
+
 /** A single segment-reference problem, with a dotted path into the offending data. */
 export interface SegmentReferenceError {
   path: string;
@@ -136,6 +159,28 @@ export function validateSegmentReferences(
         } else throw err;
       }
     });
+  }
+
+  // 3. `notInSegment` refs aren't followed by expandConditions (they're not
+  // inlined) — check they point at an existing segment. Cycles are safe at
+  // runtime (guarded), so only dangling refs are an error.
+  const checkNotIn = (conditions: Condition[], path: string) => {
+    conditions.forEach((c, i) => {
+      if (c.operator === "notInSegment") {
+        const key = typeof c.value === "string" ? c.value : "";
+        if (!key || !segments[key]) {
+          errors.push({ path: `${path}[${i}].value`, message: `unknown segment "${key}"` });
+        }
+      }
+    });
+  };
+  for (const [flagKey, flag] of Object.entries(flags)) {
+    (flag.rules ?? []).forEach((rule, i) =>
+      checkNotIn(rule.conditions, `flags.${flagKey}.rules[${i}].conditions`),
+    );
+  }
+  for (const [key, segment] of Object.entries(segments)) {
+    checkNotIn(segment.conditions, `segments.${key}.conditions`);
   }
 
   return errors;

@@ -33,6 +33,7 @@ const conditionOperatorSchema = v.picklist([
   "exists",
   "notExists",
   "inSegment",
+  "notInSegment",
 ]);
 
 const jsonValueSchema: v.GenericSchema<unknown> = v.lazy(() =>
@@ -156,11 +157,11 @@ function valueMatchesType(value: unknown, type: FlagType): boolean {
  */
 function checkConditions(conditions: Condition[], path: string, errors: ValidationError[]): void {
   conditions.forEach((c, i) => {
-    if (c.operator === "inSegment") {
+    if (c.operator === "inSegment" || c.operator === "notInSegment") {
       if (typeof c.value !== "string" || c.value.length === 0) {
         errors.push({
           path: `${path}[${i}].value`,
-          message: "inSegment requires a non-empty segment key",
+          message: `${c.operator} requires a non-empty segment key`,
         });
       }
     } else if (c.attribute.length === 0) {

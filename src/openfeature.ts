@@ -421,8 +421,13 @@ export function createOpenFeatureProvider(
       };
     }
 
-    // 3. Evaluate. Pass the whole snapshot so prerequisites can be resolved.
-    const evaluation = evaluateFlag(flag, toInternalContext(context), snapshot.flags);
+    // 3. Evaluate. Pass the whole snapshot so prerequisites + segments resolve.
+    const evaluation = evaluateFlag(
+      flag,
+      toInternalContext(context),
+      snapshot.flags,
+      snapshot.segments,
+    );
 
     // 3a. Evaluation error (or missing value) → caller default + ERROR.
     if (evaluation.reason === "ERROR" || evaluation.value === undefined) {

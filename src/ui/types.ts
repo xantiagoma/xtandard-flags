@@ -28,7 +28,8 @@ export type ConditionOperator =
   | "after"
   | "exists"
   | "notExists"
-  | "inSegment";
+  | "inSegment"
+  | "notInSegment";
 
 export interface Condition {
   attribute: string;

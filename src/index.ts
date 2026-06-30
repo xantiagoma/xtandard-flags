@@ -62,7 +62,7 @@ export {
   pickVariant,
   resolveBucketingKey,
 } from "./evaluator.ts";
-export type { FlagEvaluation, SplitInput } from "./evaluator.ts";
+export type { FlagEvaluation, SegmentMap, SplitInput } from "./evaluator.ts";
 
 // Hashing
 export { hashToUnitInterval, murmur3 } from "./hash.ts";
@@ -92,7 +92,9 @@ export {
   inlineSegments,
   inlineSegmentsInFlag,
   referencedSegmentKeys,
+  resolveSegments,
   SegmentResolutionError,
+  usesNotInSegment,
   validateSegmentReferences,
 } from "./segments.ts";
 export type { SegmentReferenceError } from "./segments.ts";

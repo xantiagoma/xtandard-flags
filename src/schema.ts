@@ -63,7 +63,14 @@ export type ConditionOperator =
    * Resolved (inlined) at **compile time** — the runtime evaluator and compiled
    * snapshots never contain this operator (see {@link ./snapshot.compileDraft}).
    */
-  | "inSegment";
+  | "inSegment"
+  /**
+   * Negated segment membership — true when the context does **not** satisfy the
+   * segment. `value` is the segment's key. Unlike `inSegment` it can't be inlined
+   * (negating an AND is an OR), so the resolved segments are embedded in the
+   * snapshot ({@link Snapshot.segments}) and the evaluator checks membership.
+   */
+  | "notInSegment";
 
 /**
  * A single predicate evaluated against the {@link EvaluationContext}.
@@ -244,6 +251,12 @@ export interface Snapshot {
   createdAt: string;
   createdBy?: Actor | null;
   flags: Record<string, Flag>;
+  /**
+   * Resolved segments referenced by `notInSegment` conditions, embedded so the
+   * runtime evaluator can check (negated) membership without the admin store.
+   * Present only when a flag uses `notInSegment`; `inSegment` is inlined instead.
+   */
+  segments?: Record<string, Segment>;
 }
 
 /** The mutable working copy edited via the admin API before publishing. */

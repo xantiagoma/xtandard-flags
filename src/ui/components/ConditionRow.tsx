@@ -16,6 +16,7 @@ export const CONDITION_OPERATORS: { value: string; label: string }[] = [
   { value: "in", label: "in (any of)" },
   { value: "notIn", label: "not in (any of)" },
   { value: "inSegment", label: "in segment" },
+  { value: "notInSegment", label: "not in segment" },
   // Strings
   { value: "contains", label: "contains" },
   { value: "notContains", label: "not contains" },
@@ -62,7 +63,7 @@ export function ConditionRow({
   segmentKeys?: string[];
 }) {
   const noValue = NO_VALUE_OPS.has(condition.operator);
-  const isSegment = condition.operator === "inSegment";
+  const isSegment = condition.operator === "inSegment" || condition.operator === "notInSegment";
   const valueStr =
     condition.value === undefined
       ? ""
@@ -85,7 +86,9 @@ export function ConditionRow({
         {isFirst ? "If" : "And"}
       </span>
       {isSegment ? (
-        <span className="w-32 shrink-0 text-xs text-muted-foreground">member of</span>
+        <span className="w-32 shrink-0 text-xs text-muted-foreground">
+          {condition.operator === "notInSegment" ? "not member of" : "member of"}
+        </span>
       ) : (
         <TextInput
           placeholder="attribute"
