@@ -1,6 +1,6 @@
 {
   "name": "@xtandard/flags",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Self-hosted, embeddable, OpenFeature-compatible feature flag control plane with pluggable storage and memory-first runtime evaluation.",
   "keywords": [
     "bun",
