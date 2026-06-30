@@ -1,0 +1,12 @@
+{
+  "name": "example-ofrep-typescript",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run main.ts"
+  },
+  "dependencies": {
+    "@openfeature/ofrep-provider": "^0.2.0",
+    "@openfeature/server-sdk": "^1.16.0"
+  }
+}

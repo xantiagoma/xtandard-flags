@@ -27,5 +27,7 @@
   // flags-sdk is a self-contained Next.js app with its own deps (next, flags,
   // @flags-sdk/openfeature) and tsconfig — typecheck it via `bun --cwd
   // examples/flags-sdk run typecheck`, not the shared examples project.
-  "exclude": ["flags-sdk/**"]
+  // ofrep-clients are standalone polyglot projects (python/go/plain-ts) with their
+  // own toolchains + deps (@openfeature/*) — not part of the monorepo typecheck.
+  "exclude": ["flags-sdk/**", "ofrep-clients/**"]
 }

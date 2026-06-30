@@ -328,6 +328,7 @@ shows flags driving real behavior (change a flag, publish, watch the app change)
 | [`flags-sdk/`](examples/flags-sdk)                 | Next.js + Vercel Flags SDK; panel mounted + a home page flags drive. |
 | [`openfeature-redis/`](examples/openfeature-redis) | Evaluate at runtime via the OpenFeature provider over Redis.         |
 | [`ofrep/`](examples/ofrep)                         | Remote eval via **OFREP** over HTTP — bulk/single, ETag/304, SSE.    |
+| [`ofrep-clients/`](examples/ofrep-clients)         | Consume flags from **Python, Go, plain TS** via OpenFeature + OFREP. |
 | [`storage-drivers/`](examples/storage-drivers)     | One contract, every backend.                                         |
 | [`react-embed/`](examples/react-embed)             | Embed `<FlagsDashboard/>` in an existing React app.                  |
 | [`standalone-docker/`](examples/standalone-docker) | The Docker image + Redis via `docker compose`.                       |

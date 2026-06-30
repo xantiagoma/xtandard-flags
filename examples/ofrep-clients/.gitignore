@@ -1,0 +1,8 @@
+# Per-language toolchain output — regenerated on `uv run` / `go mod tidy` / `bun install`.
+.venv/
+__pycache__/
+*.pyc
+uv.lock
+node_modules/
+bun.lock
+# go.mod + go.sum ARE committed (reproducible Go builds).

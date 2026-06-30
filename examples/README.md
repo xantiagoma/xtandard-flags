@@ -9,6 +9,7 @@ Each example is a standalone mini-project — copy it out, `bun install`, run.
 | [`express/`](./express)                       | Mount the admin panel under `/flags` in an Express app (file storage).              |
 | [`openfeature-redis/`](./openfeature-redis)   | Evaluate flags at runtime via the OpenFeature provider over Redis.                  |
 | [`ofrep/`](./ofrep)                           | Remote evaluation via **OFREP** over plain HTTP — bulk/single, ETag/304, live SSE.  |
+| [`ofrep-clients/`](./ofrep-clients)           | Consume flags from **Python, Go, and plain TypeScript** via OpenFeature + OFREP.    |
 | [`flags-sdk/`](./flags-sdk)                   | Next.js app using the Vercel Flags SDK via its OpenFeature adapter.                 |
 | [`storage-drivers/`](./storage-drivers)       | One contract, every backend — incl. libSQL/Turso + Cloudflare KV.                   |
 | [`postgres-redis/`](./postgres-redis)         | **Split planes**: Postgres source (durable) + Redis runtime (fast, watch-based).    |

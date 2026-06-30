@@ -36,10 +36,10 @@ export default defineConfig({
     ignorePatterns: ["CHANGELOG.md"],
   },
   staged: {
-    "*.{ts,tsx}": ["vp fmt", "vp lint"],
-    // Format docs/config too so a stray .md/.json/.yml doesn't fail CI's format check
-    // (CHANGELOG.md is covered by fmt.ignorePatterns above, so it's left alone).
-    "*.{md,mdx,json,jsonc,yml,yaml,css,html}": ["vp fmt"],
+    // Pre-commit only formats (fast, and never errors on lint-ignored paths like
+    // examples/**). Linting + typecheck run in the pre-push hook (`bun run check`)
+    // and in CI, where ignorePatterns resolve against the whole repo.
+    "*.{ts,tsx,md,mdx,json,jsonc,yml,yaml,css,html}": ["vp fmt"],
   },
   pack: {
     entry: [

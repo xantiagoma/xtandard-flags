@@ -1,0 +1,5 @@
+[project]
+name = "example-ofrep-python"
+version = "0"
+requires-python = ">=3.10"
+dependencies = ["openfeature-sdk>=0.10", "openfeature-provider-ofrep>=0.3"]
