@@ -166,6 +166,26 @@ test("unsaved changes: Save disabled when clean, enabled when dirty, Cancel conf
   await expect(page.getByText("Basics")).toBeVisible();
 });
 
+test("unsaved changes block in-app nav (Segments tab); Revert discards them", async ({ page }) => {
+  await page.goto("/flags/e2e-checkout");
+  await expect(page.getByText("Basics")).toBeVisible();
+  await page.getByPlaceholder("What does this flag control?").fill("dirty edit for nav guard");
+
+  const revert = page.getByRole("button", { name: "Revert" });
+  await expect(revert).toBeVisible();
+
+  // Clicking the Segments tab with unsaved edits prompts; dismissing keeps us put.
+  page.once("dialog", (d) => d.dismiss());
+  await page.getByRole("button", { name: "Segments" }).click();
+  await expect(page.getByText("Basics")).toBeVisible();
+
+  // Revert discards edits → Save disables, indicator clears, nav is free again.
+  await revert.click();
+  await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  await page.getByRole("button", { name: "Segments" }).click();
+  await expect(page).toHaveURL(/\/segments/);
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
@@ -19,6 +19,7 @@ import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
 import { ConditionTree } from "../components/ConditionTree.tsx";
 import { renameVariantInFlag } from "../lib/variants.ts";
+import { clearNavBlocker, setNavBlocker } from "../lib/nav-guard.ts";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import {
   ToggleSwitch,
@@ -615,24 +616,37 @@ export function FlagDetail({
   }, [flag]);
 
   const isDirty = !readonly && JSON.stringify(form) !== baseline;
+  // Mirror into a ref so the (mount-stable) nav blocker reads the latest value.
+  const dirtyRef = useRef(isDirty);
+  dirtyRef.current = isDirty;
 
-  // Warn before a full-page unload (tab close / refresh) with unsaved edits.
+  // Revert local edits back to the loaded flag (stay on the page).
+  const revert = () => {
+    setForm(JSON.parse(baseline) as Flag);
+    setKeyError("");
+    setApiErrors([]);
+  };
+
+  // Block both full-page unloads (tab close / refresh) and in-app navigation
+  // (tabs, project/env switch, opening another flag) while there are unsaved
+  // edits. The in-app guard runs through {@link ./lib/nav-guard} because wouter
+  // has no built-in blocker (molefrog/wouter#452); browser back/forward is the
+  // one path neither covers.
   useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
+    const confirmLeave = () =>
+      !dirtyRef.current || window.confirm("You have unsaved changes. Discard them and leave?");
+    setNavBlocker(confirmLeave);
+    const beforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
       e.preventDefault();
       e.returnValue = "";
     };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
-
-  // Guarded back: confirm if there are unsaved edits. Used by Cancel + the
-  // breadcrumb. (A successful save calls the raw `onBack` — it isn't "discarding".)
-  const handleBack = () => {
-    if (isDirty && !window.confirm("You have unsaved changes. Discard them and leave?")) return;
-    onBack();
-  };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => {
+      clearNavBlocker(confirmLeave);
+      window.removeEventListener("beforeunload", beforeUnload);
+    };
+  }, []);
 
   const segmentsQuery = useQuery({
     queryKey: ["segments", projectKey, environmentKey],
@@ -657,6 +671,9 @@ export function FlagDetail({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
       toast.add("success", isCreate ? "Flag created" : "Flag saved");
+      // Saved — not a discard, so clear the dirty guard before navigating back.
+      dirtyRef.current = false;
+      setBaseline(JSON.stringify(form));
       onBack();
     },
     onError: (err: unknown) => {
@@ -703,7 +720,7 @@ export function FlagDetail({
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
       <div className="flex items-center gap-3">
         <button
-          onClick={handleBack}
+          onClick={onBack}
           className="flex items-center gap-1.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
         >
           <ChevronLeft className="size-4" />
@@ -1114,7 +1131,12 @@ export function FlagDetail({
             )}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={handleBack}>
+            {!readonly && !isCreate && isDirty && (
+              <Button variant="ghost" onClick={revert}>
+                Revert
+              </Button>
+            )}
+            <Button variant="secondary" onClick={onBack}>
               Cancel
             </Button>
             {!readonly && (

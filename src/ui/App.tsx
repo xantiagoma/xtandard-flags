@@ -21,6 +21,7 @@ import { SegmentsView } from "./views/SegmentsView.tsx";
 import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
 import { cn } from "./lib/utils.ts";
+import { canLeave } from "./lib/nav-guard.ts";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { TextInput, CreatableCombobox } from "./components/primitives.tsx";
 
@@ -150,11 +151,19 @@ function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean 
   const environmentKey =
     searchParams.get("env") || (bootstrap.defaultEnvironmentKey ?? "production");
 
-  // Navigate to a path while preserving the project/env query.
+  // Navigate to a path while preserving the project/env query. All in-app
+  // navigation funnels through these helpers, so they consult the nav guard —
+  // a view with unsaved edits (FlagDetail) can veto the move. wouter has no
+  // built-in blocker (see molefrog/wouter#452); guarding the entry points is the
+  // workaround. (Browser back/forward still isn't interceptable — known edge.)
   const search = searchParams.toString();
-  const go = (path: string) => navigate(search ? `${path}?${search}` : path);
+  const go = (path: string) => {
+    if (!canLeave()) return;
+    navigate(search ? `${path}?${search}` : path);
+  };
 
-  const setProjectKey = (key: string) =>
+  const setProjectKey = (key: string) => {
+    if (!canLeave()) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -163,7 +172,9 @@ function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean 
       },
       { replace: false },
     );
-  const setEnvironmentKey = (key: string) =>
+  };
+  const setEnvironmentKey = (key: string) => {
+    if (!canLeave()) return;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -172,6 +183,7 @@ function AppShell({ logoUrl, hideIcon }: { logoUrl?: string; hideIcon?: boolean 
       },
       { replace: false },
     );
+  };
 
   const configQuery = useQuery({
     queryKey: ["config"],

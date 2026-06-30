@@ -4,6 +4,28 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — in-app nav guard + Revert button (closes the unsaved-changes gap)
+
+Follow-up to the unsaved-changes guard: the `beforeunload` listener only catches
+full-page unloads, not in-app (wouter `pushState`) navigation — so switching tabs /
+project-env / opening another flag bypassed it (confirmed by molefrog/wouter#452:
+wouter has no `useBlocker`).
+
+- **`src/ui/lib/nav-guard.ts`** (new): a tiny process-wide blocker registry —
+  `setNavBlocker`/`clearNavBlocker`/`canLeave`. Bridges the dirty view to App's
+  navigation without prop-drilling.
+- **App.tsx**: all in-app navigation funnels through `go()` (tabs, open/back) and
+  `setProjectKey`/`setEnvironmentKey` (switchers) — each now `canLeave()`-gates.
+- **FlagDetail.tsx**: registers a blocker (mount-stable, reads a `dirtyRef`) that
+  `window.confirm`s when dirty; `beforeunload` shares the same ref. A successful
+  save clears the ref + rebaselines before `onBack` (not a discard). Dropped the
+  separate `handleBack` — Cancel/breadcrumb use the now-guarded `onBack`. Added a
+  **Revert** button (edit mode, when dirty) that resets the form to the loaded flag.
+- **e2e** +1 (12 total): editing then clicking Segments prompts + dismiss stays;
+  Revert clears dirty and frees navigation. Verified live (0 console errors).
+- **Remaining edge:** browser **back/forward** still isn't interceptable with wouter
+  (the open upstream issue) — beforeunload + the in-app guard cover everything else.
+
 ## 2026-06-30 — unsaved-changes guard + dirty Save button (flag detail)
 
 - **Dirty tracking** in `FlagDetail`: baseline JSON snapshot of the loaded flag;
