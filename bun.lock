@@ -57,6 +57,7 @@
         "vite-plus": "^0.1.22",
       },
       "peerDependencies": {
+        "@libsql/client": "0.15.15",
         "@openfeature/server-sdk": "^1.0.0",
         "elysia": "^1.0.0 || ^2.0.0",
         "express": "^4.0.0 || ^5.0.0",
@@ -70,6 +71,7 @@
         "unstorage": "^1.0.0",
       },
       "optionalPeers": [
+        "@libsql/client",
         "@openfeature/server-sdk",
         "elysia",
         "express",

@@ -320,3 +320,72 @@ const storage = createSqliteStorage({ path: "./flags.sqlite" }); // or ":memory:
 Stored in one table `key TEXT PRIMARY KEY, value TEXT` (auto-created). `table`
 defaults to `xtandard_flags`. Standalone/CLI driver: `SOURCE_STORAGE_DRIVER=sqlite`
 with `SOURCE_SQLITE_PATH` (run the standalone/CLI under Bun).
+
+## libSQL / Turso (`@xtandard/flags/storage/libsql`)
+
+The SQLite dialect, but against a **remote, replicated, edge-distributed**
+database — [Turso](https://turso.tech) / [libSQL](https://github.com/tursodatabase/libsql).
+Runs anywhere (Node, Bun, Deno, edge), unlike the Bun-only `bun:sqlite` adapter.
+Optional peer dependency: [`@libsql/client`](https://www.npmjs.com/package/@libsql/client).
+
+```ts
+import { createLibsqlStorage } from "@xtandard/flags/storage/libsql";
+
+// Turso (remote, with replicas at the edge):
+const storage = createLibsqlStorage({
+  url: process.env.TURSO_DATABASE_URL!, // libsql://<db>-<org>.turso.io
+  authToken: process.env.TURSO_AUTH_TOKEN!,
+});
+
+// …or a local file / embedded replica / in-memory:
+// createLibsqlStorage({ url: "file:flags.db" });
+// createLibsqlStorage({ url: ":memory:" });
+// …or pass a pre-constructed client via { client }.
+```
+
+One table `key TEXT PRIMARY KEY, value TEXT` (auto-created); `table` defaults to
+`xtandard_flags`. Connection is lazy and shared. Call `storage.close()` on shutdown.
+A great fit for **runtime storage on the edge**: snapshots replicate close to your
+workers, and the provider still serves last-known-good from memory if libSQL blips.
+
+## Cloudflare Workers KV (`@xtandard/flags/storage/cloudflare-kv`)
+
+Wraps a Workers **KV namespace binding** (`env.MY_KV`). **No npm peer dependency** —
+the binding is provided by the runtime, so the adapter only needs its structural
+type. Works in production Workers, in `wrangler dev` / [Miniflare](https://miniflare.dev)
+locally, and against any object satisfying the small `KVNamespaceLike` surface in tests.
+
+```ts
+import { createCloudflareKvStorage } from "@xtandard/flags/storage/cloudflare-kv";
+
+export default {
+  async fetch(req: Request, env: { FLAGS: KVNamespace }) {
+    const storage = createCloudflareKvStorage({ namespace: env.FLAGS, prefix: "runtime" });
+    // mount the panel, or build an OpenFeature provider over `storage`
+  },
+};
+```
+
+`prefix` namespaces every key (joined with `:`) and is stripped from `getKeys`,
+so several deployments can share one namespace. `getKeys` pages through KV's
+cursor automatically. KV is eventually consistent — ideal for read-mostly compiled
+snapshots loaded once into memory; prefer Redis/libSQL for the write-heavy
+**source** store if you publish frequently from multiple regions.
+
+## Choosing a backend
+
+| Backend        | Adapter                 | Runtime    | Best for                                            |
+| -------------- | ----------------------- | ---------- | --------------------------------------------------- |
+| Memory         | `storage/memory`        | any        | tests, single-process experiments                   |
+| File           | `storage/file`          | any        | local dev, GitOps drafts in VCS                     |
+| Redis          | `storage/redis`         | any        | multi-node, push-based refresh (`watch`)            |
+| Postgres       | `storage/postgres`      | any        | you already run Postgres; transactional source      |
+| MongoDB        | `storage/mongodb`       | any        | you already run Mongo                               |
+| SQLite         | `storage/sqlite`        | **Bun**    | single-node persistence, zero deps                  |
+| libSQL / Turso | `storage/libsql`        | any / edge | edge-replicated runtime, serverless SQLite          |
+| Cloudflare KV  | `storage/cloudflare-kv` | Workers    | runtime snapshots inside Cloudflare Workers         |
+| Anything else  | `storage/unstorage`     | any        | 20+ drivers (Upstash, Vercel KV, S3/R2, Netlify, …) |
+
+A common production split is a **durable, transactional source** (Postgres/Redis)
+plus a **fast, close-to-the-app runtime** (Redis/libSQL/KV). See the
+[storage-combo examples](../examples/README.md).

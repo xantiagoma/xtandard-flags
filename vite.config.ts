@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: ["src/ui/**", "src/entry-*.ts", "src/storage/sqlite.ts"],
+      exclude: ["src/ui/**", "src/entry-*.ts", "src/storage/sqlite.ts", "src/storage/libsql.ts"],
       reporter: ["text", "html", "lcov"],
       thresholds: { statements: 92, branches: 85, functions: 90, lines: 92 },
     },
@@ -39,6 +39,8 @@ export default defineConfig({
       "src/entry-storage-postgres.ts",
       "src/entry-storage-mongodb.ts",
       "src/entry-storage-sqlite.ts",
+      "src/entry-storage-libsql.ts",
+      "src/entry-storage-cloudflare-kv.ts",
       "src/entry-auth-none.ts",
       "src/entry-auth-basic.ts",
       "src/entry-auth-delegated.ts",
