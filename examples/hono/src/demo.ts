@@ -55,10 +55,7 @@ export function renderDemoPage({ newGreeting, bannerColor, maxItems }: DemoFlags
   const greeting = newGreeting
     ? "✨ Welcome to the NEW experience!"
     : "Hello from the old greeting.";
-  const items = Array.from(
-    { length: maxItems },
-    (_, i) => `<li>Item ${i + 1}</li>`,
-  ).join("");
+  const items = Array.from({ length: maxItems }, (_, i) => `<li>Item ${i + 1}</li>`).join("");
 
   return `<!doctype html>
 <html lang="en">

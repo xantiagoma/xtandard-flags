@@ -10,6 +10,8 @@
  * It writes published snapshots to the SAME runtime dir the OpenFeature provider
  * in `flags.ts` reads (`FLAGS_DATA_DIR`), so a Publish here changes the home page.
  */
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { createFetchHandler } from "@xtandard/flags";
 import { createFileStorage } from "@xtandard/flags/storage/file";
 
@@ -18,9 +20,17 @@ import { createFileStorage } from "@xtandard/flags/storage/file";
 const SOURCE_DIR = process.env.FLAGS_SOURCE_DIR ?? "./.flags-data/source";
 const RUNTIME_DIR = process.env.FLAGS_DATA_DIR ?? "./.flags-data/runtime";
 
+// The handler serves the bundled admin SPA from a directory. By default it
+// derives that from `import.meta.url`, but Next's bundler can't statically
+// resolve the `new URL("./ui", …)` inside the package, so we point it at the
+// package's shipped `dist/ui` explicitly (resolved from its package.json).
+const pkgJson = createRequire(import.meta.url).resolve("@xtandard/flags/package.json");
+const uiDir = join(dirname(pkgJson), "dist", "ui");
+
 const { fetch: handler } = createFetchHandler({
   basePath: "/flags",
   title: "Flags SDK demo",
+  uiDir,
   sourceStorage: createFileStorage({ dir: SOURCE_DIR }),
   runtimeStorage: createFileStorage({ dir: RUNTIME_DIR }),
 });

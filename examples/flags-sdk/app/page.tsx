@@ -5,11 +5,7 @@ import { newCheckout, bannerColor, homeLayout } from "../flags";
 // drive the actual UI below — a banner color, a CTA, and a product grid — so a
 // Publish from the in-app admin panel (/flags) visibly changes this page.
 export default async function Page() {
-  const [checkout, color, layout] = await Promise.all([
-    newCheckout(),
-    bannerColor(),
-    homeLayout(),
-  ]);
+  const [checkout, color, layout] = await Promise.all([newCheckout(), bannerColor(), homeLayout()]);
 
   const columns = layout?.columns ?? 2;
   const products = Array.from({ length: columns * 2 }, (_, i) => `Product ${i + 1}`);
@@ -31,8 +27,8 @@ export default async function Page() {
 
       <h1>Flags SDK × @xtandard/flags</h1>
       <p>
-        Everything below is driven by flags evaluated through the Vercel Flags SDK
-        and the <code>@xtandard/flags</code> OpenFeature provider (context:{" "}
+        Everything below is driven by flags evaluated through the Vercel Flags SDK and the{" "}
+        <code>@xtandard/flags</code> OpenFeature provider (context:{" "}
         <code>{`{ country: "FR", plan: "beta" }`}</code>).
       </p>
 
@@ -100,8 +96,8 @@ export default async function Page() {
           <strong>banner-color</strong>: <code>{color}</code> (colors the banner)
         </li>
         <li>
-          <strong>home-layout</strong>: <code>{JSON.stringify(layout)}</code> (sets
-          the grid columns)
+          <strong>home-layout</strong>: <code>{JSON.stringify(layout)}</code> (sets the grid
+          columns)
         </li>
       </ul>
 
@@ -112,9 +108,8 @@ export default async function Page() {
         </a>
       </p>
       <p style={{ color: "#666", fontSize: 14 }}>
-        Change a flag, click <strong>Publish</strong>, then refresh this page —
-        it updates within a couple seconds. First run? <code>bun run seed</code>{" "}
-        publishes the demo flags.
+        Change a flag, click <strong>Publish</strong>, then refresh this page — it updates within a
+        couple seconds. First run? <code>bun run seed</code> publishes the demo flags.
       </p>
     </main>
   );
