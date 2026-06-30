@@ -217,6 +217,9 @@ test("downloads a snapshot as JSON with an embedded $schema", async ({ page }) =
   await page.getByRole("cell", { name: /v1/ }).first().click();
   await expect(page.getByText(/Snapshot v1/)).toBeVisible();
 
+  // The viewer shows the same document the download produces — `$schema` included.
+  await expect(page.locator(".cm-content").first()).toContainText('"$schema"');
+
   const [download] = await Promise.all([
     page.waitForEvent("download"),
     page.getByRole("button", { name: "Download JSON" }).click(),

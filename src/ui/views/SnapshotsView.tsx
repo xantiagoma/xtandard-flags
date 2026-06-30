@@ -120,11 +120,7 @@ function SnapshotDetailDialog({
               <p className="text-[13px] text-destructive">Failed to load snapshot</p>
             )}
             {query.data && (
-              <JsonCodeEditor
-                value={JSON.stringify(query.data, null, 2)}
-                onChange={() => {}}
-                readOnly
-              />
+              <JsonCodeEditor value={snapshotDownload(query.data)} onChange={() => {}} readOnly />
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3 shrink-0">
