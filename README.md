@@ -156,7 +156,10 @@ Splits are deterministic: `same flagKey + same targetingKey + same salt → same
 
 Targeting rules are an AND of **conditions** — see the full operator reference in
 [docs/OPERATORS.md](docs/OPERATORS.md) (equality, membership, string, numeric,
-**date** `before`/`after`, **semver**, **`inSegment`/`notInSegment`**). Ordering and
+**date** `before`/`after`, **semver**, **`inSegment`/`notInSegment`**, and
+**`matches`/`notMatches`** — a JSON query document evaluated by a pluggable matcher
+(built-in `regex`, or `sift`/`mingo` via [a registered matcher](docs/OPERATORS.md#query-matchers-matches--notmatches),
+giving you OR/nested logic in one condition). Ordering and
 equality understand value objects (the whole Temporal family + `BigInt` out of the
 box); for types that don't follow that convention — Dinero, Decimal — register a
 [**custom comparator**](docs/OPERATORS.md#custom-comparators) (`registerComparator`,

@@ -35,6 +35,8 @@ import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
 import type { ComparatorRegistry } from "./comparators.ts";
 import { withComparators } from "./comparators.ts";
 import { evaluateFlag } from "./evaluator.ts";
+import type { MatcherRegistry } from "./matchers.ts";
+import { withMatchers } from "./matchers.ts";
 import { inlineSegmentsInFlag, resolveSegments, validateSegmentReferences } from "./segments.ts";
 import { tryCatchSync } from "./try-catch.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
@@ -84,6 +86,12 @@ export interface FlagsCoreOptions {
    * (test targeting). See {@link ./comparators.ComparatorRegistry}.
    */
   comparators?: ComparatorRegistry;
+  /**
+   * Named query matchers backing the `matches`/`notMatches` operators, layered
+   * over the process-wide registry from {@link ./matchers.registerMatcher} for
+   * {@link FlagsCore.evaluate}. See {@link ./matchers.MatcherRegistry}.
+   */
+  matchers?: MatcherRegistry;
 }
 
 /** A snapshot version with its publish metadata, for history views. */
@@ -112,9 +120,12 @@ export class NotFoundError extends Error {
 
 /** The admin core surface. */
 export interface FlagsCore {
-  readonly options: Required<Omit<FlagsCoreOptions, "runtimeStorage" | "comparators">> & {
+  readonly options: Required<
+    Omit<FlagsCoreOptions, "runtimeStorage" | "comparators" | "matchers">
+  > & {
     runtimeStorage: FlagsStorage;
     comparators?: ComparatorRegistry;
+    matchers?: MatcherRegistry;
   };
 
   // Projects
@@ -228,6 +239,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
   const defaultEnvironmentKey = options.defaultEnvironmentKey ?? "production";
   const readonly = options.readonly ?? false;
   const comparators = options.comparators;
+  const matchers = options.matchers;
 
   const source = new SnapshotStore(sourceStorage);
   const runtime = new SnapshotStore(runtimeStorage);
@@ -297,6 +309,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       defaultEnvironmentKey,
       readonly,
       comparators,
+      matchers,
     },
 
     async listProjects() {
@@ -607,7 +620,9 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
           return { key, value: undefined, variant: undefined, reason: "ERROR" as const };
         }
         const r = withComparators(comparators, () =>
-          evaluateFlag(resolvedFlags[key]!, input.context, resolvedFlags, evalSegments),
+          withMatchers(matchers, () =>
+            evaluateFlag(resolvedFlags[key]!, input.context, resolvedFlags, evalSegments),
+          ),
         );
         return {
           key,

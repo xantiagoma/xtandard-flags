@@ -34,6 +34,8 @@ const conditionOperatorSchema = v.picklist([
   "notExists",
   "inSegment",
   "notInSegment",
+  "matches",
+  "notMatches",
 ]);
 
 const jsonValueSchema: v.GenericSchema<unknown> = v.lazy(() =>
@@ -48,11 +50,13 @@ const jsonValueSchema: v.GenericSchema<unknown> = v.lazy(() =>
 );
 
 const conditionSchema = v.object({
-  // `inSegment` conditions carry no attribute; the non-empty check is enforced
-  // semantically per-operator in {@link checkConditions}.
+  // `inSegment`/`matches` conditions carry no attribute; the non-empty check is
+  // enforced semantically per-operator in {@link checkConditions}.
   attribute: v.string(),
   operator: conditionOperatorSchema,
   value: v.optional(jsonValueSchema),
+  // `matches`/`notMatches` only: name of the registered query matcher.
+  matcher: v.optional(v.string()),
 });
 
 const segmentSchema = v.object({
@@ -152,8 +156,10 @@ function valueMatchesType(value: unknown, type: FlagType): boolean {
 }
 
 /**
- * Per-operator condition checks: `inSegment` needs a non-empty segment key (and
- * no attribute); every other operator needs a non-empty `attribute`.
+ * Per-operator condition checks: `inSegment`/`notInSegment` need a non-empty
+ * segment key (and no attribute); `matches`/`notMatches` need a JSON object query
+ * (attribute optional — empty matches the whole context); every other operator
+ * needs a non-empty `attribute`.
  */
 function checkConditions(conditions: Condition[], path: string, errors: ValidationError[]): void {
   conditions.forEach((c, i) => {
@@ -162,6 +168,13 @@ function checkConditions(conditions: Condition[], path: string, errors: Validati
         errors.push({
           path: `${path}[${i}].value`,
           message: `${c.operator} requires a non-empty segment key`,
+        });
+      }
+    } else if (c.operator === "matches" || c.operator === "notMatches") {
+      if (c.value === null || typeof c.value !== "object" || Array.isArray(c.value)) {
+        errors.push({
+          path: `${path}[${i}].value`,
+          message: `${c.operator} requires a JSON object query`,
         });
       }
     } else if (c.attribute.length === 0) {

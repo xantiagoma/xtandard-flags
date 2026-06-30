@@ -70,18 +70,36 @@ export type ConditionOperator =
    * (negating an AND is an OR), so the resolved segments are embedded in the
    * snapshot ({@link Snapshot.segments}) and the evaluator checks membership.
    */
-  | "notInSegment";
+  | "notInSegment"
+  /**
+   * Match a JSON **query document** (`value`) against the context using a
+   * pluggable, named matcher (see {@link ./matchers}). `value` is the query (e.g.
+   * a sift/mingo filter); {@link Condition.matcher} names the engine. The subject
+   * is `context[attribute]` when `attribute` is set, else the whole context.
+   * Evaluated in-process, fail-closed; an unregistered matcher never matches.
+   */
+  | "matches"
+  /** Negated {@link ConditionOperator} `matches` — true when the query does **not** match. */
+  | "notMatches";
 
 /**
  * A single predicate evaluated against the {@link EvaluationContext}.
  *
  * `value` is unused for `exists`/`notExists`. For `in`/`notIn` it is an array.
+ * For `matches`/`notMatches` it is a JSON query document.
  */
 export interface Condition {
   /** Evaluation-context attribute to read (e.g. `"country"`, `"plan"`). */
   attribute: string;
   operator: ConditionOperator;
   value?: JsonValue;
+  /**
+   * For `matches`/`notMatches` only: the name of the registered matcher to use
+   * (see {@link ./matchers.registerMatcher}). Defaults to
+   * {@link ./matchers.DEFAULT_MATCHER} (`"default"`) when omitted. Ignored by all
+   * other operators.
+   */
+  matcher?: string;
 }
 
 /**

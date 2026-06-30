@@ -21,6 +21,7 @@
 
 import { compareViaComparators } from "./comparators.ts";
 import { hashToUnitInterval } from "./hash.ts";
+import { DEFAULT_MATCHER, resolveMatcher } from "./matchers.ts";
 import { tryCatchSync } from "./try-catch.ts";
 import type {
   Condition,
@@ -366,6 +367,21 @@ export function evaluateCondition(
     case "notInSegment":
       // Negated membership — true unless the context is in the (resolved) segment.
       return typeof expected !== "string" || !matchesSegment(expected, context, segments, seen);
+    case "matches":
+    case "notMatches": {
+      // A registered matcher evaluates a JSON query against the subject
+      // (`context[attribute]` when named, else the whole context). Any inability
+      // to get a clean boolean — unregistered matcher, missing query, or a thrown
+      // query — fails the condition closed for BOTH operators (the rule never
+      // fires on a broken/absent matcher rather than guessing).
+      if (expected === null || typeof expected !== "object") return false;
+      const matcher = resolveMatcher(condition.matcher ?? DEFAULT_MATCHER);
+      if (!matcher) return false;
+      const subject = condition.attribute ? actual : context;
+      const [ok, err] = tryCatchSync(() => matcher(expected, subject, context));
+      if (err || typeof ok !== "boolean") return false;
+      return op === "matches" ? ok : !ok;
+    }
     default: {
       // Exhaustiveness guard: unknown operators never match.
       const _never: never = op;

@@ -4,6 +4,44 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — `matches`/`notMatches` operator + pluggable query matchers (core)
+
+Follow-up to the comparator work: a way to evaluate a **JSON query document** against
+the context via a pluggable engine (sift/mingo), closing the "no OR / nested logic in
+the flat-AND rule model" gap. Same reasoning as comparators — matching is in-process,
+so no OpenFeature constraint; only the stored query must be JSON. Schema validators
+(zod/valibot/arktype) are code not JSON, so they don't store as a value — they fit as
+a named matcher closing over a schema in code. (ADR 0008.) **Core only this commit;
+UI (CodeMirror JSON editor + ConditionRow) lands next.**
+
+- **`src/matchers.ts`** (new, zero-dep, never-throws): named registry —
+  `registerMatcher(name, fn)` (dispose) / `clearMatchers()` / `resolveMatcher(name)` /
+  `withMatchers(registry, fn)` (Map | Record | tuples; instance over global, sync
+  scope). `MatcherFn = (query, subject, context) => boolean`. Built-in **`regex`**
+  matcher (native `RegExp`, `{pattern,flags?}`) in a non-clearable built-ins map
+  consulted as a final fallback (user names shadow it).
+- **`src/schema.ts`**: `ConditionOperator` += `matches`/`notMatches`; `Condition` +=
+  optional `matcher?: string` (name; default `"default"`).
+- **`src/evaluator.ts`**: `matches`/`notMatches` case — subject is `context[attribute]`
+  when named else the whole context; non-object query / unregistered matcher / thrown
+  query → **false for both ops** (fail closed, never fire on a broken matcher); clean
+  `false` → `notMatches` true.
+- **`src/sift-matcher.ts`** + **`src/entry-match-sift.ts`** → `@xtandard/flags/match/sift`
+  (pack entry + exports map + `sift` optional peer dep). `siftMatcher` +
+  `registerSiftMatcher(name?)`. Core stays zero-dep (same pattern as storage/postgres).
+- **Wiring:** `OpenFeatureProviderOptions.matchers` + `FlagsCoreOptions.matchers`,
+  nested inside the existing `withComparators` at both `evaluateFlag` call sites.
+- **Validation/openapi:** operator picklist + enum, `matcher` field, per-operator check
+  (matches needs a JSON object query, attribute optional). **Exports:** registerMatcher/
+  clearMatchers/resolveMatcher/withMatchers/regexMatcher/DEFAULT_MATCHER + types.
+- **Tests:** `test/matchers.test.ts` (23) — registry mechanics, matches/notMatches,
+  attribute-vs-context subject, fail-closed (unregistered/throwing/non-object), Map/
+  Record/tuple scopes + restore-on-throw, built-in regex (survives clear, shadowable,
+  malformed pattern), sift adapter ($gt/$in/$or/sub-paths), provider+core init option.
+  type-test union updated.
+- **Docs:** OPERATORS.md (table row + "Query matchers" section incl. regex/sift/
+  ts-regexp note + zod-is-code caveat), README, **ADR 0008**.
+
 ## 2026-06-30 — pluggable comparators for custom value-object types (Dinero, Decimal)
 
 User asked for a `predicate → { compare, parser?, serializer? }` registry (à la

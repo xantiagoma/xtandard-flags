@@ -16,6 +16,7 @@ throw** — a type mismatch evaluates to `false`. Across rules, first match wins
 | `greaterThan` `>=` `lessThan` `<=`                  | ordering                                   | see **comparable coercion** below                                                           |
 | `before` / `after`                                  | date/time ordering                         | semantic alias for ordering on dates                                                        |
 | `semverEquals` `semverGreaterThan` `semverLessThan` | semver compare                             | `10.0.0 > 2.0.0`; prerelease < release; invalid → `false`                                   |
+| `matches` / `notMatches`                            | JSON query via a pluggable matcher         | `value` = query document; see **Query matchers** below                                      |
 
 ## Comparable coercion (`>`, `>=`, `<`, `<=`, `before`, `after`)
 
@@ -97,6 +98,52 @@ Two layers, both available:
   or `createFlagsCore({ comparators })`. Instance entries layer **over** the global
   default for that instance's evaluations. `withComparators(registry, fn)` exposes
   the same synchronous scoping directly.
+
+## Query matchers (`matches` / `notMatches`)
+
+The flat-AND rule model can't express OR / nested boolean logic in one condition.
+`matches` closes that gap: `condition.value` holds a **JSON query document** and a
+**pluggable matcher** decides whether it matches. The query is data (it serializes
+into the snapshot like any value); the matching **engine** is a function you
+register, so the request path stays zero-dep.
+
+- **Subject:** `context[attribute]` when `attribute` is set, otherwise the **whole
+  context** (so one `matches` can span attributes / express `$or`). Query languages
+  like sift express sub-paths themselves (`{ "org.tier": "enterprise" }`).
+- **Which matcher:** `condition.matcher` names a registered matcher; omitted →
+  `"default"`. Register with `registerMatcher(name, fn)` (process-wide) or pass a
+  `matchers` option (`Map` / `Record` / tuples) to the provider / core, scoped via
+  `withMatchers`. `MatcherFn = (query, subject, context) => boolean`.
+- **Fail-closed:** an unregistered matcher, a non-object query, or a matcher that
+  throws makes **both** `matches` and `notMatches` evaluate to `false` (the rule
+  never fires on a broken/absent matcher). A clean `false` makes `notMatches` true.
+- **No OpenFeature constraint:** matching runs in-process on the live context — the
+  same reason custom comparators work. Only the stored query must be JSON.
+
+Two matchers ship with the package:
+
+- **`regex`** — built-in, **zero-dep** (native `RegExp`), always available without
+  registering. Query `{ pattern: string, flags?: string }`, tested against
+  `String(subject)`. For compile-time-typed patterns, register your own matcher on
+  a library like [ts-regexp](https://github.com/codpro2005/ts-regexp).
+- **`sift`** — MongoDB-style operators via the `@xtandard/flags/match/sift` subpath
+  (optional `sift` peer dep). `import { siftMatcher } from "@xtandard/flags/match/sift"`.
+
+```ts
+import { registerMatcher } from "@xtandard/flags";
+import { siftMatcher } from "@xtandard/flags/match/sift";
+
+registerMatcher("default", siftMatcher); // so conditions can omit `matcher`
+// { operator: "matches", value: { plan: "pro", seats: { $gt: 10 }, "$or": [...] } }
+
+// regex needs no registration:
+// { operator: "matches", matcher: "regex", attribute: "email",
+//   value: { pattern: "@acme\\.com$", flags: "i" } }
+```
+
+> Schema validators (zod/valibot/arktype) are **code**, not JSON, so they can't be a
+> stored query. To validate with one, register a named matcher that closes over the
+> schema in code; the condition references it by name.
 
 ## Segments & prerequisites
 

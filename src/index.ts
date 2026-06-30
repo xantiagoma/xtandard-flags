@@ -74,6 +74,17 @@ export type {
   ComparatorResult,
 } from "./comparators.ts";
 
+// Pluggable query matchers backing matches/notMatches (request-path safe)
+export {
+  clearMatchers,
+  DEFAULT_MATCHER,
+  regexMatcher,
+  registerMatcher,
+  resolveMatcher,
+  withMatchers,
+} from "./matchers.ts";
+export type { MatcherFn, MatcherRegistry } from "./matchers.ts";
+
 // Hashing
 export { hashToUnitInterval, murmur3 } from "./hash.ts";
 

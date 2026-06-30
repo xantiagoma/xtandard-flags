@@ -64,6 +64,8 @@ const conditionOperators = [
   "notExists",
   "inSegment",
   "notInSegment",
+  "matches",
+  "notMatches",
 ];
 
 const schemas = {
@@ -83,6 +85,10 @@ const schemas = {
       attribute: { type: "string" },
       operator: { type: "string", enum: conditionOperators },
       value: {},
+      matcher: {
+        type: "string",
+        description: "For matches/notMatches: name of the registered query matcher.",
+      },
     },
   },
   Serve: serveSchema,

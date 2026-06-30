@@ -45,6 +45,7 @@ export default defineConfig({
       "src/entry-authorization-none.ts",
       "src/entry-authorization-roles.ts",
       "src/entry-authorization-delegated.ts",
+      "src/entry-match-sift.ts",
       "src/entry-elysia.ts",
       "src/entry-hono.ts",
       "src/entry-bun.ts",

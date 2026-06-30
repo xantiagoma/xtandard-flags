@@ -33,6 +33,8 @@
 import type { ComparatorRegistry } from "./comparators.ts";
 import { withComparators } from "./comparators.ts";
 import { evaluateFlag } from "./evaluator.ts";
+import type { MatcherRegistry } from "./matchers.ts";
+import { withMatchers } from "./matchers.ts";
 import { activeVersionKey, snapshotsPrefix } from "./keys.ts";
 import type {
   EvaluationContext,
@@ -131,6 +133,13 @@ export interface OpenFeatureProviderOptions {
    * provider. See {@link ./comparators.ComparatorRegistry}.
    */
   comparators?: ComparatorRegistry;
+  /**
+   * Named query matchers backing the `matches`/`notMatches` operators (e.g. a
+   * sift/mingo engine). Layered over the process-wide registry from
+   * {@link ./matchers.registerMatcher} for evaluations made by this provider.
+   * See {@link ./matchers.MatcherRegistry}.
+   */
+  matchers?: MatcherRegistry;
 }
 
 /**
@@ -431,9 +440,11 @@ export function createOpenFeatureProvider(
     }
 
     // 3. Evaluate. Pass the whole snapshot so prerequisites + segments resolve.
-    // Layer any instance comparators over the global registry for this call.
+    // Layer any instance comparators + matchers over the global registries.
     const evaluation = withComparators(options.comparators, () =>
-      evaluateFlag(flag, toInternalContext(context), snapshot!.flags, snapshot!.segments),
+      withMatchers(options.matchers, () =>
+        evaluateFlag(flag, toInternalContext(context), snapshot!.flags, snapshot!.segments),
+      ),
     );
 
     // 3a. Evaluation error (or missing value) → caller default + ERROR.
