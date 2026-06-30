@@ -196,6 +196,17 @@ export interface FlagsCore {
   diffDraft(projectKey?: string, environmentKey?: string): Promise<DraftDiff>;
   /** Discard all unpublished changes: reset the draft to the last-published state. */
   discardDraft(projectKey?: string, environmentKey?: string): Promise<Draft>;
+  /**
+   * Replace the draft from an imported document (`{ flags, segments? }`, e.g. a
+   * downloaded snapshot). Validates flags + segments (and references) before
+   * writing; throws {@link DraftValidationError} on invalid input. Does not
+   * publish — the caller reviews the resulting draft diff and publishes.
+   */
+  importDraft(
+    input: { flags: Record<string, Flag>; segments?: Record<string, Segment> },
+    projectKey?: string,
+    environmentKey?: string,
+  ): Promise<Draft>;
 
   // Publish / rollback / history
   publish(input?: {
@@ -568,6 +579,29 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const flags = baseline?.flags ?? {};
       const segments = baseline?.segments ?? {};
       await source.putDraft({ projectKey: p, environmentKey: e, flags });
+      await sourceStorage.setItem(segmentsKey(p, e), segments);
+      return loadDraft(p, e);
+    },
+
+    async importDraft(input, projectKey, environmentKey) {
+      guard("import draft");
+      const p = pk(projectKey);
+      const e = ek(environmentKey);
+      await ensureEnvironment(p, e);
+
+      const flags = input.flags ?? {};
+      const segments = input.segments ?? {};
+      // Validate flags (structure + per-flag semantics) and segments before writing.
+      const draft: Draft = { projectKey: p, environmentKey: e, flags };
+      assertValidDraft(draft);
+      for (const [key, seg] of Object.entries(segments)) {
+        const r = validateSegment({ ...seg, key: seg.key ?? key });
+        if (!r.valid) throw new DraftValidationError(r.errors);
+      }
+      const refErrors = validateSegmentReferences(flags, segments);
+      if (refErrors.length > 0) throw new DraftValidationError(refErrors);
+
+      await source.putDraft(draft);
       await sourceStorage.setItem(segmentsKey(p, e), segments);
       return loadDraft(p, e);
     },

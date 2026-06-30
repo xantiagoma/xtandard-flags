@@ -136,6 +136,61 @@ describe("routes — draft", () => {
     expect(res.status).toBe(422);
     expect((await res.json()).code).toBe("VALIDATION");
   });
+
+  test("POST draft/import loads flags into the draft", async () => {
+    const { fetch } = panel();
+    const res = await fetch(req("POST", `${BASE}/draft/import`, { flags: { theme: themeFlag() } }));
+    expect(res.status).toBe(200);
+    expect(Object.keys((await res.json()).flags)).toEqual(["theme"]);
+
+    const draft = await (await fetch(req("GET", `${BASE}/draft`))).json();
+    expect(Object.keys(draft.flags)).toEqual(["theme"]);
+  });
+
+  test("POST draft/import ignores extra fields like $schema and version", async () => {
+    const { fetch } = panel();
+    const res = await fetch(
+      req("POST", `${BASE}/draft/import`, {
+        $schema: "http://localhost/api/schema.json",
+        version: "v9",
+        createdAt: "2020-01-01T00:00:00.000Z",
+        flags: { theme: themeFlag() },
+      }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test("POST draft/import with an invalid flag → 422 VALIDATION", async () => {
+    const { fetch } = panel();
+    const res = await fetch(
+      req("POST", `${BASE}/draft/import`, {
+        flags: { theme: themeFlag({ defaultVariant: "missing" }) },
+      }),
+    );
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("VALIDATION");
+  });
+});
+
+describe("routes — import JSON Schema", () => {
+  test("GET /api/schema.json returns a JSON Schema with CORS open", async () => {
+    const { fetch } = panel();
+    const res = await fetch(req("GET", "/api/schema.json"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    const schema = await res.json();
+    expect(schema.$schema).toContain("json-schema.org");
+    expect(schema.properties.flags).toBeDefined();
+    expect(schema.$defs.Flag).toBeDefined();
+  });
+
+  test("schema $defs refs are self-contained (rewritten away from #/components)", async () => {
+    const { fetch } = panel();
+    const res = await fetch(req("GET", "/api/schema.json"));
+    const text = JSON.stringify(await res.json());
+    expect(text).not.toContain("#/components/schemas/");
+    expect(text).toContain("#/$defs/");
+  });
 });
 
 describe("routes — snapshots & active", () => {

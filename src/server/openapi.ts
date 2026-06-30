@@ -807,3 +807,38 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
     },
   };
 }
+
+/**
+ * A standalone JSON Schema (2020-12) for an **import document** — `{ flags, segments? }`,
+ * plus the metadata a downloaded snapshot carries (so a snapshot validates as-is).
+ * Reuses the OpenAPI component schemas as `$defs` (refs rewritten). Served at
+ * `{basePath}/api/schema.json`; referenced via `"$schema"` in downloaded JSON so
+ * editors validate it.
+ */
+export function buildImportSchema(): Record<string, unknown> {
+  const defs = JSON.parse(
+    JSON.stringify(schemas).replace(/#\/components\/schemas\//g, () => "#/$defs/"),
+  );
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "https://xtandard-flags/schema/import.json",
+    title: "@xtandard/flags import document",
+    description: "Flags (+ optional segments) to import as a new draft, then publish.",
+    type: "object",
+    required: ["flags"],
+    properties: {
+      $schema: { type: "string" },
+      // Snapshot metadata is allowed so a downloaded snapshot validates unchanged.
+      schemaVersion: { type: "integer" },
+      version: { type: "string" },
+      projectKey: { type: "string" },
+      environmentKey: { type: "string" },
+      createdAt: { type: "string" },
+      createdBy: {},
+      flags: { type: "object", additionalProperties: { $ref: "#/$defs/Flag" } },
+      segments: { type: "object", additionalProperties: { $ref: "#/$defs/Segment" } },
+    },
+    additionalProperties: true,
+    $defs: defs,
+  };
+}

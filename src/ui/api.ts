@@ -179,8 +179,14 @@ export function listSnapshots(
 }
 
 export interface SnapshotDetail {
+  schemaVersion?: number;
   version: string;
-  flags: Flag[];
+  projectKey?: string;
+  environmentKey?: string;
+  createdAt?: string;
+  createdBy?: unknown;
+  flags: Record<string, Flag>;
+  segments?: Record<string, Segment>;
   publishedAt?: string;
   message?: string;
   by?: string;
@@ -224,6 +230,33 @@ export function draftDiff(projectKey: string, environmentKey: string): Promise<D
 /** Discard all unpublished changes, resetting the draft to the last-published state. */
 export function discardDraft(projectKey: string, environmentKey: string): Promise<unknown> {
   return req<unknown>(`${envBase(projectKey, environmentKey)}/draft/discard`, { method: "POST" });
+}
+
+/**
+ * Import a JSON document (flags + optional segments) into the draft, replacing it.
+ * Validated server-side; throws FlagsApiError on validation failure. Review the
+ * resulting draft and publish to make it a new version.
+ */
+export function importDraft(
+  projectKey: string,
+  environmentKey: string,
+  doc: { flags: Record<string, Flag>; segments?: Record<string, Segment> },
+): Promise<unknown> {
+  return req<unknown>(`${envBase(projectKey, environmentKey)}/draft/import`, {
+    method: "POST",
+    body: JSON.stringify(doc),
+  });
+}
+
+/** Absolute URL of the JSON Schema for import documents (for embedding as `$schema`). */
+export function schemaUrl(): string {
+  const path = "api/schema.json";
+  const base = apiBase ? `${apiBase}/${path}` : path;
+  try {
+    return new URL(base, document.baseURI).href;
+  } catch {
+    return base;
+  }
 }
 
 export interface EvaluationResult {

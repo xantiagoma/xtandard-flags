@@ -211,6 +211,69 @@ test("archived flag can be permanently deleted (type-to-confirm)", async ({ page
   await expect(page.locator("button").filter({ hasText: "e2e-delete-me" })).toHaveCount(0);
 });
 
+test("downloads a snapshot as JSON with an embedded $schema", async ({ page }) => {
+  await page.goto("/snapshots");
+  // Open the active version's detail dialog (v1 after the rollback above).
+  await page.getByRole("cell", { name: /v1/ }).first().click();
+  await expect(page.getByText(/Snapshot v1/)).toBeVisible();
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Download JSON" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe("snapshot-v1.json");
+
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const c of stream) chunks.push(c as Buffer);
+  const doc = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  expect(typeof doc.$schema).toBe("string");
+  expect(doc.$schema).toContain("schema.json");
+  expect(doc.flags).toBeTruthy();
+});
+
+test("imports a JSON document as a new draft, then routes to Flags for review", async ({
+  page,
+}) => {
+  await page.goto("/snapshots");
+
+  const imported = {
+    $schema: "http://localhost/api/schema.json",
+    version: "v999",
+    flags: {
+      "e2e-imported": {
+        key: "e2e-imported",
+        type: "boolean",
+        enabled: true,
+        defaultVariant: "off",
+        variants: { on: { value: true }, off: { value: false } },
+        fallthrough: { variant: "off" },
+      },
+    },
+  };
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "import.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(imported)),
+  });
+
+  // Toast confirms, and we land on the Flags view with the imported flag in the draft.
+  await expect(page.getByText(/Imported into draft/)).toBeVisible();
+  await expect(page).toHaveURL(/\/(\?.*)?$/);
+  await expect(page.getByText("e2e-imported")).toBeVisible();
+});
+
+test("rejects an invalid JSON import with an error toast", async ({ page }) => {
+  await page.goto("/snapshots");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "bad.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify({ nope: true })),
+  });
+  await expect(page.getByText(/missing a .*flags.* map/)).toBeVisible();
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

@@ -20,7 +20,7 @@ import {
   type FlagsCore,
 } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
-import { buildOpenApiDocument } from "./openapi.ts";
+import { buildImportSchema, buildOpenApiDocument } from "./openapi.ts";
 import { toOfrepBulkResponse, toOfrepEvaluation } from "./ofrep.ts";
 import type { Draft, Flag, Segment } from "../schema.ts";
 
@@ -76,6 +76,7 @@ export async function handleApiRequest(
     path === "/config" ||
     path === "/api/config" ||
     path === "/openapi.json" ||
+    path === "/schema.json" ||
     path.startsWith("/api/") ||
     path.startsWith("/ofrep/");
   if (!isApi) return null;
@@ -85,6 +86,18 @@ export async function handleApiRequest(
   // Public OpenAPI document (no auth) — for docs tooling and host-app merging.
   if (path === "/api/openapi.json" || path === "/openapi.json") {
     return json(buildOpenApiDocument({ basePath: ctx.basePath, title: ctx.title }));
+  }
+
+  // Public JSON Schema for import documents (no auth, CORS-open so editors can fetch
+  // it via a `"$schema"` URL in downloaded JSON).
+  if (path === "/api/schema.json" || path === "/schema.json") {
+    return new Response(JSON.stringify(buildImportSchema()), {
+      status: 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "access-control-allow-origin": "*",
+      },
+    });
   }
 
   // --- Authentication ---
@@ -365,6 +378,29 @@ export async function handleApiRequest(
       });
       if (denied) return denied;
       return json(await ctx.core.discardDraft(projectKey, environmentKey));
+    }
+
+    // --- Import a JSON document (flags + segments) into the draft ---
+    m = match(`${base}/draft/import`, path);
+    if (m && method === "POST") {
+      const { projectKey, environmentKey } = m.params;
+      const imported = await body<{
+        flags?: Record<string, Flag>;
+        segments?: Record<string, Segment>;
+      }>();
+      const denied = await authorize("flag:update", {
+        type: "environment",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+      });
+      if (denied) return denied;
+      return json(
+        await ctx.core.importDraft(
+          { flags: imported.flags ?? {}, segments: imported.segments },
+          projectKey,
+          environmentKey,
+        ),
+      );
     }
 
     // --- Publish ---

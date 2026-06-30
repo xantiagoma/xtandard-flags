@@ -45,6 +45,15 @@ The dashboard routes views and selection via [wouter](https://github.com/molefro
 
 Routes: `/` (+ `/flags`), `/flags/:key` (`/flags/new` = create), `/segments(/:key)`, `/snapshots(/:version)`, `/audit`. The selected **project/environment** ride in the query (`?project=&env=`) and are preserved across navigation; the flags list also persists its filter (`?tab=archived`) and search (`?q=`). The "new flag" modal is intentionally ephemeral (the editor itself is the route).
 
+## Snapshots: download / import
+
+From `/snapshots` you can move a version's configuration in and out as JSON (see [ADR 0011](ADR/0011-snapshot-import-export.md)):
+
+- **Download** — the snapshot detail dialog has a **Download JSON** button (`snapshot-vN.json`). The file embeds a `"$schema"` reference to `GET /api/schema.json`, so editors like VS Code validate and autocomplete it.
+- **Import** — the **Import JSON** button (header) loads a `{ flags, segments? }` document **into the draft** (replacing it), then routes to Flags so you can review the diff and **publish** it as a new version. Import does not create a version directly — it reuses the normal draft → diff → publish flow, so an unwanted import is one **Discard** away. Invalid input is rejected (422) before anything is written; extra fields like `$schema`/`version` are ignored, so a downloaded snapshot re-imports cleanly.
+
+`GET /api/schema.json` serves a self-contained JSON Schema (2020-12) for import documents, unauthenticated and CORS-open so editors can fetch it from a `$schema` URL. (Round-trip is functional, not byte-exact: published snapshots inline `inSegment` segments into flags, so a re-import evaluates identically but won't restore every original named segment.)
+
 ## Branding
 
 The navbar is configurable via `createFetchHandler({ title, logoUrl })` (or `TITLE` / `LOGO_URL` env vars on the standalone, or props on `<FlagsDashboard>`):

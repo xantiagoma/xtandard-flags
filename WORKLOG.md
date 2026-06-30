@@ -4,6 +4,33 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — snapshot JSON download / import + public JSON Schema
+
+Round-trip a version's JSON through the `/snapshots` view:
+
+- **Download** (snapshot detail dialog): "Download JSON" serializes the snapshot with a
+  `"$schema"` reference prepended (`snapshot-vN.json`). Editors (VS Code) that honor
+  `$schema` then validate/complete it against our schema.
+- **Import** (`/snapshots` header): "Import JSON" → hidden file input → parse → `core.importDraft`
+  (flags **+ segments**), validated server-side via `assertValidDraft`, per-segment validation,
+  and `validateSegmentReferences`. It **replaces the draft wholesale**; on success the toast
+  says "review then publish" and routes to Flags — import reuses the existing draft → diff →
+  publish path rather than minting a version directly. Extra fields (`$schema`, `version`,
+  `schemaVersion`, …) are ignored. Invalid input → 422 VALIDATION.
+- **Public JSON Schema** at `GET /api/schema.json` (no auth, `access-control-allow-origin: *`
+  so an editor can fetch it via the `$schema` URL). `buildImportSchema()` reuses the OpenAPI
+  component `schemas` as self-contained `$defs` (refs rewritten `#/components/schemas/` →
+  `#/$defs/`); the envelope is `{ flags (required), segments?, + snapshot metadata }` with
+  `additionalProperties: true` so a downloaded snapshot validates unchanged. See ADR 0011.
+- **Round-trip caveat**: published snapshots inline `inSegment` segments into flags and only
+  embed `notInSegment` segments separately, so a re-import is _functionally_ identical but
+  doesn't restore every original named segment. Acceptable — the snapshot is the compiled form.
+- **Tests**: `test/import-draft.test.ts` (core: import/replace/segments/invalid/missing-ref),
+  routes tests (import happy + extra-fields + 422; schema.json CORS + self-contained `$defs`),
+  3 e2e (download captures `$schema`, import→Flags, invalid→error toast). Verified live via
+  curl round-trip (download v2 → re-import with `$schema` → publish v3). Gate green:
+  541 unit + 16 e2e, build, publint.
+
 ## 2026-06-30 — snapshot syntax highlight + per-audit-entry diff
 
 Reuse the editors/diff viewer across the history surfaces:

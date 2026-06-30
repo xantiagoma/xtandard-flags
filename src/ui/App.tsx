@@ -482,6 +482,7 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
                 selectedVersion={params.version}
                 onOpen={(v) => go(`/snapshots/${encodeURIComponent(v)}`)}
                 onBack={() => go("/snapshots")}
+                onImported={() => go("/")}
               />
             )}
           </Route>

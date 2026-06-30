@@ -1,8 +1,15 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@base-ui-components/react/dialog";
-import { listSnapshots, getSnapshot, rollback } from "../api.ts";
-import type { SnapshotSummary } from "../types.ts";
+import {
+  listSnapshots,
+  getSnapshot,
+  rollback,
+  importDraft,
+  schemaUrl,
+  type SnapshotDetail,
+} from "../api.ts";
+import type { Flag, Segment, SnapshotSummary } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
 import { useToast } from "../components/Toast.tsx";
 import { Button } from "../components/ui-bits.tsx";
@@ -17,6 +24,26 @@ interface Props {
   selectedVersion?: string;
   onOpen: (version: string) => void;
   onBack: () => void;
+  /** Called after a successful import, so the host can route to the draft for review. */
+  onImported?: () => void;
+}
+
+/** Trigger a client-side download of `text` as a file named `filename`. */
+function downloadText(filename: string, text: string): void {
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/** Serialize a snapshot for download, with a `$schema` reference editors can validate against. */
+function snapshotDownload(detail: SnapshotDetail): string {
+  return JSON.stringify({ $schema: schemaUrl(), ...detail }, null, 2);
 }
 
 function formatDate(str: string | undefined): string {
@@ -101,6 +128,17 @@ function SnapshotDetailDialog({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3 shrink-0">
+            {query.data && !confirmRollback && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  downloadText(`snapshot-${version}.json`, snapshotDownload(query.data))
+                }
+              >
+                Download JSON
+              </Button>
+            )}
             {!isActive && !readonly && !confirmRollback && (
               <Button variant="danger" size="sm" onClick={() => setConfirmRollback(true)}>
                 Roll back to this version
@@ -144,9 +182,54 @@ export function SnapshotsView({
   selectedVersion,
   onOpen,
   onBack,
+  onImported,
 }: Props) {
   const toast = useToast();
   const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const importMutation = useMutation({
+    mutationFn: (doc: { flags: Record<string, Flag>; segments?: Record<string, Segment> }) =>
+      importDraft(projectKey, environmentKey, doc),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["flags", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["segments", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draft", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["draftDiff", projectKey, environmentKey] });
+      toast.add("success", "Imported into draft — review the changes, then publish to go live");
+      onImported?.();
+    },
+    onError: (err: unknown) => {
+      if (err instanceof FlagsApiError) toast.add("error", err.body.error);
+      else toast.add("error", "Import failed — invalid configuration");
+    },
+  });
+
+  async function handleFile(file: File): Promise<void> {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      toast.add("error", "Could not parse file — expected JSON");
+      return;
+    }
+    if (typeof parsed !== "object" || parsed === null) {
+      toast.add("error", "Invalid file — expected a JSON object with a `flags` map");
+      return;
+    }
+    const doc = parsed as { flags?: unknown; segments?: unknown };
+    if (typeof doc.flags !== "object" || doc.flags === null) {
+      toast.add("error", "Invalid file — missing a `flags` map");
+      return;
+    }
+    importMutation.mutate({
+      flags: doc.flags as Record<string, Flag>,
+      segments:
+        typeof doc.segments === "object" && doc.segments !== null
+          ? (doc.segments as Record<string, Segment>)
+          : undefined,
+    });
+  }
 
   const query = useQuery({
     queryKey: ["snapshots", projectKey, environmentKey],
@@ -176,11 +259,36 @@ export function SnapshotsView({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Snapshots</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Published versions of the flag configuration. Roll back to any previous state.
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Snapshots</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Published versions of the flag configuration. Roll back to any previous state.
+          </p>
+        </div>
+        {!readonly && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleFile(file);
+                e.target.value = "";
+              }}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={importMutation.isPending}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {importMutation.isPending ? "Importing…" : "Import JSON"}
+            </Button>
+          </>
+        )}
       </div>
 
       {query.isLoading && <p className="text-[13px] text-muted-foreground">Loading snapshots…</p>}
