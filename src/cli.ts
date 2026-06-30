@@ -242,52 +242,116 @@ async function makeCore(flags: Record<string, string | boolean>): Promise<FlagsC
   });
 }
 
-const HELP = `xtandard-flags — feature flag control plane CLI
+/** Read this package's version from the nearest package.json (dist or src). */
+async function pkgVersion(): Promise<string> {
+  try {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    const pkg = JSON.parse(
+      await readFile(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"),
+    ) as { version?: string };
+    return pkg.version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
 
-Usage: xtandard-flags <command> [options]
+function helpText(version: string): string {
+  return `xtandard-flags v${version} — self-hosted, OpenFeature-compatible feature-flag control plane
+
+Usage:
+  xtandard-flags <command> [options]
+  npx @xtandard/flags <command>          # or: bunx @xtandard/flags <command>
 
 Commands:
-  serve [--port <n>]         Run the admin panel + API server (like the Docker image,
-                             without Docker). Honors the env vars below. Works under
-                             both \`npx\` (Node) and \`bunx\` (Bun).
-  init                       Create the default project/environment and an empty draft.
-  list                       List flags in the current draft.
-  validate                   Validate the draft; exit 1 if invalid.
-  publish [--message <m>]    Compile the draft into a new snapshot and activate it.
-  rollback <version>         Re-point the active version to an existing snapshot.
-  inspect [--version <v>]    Print the active (or given) snapshot's flags.
+  serve [--port <n>]            Run the panel + JSON API + OFREP server (no Docker).
+  init                          Create the default project/environment + empty draft.
+  list                          List flags in the current draft.
+  validate                      Validate the draft (exit 1 if invalid).
+  publish [--message <m>]       Compile the draft → snapshot → activate it.
+  rollback <version>            Re-point the active version to an existing snapshot.
+  inspect [--version <v>]       Print the active (or given) snapshot as JSON.
   eval [--key <k>] [--context '<json>'] [--source draft|active]
-                             Test how flags resolve for an evaluation context.
+                                Test how flags resolve for an evaluation context.
 
-Options:
-  --project <key>            Project key (default: $PROJECT or "default").
-  --env <key>                Environment key (default: $ENVIRONMENT or "production").
-  --port <n>                 Port for \`serve\` (default: $PORT or 3000).
+Global options:
+  -h, --help                    Show this help.
+  -v, --version                 Print the version.
+  --project <key>               Project key      (default: $PROJECT or "default").
+  --env <key>                   Environment key  (default: $ENVIRONMENT or "production").
 
-Storage (env, same as the standalone app):
-  SOURCE_STORAGE_DRIVER / RUNTIME_STORAGE_DRIVER   redis | postgres | mongodb | unstorage | file | memory  (default: file)
-  REDIS_URL · DATABASE_URL/POSTGRES_URL · MONGO_URL/MONGO_DB
-  SOURCE_FILE_DIR, RUNTIME_FILE_DIR, SOURCE_PREFIX, RUNTIME_PREFIX
+\`serve\` options:
+  --port <n>                    Port to listen on (default: $PORT or 3000).
 
-Server (env, for \`serve\`):
-  PORT (3000) · BASE_PATH · TITLE · LOGO_URL · READONLY
-  AUTH_MODE (none | basic) · AUTH_USERNAME · AUTH_PASSWORD_HASH · AUTH_PASSWORD
+Environment variables
+  Storage  (one driver per plane; prefix SOURCE_ / RUNTIME_):
+    SOURCE_STORAGE_DRIVER, RUNTIME_STORAGE_DRIVER
+                                memory | file | redis | postgres | mongodb | sqlite | unstorage
+                                (CLI default: file · Docker default: memory)
+    REDIS_URL                   redis://localhost:6379                    (driver: redis)
+    SOURCE_PREFIX, RUNTIME_PREFIX   key namespace                         (driver: redis)
+    DATABASE_URL | POSTGRES_URL  postgres://…                             (driver: postgres)
+    SOURCE_PG_TABLE, RUNTIME_PG_TABLE                                     (driver: postgres)
+    MONGO_URL, MONGO_DB, SOURCE_MONGO_COLLECTION, RUNTIME_MONGO_COLLECTION (driver: mongodb)
+    SOURCE_FILE_DIR, RUNTIME_FILE_DIR   default ./.flags/{source,runtime} (driver: file)
+    SOURCE_SQLITE_PATH, RUNTIME_SQLITE_PATH                               (driver: sqlite, Bun only)
 
-Example:
+  Server  (\`serve\` / standalone):
+    PORT            3000        Port to listen on (or --port).
+    BASE_PATH       ""          URL prefix, e.g. "/flags".
+    TITLE                       Navbar wordmark.
+    LOGO_URL                    Logo image URL.
+    READONLY        1|true      Block all mutating operations.
+    STREAMING       1|true      Enable the OFREP SSE stream (GET /ofrep/v1/stream).
+    AUTH_MODE       none|basic  Authentication mode (default none).
+    AUTH_USERNAME   admin       Username for basic auth.
+    AUTH_PASSWORD_HASH          scrypt hash (preferred; see docs/AUTH.md).
+    AUTH_PASSWORD               Plaintext password (dev only).
+
+  CLI defaults:
+    PROJECT (default) · ENVIRONMENT (production)
+
+Examples:
+  # Quick local panel (file storage, no auth) with live SSE updates:
+  STREAMING=1 npx @xtandard/flags serve --port 3004
+
+  # Production-ish: Redis storage + basic auth:
   PORT=4000 AUTH_MODE=basic AUTH_USERNAME=admin AUTH_PASSWORD=secret \\
-  SOURCE_STORAGE_DRIVER=redis RUNTIME_STORAGE_DRIVER=redis REDIS_URL=redis://localhost:6379 \\
-  npx @xtandard/flags serve
+    SOURCE_STORAGE_DRIVER=redis RUNTIME_STORAGE_DRIVER=redis REDIS_URL=redis://localhost:6379 \\
+    npx @xtandard/flags serve
+
+  # Split planes: Postgres source + Redis runtime:
+  SOURCE_STORAGE_DRIVER=postgres DATABASE_URL=postgres://localhost:5432/flags \\
+    RUNTIME_STORAGE_DRIVER=redis REDIS_URL=redis://localhost:6379 \\
+    npx @xtandard/flags serve
+
+  # GitOps / CI against a draft:
+  xtandard-flags validate && xtandard-flags publish --message "ship beta"
+  xtandard-flags rollback v3
+  xtandard-flags eval --key new-checkout --context '{"targetingKey":"u1","plan":"beta"}'
+
+Apps in other languages evaluate over OFREP — point any OpenFeature OFREP provider
+at this server. Docs: https://github.com/xantiagoma/xtandard-flags
 `;
+}
 
 /** Entry point. Returns the process exit code. */
 export async function run(argv: string[]): Promise<number> {
   const { _, flags } = parseArgs(argv);
   const command = _[0];
 
-  if (!command || flags.help || command === "help") {
-    process.stdout.write(HELP);
+  // `--version` (bare) / `-v` / `version` → print version. Note `inspect --version v2`
+  // passes a value, so only the boolean form is treated as "print version".
+  if (flags.version === true || argv.includes("-v") || command === "version") {
+    process.stdout.write(`${await pkgVersion()}\n`);
+    return 0;
+  }
+
+  const wantsHelp = Boolean(flags.help) || argv.includes("-h") || command === "help";
+  if (!command || wantsHelp) {
+    process.stdout.write(helpText(await pkgVersion()));
     // Explicit help request → success; bare invocation with no command → usage error.
-    return flags.help || command === "help" ? 0 : 1;
+    return wantsHelp ? 0 : 1;
   }
 
   try {
@@ -450,7 +514,7 @@ export async function run(argv: string[]): Promise<number> {
         return 0;
       }
       default:
-        process.stderr.write(`Unknown command: ${command}\n\n${HELP}`);
+        process.stderr.write(`Unknown command: ${command}\n\n${helpText(await pkgVersion())}`);
         return 1;
     }
   } catch (err) {

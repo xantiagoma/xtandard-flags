@@ -35,6 +35,26 @@ describe("cli", () => {
     expect(await run([])).toBe(1);
   });
 
+  test("--help documents serve, STREAMING, and the global flags", async () => {
+    expect(await run(["--help"])).toBe(0);
+    const help = out.join("");
+    for (const token of ["serve", "STREAMING", "-v, --version", "AUTH_MODE", "Examples:"]) {
+      expect(help).toContain(token);
+    }
+  });
+
+  test("--version / -v print a semver and exit 0; inspect --version is unaffected", async () => {
+    expect(await run(["--version"])).toBe(0);
+    expect(out.join("")).toMatch(/\d+\.\d+\.\d+/);
+    out.length = 0;
+    expect(await run(["-v"])).toBe(0);
+    expect(out.join("")).toMatch(/\d+\.\d+\.\d+/);
+    out.length = 0;
+    // `inspect --version v2` takes a value — must NOT print the CLI version.
+    expect(await run(["inspect", "--version", "v2"])).toBe(1); // no such snapshot
+    expect(err.join("")).toContain('Snapshot "v2" not found');
+  });
+
   test("init → validate → publish → inspect round-trip", async () => {
     expect(await run(["init"])).toBe(0);
     expect(await run(["validate"])).toBe(0);
