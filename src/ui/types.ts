@@ -39,10 +39,22 @@ export interface Condition {
   matcher?: string;
 }
 
+/** Boolean group: AND (`all`), OR (`any`), or NOT (`not`) of nested nodes. */
+export type ConditionGroup =
+  | { all: ConditionNode[]; any?: never; not?: never }
+  | { any: ConditionNode[]; all?: never; not?: never }
+  | { not: ConditionNode; all?: never; any?: never };
+
+/** A leaf {@link Condition} or a boolean {@link ConditionGroup}. */
+export type ConditionNode = Condition | ConditionGroup;
+
+export const isConditionGroup = (node: ConditionNode): node is ConditionGroup =>
+  typeof node === "object" && node !== null && ("all" in node || "any" in node || "not" in node);
+
 export interface Rule {
   id: string;
   name?: string;
-  conditions: Condition[];
+  conditions: ConditionNode[];
   serve: Serve;
 }
 
@@ -56,7 +68,7 @@ export interface Segment {
   key: string;
   name?: string;
   description?: string;
-  conditions: Condition[];
+  conditions: ConditionNode[];
 }
 
 export interface Flag {

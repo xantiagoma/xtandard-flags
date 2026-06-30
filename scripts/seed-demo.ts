@@ -305,6 +305,35 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     ],
   });
 
+  // --- AND/OR/NOT condition groups: plan=pro AND (seats>25 OR role=admin) AND NOT region=test ---
+  await call("POST", `${prod}/flags`, {
+    key: "advanced-targeting",
+    type: "boolean",
+    enabled: true,
+    description: "Demo of nested AND/OR/NOT condition groups in one rule",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "off" },
+    tags: ["demo"],
+    rules: [
+      {
+        id: "grouped",
+        name: "pro AND (seats>25 OR role=admin) AND NOT region=test",
+        conditions: [
+          { attribute: "plan", operator: "equals", value: "pro" },
+          {
+            any: [
+              { attribute: "seats", operator: "greaterThan", value: 25 },
+              { attribute: "role", operator: "equals", value: "admin" },
+            ],
+          },
+          { not: { any: [{ attribute: "region", operator: "equals", value: "test" }] } },
+        ],
+        serve: { variant: "on" },
+      },
+    ],
+  });
+
   // --- Publish history (so Snapshots + the append-only Audit have content) ---
   await call("POST", `${prod}/publish`, {
     message: "Initial rollout: checkout, experiments, limits",
@@ -374,7 +403,8 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
   console.log("  Flags (default/production): new-checkout, banner-color (split), api-rate-limit,");
   console.log("    home-layout (json), kill-switch, premium-features (matches: sift+regex,");
   console.log("    overrides), force-upgrade (semver), loyalty-reward (date), beta-program");
-  console.log("    (notInSegment), legacy-promo (stale), old-banner (archived), winter-theme.");
+  console.log("    (notInSegment), advanced-targeting (AND/OR/NOT groups), legacy-promo (stale),");
+  console.log("    old-banner (archived), winter-theme.");
   console.log("  Segments: eu-beta (inSegment), internal-staff (notInSegment).");
   console.log("  Prerequisite: new-checkout → kill-switch.");
   console.log("  Snapshots: v1, v2 · Audit: publish v1, publish v2, rollback → v1.");

@@ -4,6 +4,29 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — condition group tree: recursive filter-builder UI
+
+UI half of the AND/OR/NOT condition groups (engine was the prior commit).
+
+- **`src/ui/components/ConditionTree.tsx`** (new): recursive vertical filter-builder
+  — a node list (top-level AND) where each node is a leaf `ConditionRow` or a
+  `GroupBox`. GroupBox = a bordered/indented box with a combinator `Dropdown`
+  (**All / Any / None**, where None = NOR = `not` of an `any`) + "Add condition" /
+  "Add group" per scope. `readGroup`/`buildGroup` map the UI combinator ↔ the
+  `{all|any|not}` model.
+- **`ConditionRow.tsx`**: optional `joiner` prop so rows inside a group read with the
+  group's word (And/Or/Nor) instead of If/And. **`ui/types.ts`**: `ConditionGroup`/
+  `ConditionNode` + `isConditionGroup`; `Rule`/`Segment` conditions widened.
+- **FlagDetail.tsx** + **SegmentsView.tsx**: replaced the flat
+  `conditions.map(ConditionRow)` + "Add condition" with `<ConditionTree>`.
+- **Verified live** (Playwright screenshot): nested OR group renders with the `()`
+  combinator box, indentation, per-scope add buttons; 0 console errors. `/evaluate`
+  confirms a seeded `pro AND (seats>25 OR role=admin) AND NOT region=test` rule fires
+  correctly. **Seed:** new `advanced-targeting` flag demoing all three group kinds.
+- **e2e** +1 (10 total): adding a group shows the combinator + a second add-condition
+  scope. **Docs:** OPERATORS.md "Condition groups" section + intro, README, **ADR 0009**.
+- Gate green: typecheck/lint/format, 512 unit + 10 e2e, build, publint.
+
 ## 2026-06-30 — condition group tree: AND/OR/NOT nesting (engine)
 
 Rules/segments were a flat AND. Now a `conditions` node is a **leaf Condition or a

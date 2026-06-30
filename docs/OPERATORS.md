@@ -1,8 +1,10 @@
 # Condition Operators
 
-Targeting rules and segments are an **AND** of conditions. Each condition reads a
-context **attribute** and compares it to a stored **value**. Conditions **never
-throw** — a type mismatch evaluates to `false`. Across rules, first match wins.
+Targeting rules and segments are a list of condition **nodes** — by default a flat
+**AND**, but a node can also be a nested **AND/OR/NOT group** (see
+[Condition groups](#condition-groups-andornot)). Each leaf condition reads a context
+**attribute** and compares it to a stored **value**. Conditions **never throw** — a
+type mismatch evaluates to `false`. Across rules, first match wins.
 
 | Operator                                            | Meaning                                    | Notes                                                                                       |
 | --------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------- |
@@ -16,6 +18,36 @@ throw** — a type mismatch evaluates to `false`. Across rules, first match wins
 | `greaterThan` `>=` `lessThan` `<=`                  | ordering (incl. **dates**)                 | see **comparable coercion** below; ISO-8601 / epoch / `Date` / `Temporal` all compare       |
 | `semverEquals` `semverGreaterThan` `semverLessThan` | semver compare                             | `10.0.0 > 2.0.0`; prerelease < release; invalid → `false`                                   |
 | `matches` / `notMatches`                            | JSON query via a pluggable matcher         | `value` = query document; see **Query matchers** below                                      |
+
+## Condition groups (AND/OR/NOT)
+
+A node in a rule/segment `conditions` array is either a **leaf condition** or a
+**boolean group**, nesting arbitrarily:
+
+- `{ all: [ … ] }` — every child matches (**AND**)
+- `{ any: [ … ] }` — at least one child matches (**OR**)
+- `{ not: <node> }` — the child does **not** match (negates a subtree)
+
+The top-level array is an implicit **AND**, so a flat list of leaves is unchanged.
+
+```jsonc
+// plan = pro  AND  (seats > 10 OR role = admin)  AND  NOT(region = test)
+"conditions": [
+  { "attribute": "plan",  "operator": "equals",      "value": "pro" },
+  { "any": [
+    { "attribute": "seats", "operator": "greaterThan", "value": 10 },
+    { "attribute": "role",  "operator": "equals",      "value": "admin" }
+  ]},
+  { "not": { "any": [ { "attribute": "region", "operator": "equals", "value": "test" } ] } }
+]
+```
+
+Evaluation is recursive, pure, and never throws (empty `all` matches; empty `any`
+or a malformed group fails closed). The admin UI authors this with a vertical
+filter-builder — "Add condition" / "Add group" and a per-group combinator
+(All / Any / **None** = NOR). This is the general OR/nesting tool;
+[`matches`](#query-matchers-matches--notmatches) (engine-backed) and `inSegment [A,B]`
+remain conveniences.
 
 ## Comparable coercion (`>`, `>=`, `<`, `<=`)
 

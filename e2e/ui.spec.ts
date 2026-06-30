@@ -131,6 +131,21 @@ test("matches operator shows the JSON query editor + matcher field", async ({ pa
   await expect(page.getByText(/JSON query for the .*sift.* matcher/)).toBeVisible();
 });
 
+test("condition groups: add a nested AND/OR group to a rule", async ({ page }) => {
+  await page.goto("/flags/e2e-checkout");
+  await expect(page.getByText("Basics")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add rule" }).click();
+  await page.getByRole("button", { name: "Add condition" }).first().click();
+  await page.getByRole("button", { name: "Add group" }).first().click();
+
+  // The group renders its combinator (defaults to "Any (OR)") and its own
+  // "Add condition" scope (so there are now two such buttons).
+  await expect(page.getByText("Any (OR)")).toBeVisible();
+  await expect(page.getByText("of the following")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add condition" })).toHaveCount(2);
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

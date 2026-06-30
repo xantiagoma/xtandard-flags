@@ -58,6 +58,7 @@ export function ConditionRow({
   readonly,
   isFirst,
   segmentKeys = [],
+  joiner,
 }: {
   condition: Condition;
   onChange: (c: Condition) => void;
@@ -66,6 +67,11 @@ export function ConditionRow({
   isFirst: boolean;
   /** Available segment keys, used to populate the `inSegment` picker. */
   segmentKeys?: string[];
+  /**
+   * Left-column joiner word. Defaults to `If`/`And`. Inside a group, the parent
+   * passes the group's combinator (e.g. `And`/`Or`/`Nor`) so rows read in context.
+   */
+  joiner?: string;
 }) {
   const noValue = NO_VALUE_OPS.has(condition.operator);
   const isSegment = condition.operator === "inSegment" || condition.operator === "notInSegment";
@@ -125,7 +131,7 @@ export function ConditionRow({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="w-8 shrink-0 text-xs font-medium uppercase text-muted-foreground">
-        {isFirst ? "If" : "And"}
+        {isFirst ? (joiner ? "" : "If") : (joiner ?? "And")}
       </span>
       {isSegment ? (
         <span className="w-32 shrink-0 text-xs text-muted-foreground">

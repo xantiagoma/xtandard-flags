@@ -17,7 +17,7 @@ import { createFlag, updateFlag, listSegments, listFlags } from "../api.ts";
 import { useToast } from "../components/Toast.tsx";
 import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
-import { ConditionRow } from "../components/ConditionRow.tsx";
+import { ConditionTree } from "../components/ConditionTree.tsx";
 import { renameVariantInFlag } from "../lib/variants.ts";
 import { Button, Badge } from "../components/ui-bits.tsx";
 import {
@@ -455,41 +455,12 @@ function RuleCard({
         )}
       </div>
       <div className="space-y-2 p-3">
-        <div className="space-y-2">
-          {rule.conditions.map((cond, ci) => (
-            <ConditionRow
-              key={ci}
-              condition={cond}
-              isFirst={ci === 0}
-              readonly={readonly}
-              segmentKeys={segmentKeys}
-              onChange={(updated) => {
-                const conditions = [...rule.conditions];
-                conditions[ci] = updated;
-                onChange({ ...rule, conditions });
-              }}
-              onRemove={() =>
-                onChange({ ...rule, conditions: rule.conditions.filter((_, j) => j !== ci) })
-              }
-            />
-          ))}
-        </div>
-        {!readonly && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            icon={<Plus className="size-3.5" />}
-            onClick={() =>
-              onChange({
-                ...rule,
-                conditions: [...rule.conditions, { attribute: "", operator: "equals", value: "" }],
-              })
-            }
-          >
-            Add condition
-          </Button>
-        )}
+        <ConditionTree
+          nodes={rule.conditions}
+          readonly={readonly}
+          segmentKeys={segmentKeys}
+          onChange={(conditions) => onChange({ ...rule, conditions })}
+        />
         <div className="mt-2 flex items-start gap-2 border-t border-border pt-3">
           <CornerDownRight className="mt-1 size-4 shrink-0 text-muted-foreground" />
           <div className="flex-1">

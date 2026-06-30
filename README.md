@@ -154,7 +154,8 @@ Every flag — even boolean — is variant-based. Evaluation order:
 Splits are deterministic: `same flagKey + same targetingKey + same salt → same variant`
 (MurmurHash3, never `Math.random`). Weights need not total 100.
 
-Targeting rules are an AND of **conditions** — see the full operator reference in
+Targeting rules are **conditions** combined with **AND/OR/NOT groups** (nest
+arbitrarily; a flat list is a plain AND) — see the full operator reference in
 [docs/OPERATORS.md](docs/OPERATORS.md) (equality, membership, string, numeric,
 **dates** (via the ordering operators — ISO-8601/epoch/`Date`/`Temporal`), **semver**,
 **`inSegment`/`notInSegment`**, and

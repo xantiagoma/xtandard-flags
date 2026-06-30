@@ -12,7 +12,7 @@ import { FlagsApiError } from "../types.ts";
 import { useToast } from "../components/Toast.tsx";
 import { Button } from "../components/ui-bits.tsx";
 import { TextInput, TextArea } from "../components/primitives.tsx";
-import { ConditionRow } from "../components/ConditionRow.tsx";
+import { ConditionTree } from "../components/ConditionTree.tsx";
 
 interface Props {
   projectKey: string;
@@ -195,43 +195,16 @@ function SegmentEditor({
 
         <div>
           <Label>Conditions (all must match)</Label>
-          <div className="space-y-2">
-            {form.conditions.map((cond, ci) => (
-              <ConditionRow
-                key={ci}
-                condition={cond}
-                isFirst={ci === 0}
-                readonly={readonly}
-                segmentKeys={pickableSegments}
-                onChange={(updated) => {
-                  const conditions = [...form.conditions];
-                  conditions[ci] = updated;
-                  setForm((f) => ({ ...f, conditions }));
-                }}
-                onRemove={() =>
-                  setForm((f) => ({ ...f, conditions: f.conditions.filter((_, j) => j !== ci) }))
-                }
-              />
-            ))}
-            {form.conditions.length === 0 && (
-              <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                No conditions — this segment matches everyone.
-              </p>
-            )}
-          </div>
-          {!readonly && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              icon={<Plus className="size-3.5" />}
-              className="mt-2"
-              onClick={() =>
-                setForm((f) => ({ ...f, conditions: [...f.conditions, newCondition()] }))
-              }
-            >
-              Add condition
-            </Button>
+          <ConditionTree
+            nodes={form.conditions}
+            readonly={readonly}
+            segmentKeys={pickableSegments}
+            onChange={(conditions) => setForm((f) => ({ ...f, conditions }))}
+          />
+          {form.conditions.length === 0 && (
+            <p className="mt-2 rounded-lg border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+              No conditions — this segment matches everyone.
+            </p>
           )}
         </div>
       </div>
