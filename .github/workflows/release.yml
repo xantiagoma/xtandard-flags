@@ -50,17 +50,20 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       # Turn the pushed tag into a GitHub Release (shown on /releases) with notes
-      # auto-generated from the commits since the previous tag. Idempotent-ish:
-      # skips if a release for this tag already exists.
-      - name: Create GitHub Release
+      # auto-generated from the commits since the previous tag. `bun run release`
+      # (changelogen) may have already created this as a DRAFT release with its own
+      # notes — in that case publish it (don't skip), otherwise create + publish.
+      - name: Create or publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "Release ${GITHUB_REF_NAME} already exists — skipping."
+            echo "Release ${GITHUB_REF_NAME} exists — publishing it (was likely a changelogen draft)."
+            gh release edit "${GITHUB_REF_NAME}" --draft=false --latest
           else
             gh release create "${GITHUB_REF_NAME}" \
               --title "${GITHUB_REF_NAME}" \
               --generate-notes \
-              --verify-tag
+              --verify-tag \
+              --latest
           fi
