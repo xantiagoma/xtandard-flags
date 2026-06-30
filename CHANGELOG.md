@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.4
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.3...v0.1.4)
+
+### 🚀 Enhancements
+
+- **cli:** Complete `--help` (all env vars/drivers, options, examples) + add `--version` ([08b9bc6](https://github.com/xantiagoma/xtandard-flags/commit/08b9bc6))
+
+### 📖 Documentation
+
+- Complete env/driver reference (incl. sqlite) + clarify the `xtandard-flags` binary vs `@xtandard/flags` package ([9274cba](https://github.com/xantiagoma/xtandard-flags/commit/9274cba))
+
+### ❤️ Contributors
+
+- Santiago Montoya ([@xantiagoma](https://github.com/xantiagoma))
+
+
 ## v0.1.3
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.2...v0.1.3)
