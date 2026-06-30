@@ -113,6 +113,23 @@ async function main(): Promise<void> {
     );
   }
 
+  // Register query matchers for the `matches`/`notMatches` operators. `regex` is
+  // built in; `sift` (MongoDB-style queries) is registered when the optional
+  // `sift` dependency is installed — also aliased to "default" so unqualified
+  // `matches` conditions work. If absent, those conditions just fail closed.
+  try {
+    const [{ siftMatcher }, { registerMatcher }] = await Promise.all([
+      import("../../../src/sift-matcher.ts"),
+      import("../../../src/matchers.ts"),
+    ]);
+    registerMatcher("sift", siftMatcher);
+    registerMatcher("default", siftMatcher);
+  } catch {
+    console.warn(
+      "[xtandard/flags] `sift` not installed — `matches` with the sift/default matcher will fail closed. The built-in `regex` matcher is always available.",
+    );
+  }
+
   // The bundled UI lives at <repo>/dist/ui; resolve it relative to this file so
   // it works both locally and inside the Docker image.
   const uiDir = process.env.UI_DIR ?? fileURLToPath(new URL("../../../dist/ui", import.meta.url));

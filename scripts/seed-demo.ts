@@ -58,6 +58,14 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     ],
   });
 
+  // --- A second segment, excluded via notInSegment below ---
+  await call("POST", `${prod}/segments`, {
+    key: "internal-staff",
+    name: "Internal staff",
+    description: "Employees — excluded from external rollouts",
+    conditions: [{ attribute: "email", operator: "endsWith", value: "@acme.com" }],
+  });
+
   // --- A kill-switch other flags depend on (prerequisite target) ---
   await call("POST", `${prod}/flags`, {
     key: "kill-switch",
@@ -171,6 +179,124 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
   });
   await call("POST", `${prod}/flags/old-banner/archive`);
 
+  // --- Query-matcher rules (`matches`): sift query + regex, plus overrides ---
+  await call("POST", `${prod}/flags`, {
+    key: "premium-features",
+    type: "boolean",
+    enabled: true,
+    description: "Unlock premium UI — multi-rule (first match wins) + overrides",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "off" },
+    tags: ["growth", "experiment"],
+    owner: { name: "Alan Turing", team: "Growth" },
+    rules: [
+      {
+        id: "power-users",
+        name: "Power users (sift query)",
+        conditions: [
+          {
+            attribute: "",
+            operator: "matches",
+            matcher: "sift",
+            value: { $or: [{ seats: { $gt: 50 } }, { plan: "enterprise" }] },
+          },
+        ],
+        serve: { variant: "on" },
+      },
+      {
+        id: "internal-domains",
+        name: "Company email domains (regex)",
+        conditions: [
+          {
+            attribute: "email",
+            operator: "matches",
+            matcher: "regex",
+            value: { pattern: "@(acme|bigco)\\.com$", flags: "i" },
+          },
+        ],
+        serve: { variant: "on" },
+      },
+      {
+        id: "loyal-accounts",
+        name: "Long-tenured accounts (numeric)",
+        conditions: [{ attribute: "accountAgeDays", operator: "greaterThan", value: 365 }],
+        serve: { variant: "on" },
+      },
+    ],
+    overrides: [
+      { targetingKey: "user-vip-007", variant: "on" },
+      { targetingKey: "user-banned-42", variant: "off" },
+    ],
+  });
+
+  // --- Semver gating: force-upgrade old app builds ---
+  await call("POST", `${prod}/flags`, {
+    key: "force-upgrade",
+    type: "boolean",
+    enabled: true,
+    description: "Force an upgrade prompt for app builds below 3.0.0",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "off" },
+    tags: ["mobile", "security"],
+    owner: { name: "Margaret Hamilton", team: "Mobile" },
+    rules: [
+      {
+        id: "outdated-builds",
+        name: "appVersion < 3.0.0",
+        conditions: [{ attribute: "appVersion", operator: "semverLessThan", value: "3.0.0" }],
+        serve: { variant: "on" },
+      },
+    ],
+  });
+
+  // --- Date operator: target users who signed up before a cutoff ---
+  await call("POST", `${prod}/flags`, {
+    key: "loyalty-reward",
+    type: "string",
+    enabled: true,
+    description: "Reward tier by signup date (before/after)",
+    defaultVariant: "none",
+    variants: {
+      none: { value: "none", name: "No reward" },
+      founder: { value: "founder", name: "Founder" },
+    },
+    fallthrough: { variant: "none" },
+    tags: ["growth"],
+    rules: [
+      {
+        id: "founders",
+        name: "Signed up before 2025",
+        conditions: [{ attribute: "signupAt", operator: "before", value: "2025-01-01" }],
+        serve: { variant: "founder" },
+      },
+    ],
+  });
+
+  // --- notInSegment + membership: beta open to all non-staff in select countries ---
+  await call("POST", `${prod}/flags`, {
+    key: "beta-program",
+    type: "boolean",
+    enabled: true,
+    description: "Public beta — everyone except internal staff, in select countries",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "off" },
+    tags: ["beta"],
+    rules: [
+      {
+        id: "non-staff-countries",
+        name: "Not internal staff, in FR/DE/ES/US",
+        conditions: [
+          { attribute: "", operator: "notInSegment", value: "internal-staff" },
+          { attribute: "country", operator: "in", value: ["FR", "DE", "ES", "US"] },
+        ],
+        serve: { variant: "on" },
+      },
+    ],
+  });
+
   // --- Publish history (so Snapshots + the append-only Audit have content) ---
   await call("POST", `${prod}/publish`, {
     message: "Initial rollout: checkout, experiments, limits",
@@ -204,6 +330,22 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     await call("PUT", `${prod}/draft`, draft);
   }
 
+  // --- Seed the `staging` environment so the env switcher is meaningful ---
+  // (staging rolls new-checkout fully on; production keeps it gated above).
+  const staging = envBase("default", "staging");
+  await call("POST", `${staging}/flags`, {
+    key: "new-checkout",
+    type: "boolean",
+    enabled: true,
+    description: "Redesigned checkout — fully on in staging",
+    defaultVariant: "on",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "on" },
+    tags: ["checkout", "beta"],
+    owner: { name: "Ada Lovelace", email: "ada@example.com", team: "Growth" },
+  });
+  await call("POST", `${staging}/publish`, { message: "Staging: checkout on for QA" });
+
   // --- A second project so the project switcher has somewhere to go ---
   await call("POST", `${envBase("billing", "production")}/flags`, {
     key: "usage-based-pricing",
@@ -221,11 +363,15 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
 
   console.log(`Done — ${okCount} API calls.`);
   console.log("");
-  console.log("  Flags (default/production): new-checkout, banner-color, api-rate-limit,");
-  console.log("    home-layout, kill-switch, legacy-promo (stale), old-banner (archived).");
-  console.log("  Segment: eu-beta · Prerequisite: new-checkout → kill-switch.");
+  console.log("  Flags (default/production): new-checkout, banner-color (split), api-rate-limit,");
+  console.log("    home-layout (json), kill-switch, premium-features (matches: sift+regex,");
+  console.log("    overrides), force-upgrade (semver), loyalty-reward (date), beta-program");
+  console.log("    (notInSegment), legacy-promo (stale), old-banner (archived), winter-theme.");
+  console.log("  Segments: eu-beta (inSegment), internal-staff (notInSegment).");
+  console.log("  Prerequisite: new-checkout → kill-switch.");
   console.log("  Snapshots: v1, v2 · Audit: publish v1, publish v2, rollback → v1.");
-  console.log("  Projects: default, billing · Environments: production, staging.");
+  console.log("  Projects: default, billing · Environments: production, staging (both seeded).");
+  console.log("  Test targeting: try attrs seats/plan/email/accountAgeDays/appVersion/signupAt.");
   console.log("");
   console.log(`  → open ${BASE}`);
 }

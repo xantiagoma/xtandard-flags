@@ -4,6 +4,23 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — richer demo seed + standalone registers sift/default matcher
+
+Make `bun run demo` exercise the newer features end-to-end.
+
+- **`apps/standalone/src/index.ts`**: register query matchers globally at boot —
+  guarded dynamic import of `sift` → `registerMatcher("sift"|"default", siftMatcher)`
+  (no-op + warn if `sift` absent; Dockerfile installs it, so the image has it). The
+  built-in `regex` matcher needs no registration. This makes `matches` rules actually
+  evaluate in the test-targeting panel / OFREP, not just render in the editor.
+- **`scripts/seed-demo.ts`**: added `internal-staff` segment and flags `premium-features`
+  (multi-rule, first-match-wins: sift `$or`, regex email domain, numeric `accountAgeDays`;
+  - exact `overrides`), `force-upgrade` (semver `<`), `loyalty-reward` (date `before`),
+    `beta-program` (`notInSegment` + membership). Seeded the previously-empty `staging`
+    env (new-checkout fully on) + its own publish. Updated the summary banner.
+- **Verified live** (demo on :7788): seed runs clean (26 calls); `/evaluate` confirms
+  sift/regex/override/notInSegment/semver rules all fire as expected.
+
 ## 2026-06-30 — `matches`/`notMatches` UI: CodeMirror JSON editor
 
 UI half of the query-matcher feature (core was the prior commit).
