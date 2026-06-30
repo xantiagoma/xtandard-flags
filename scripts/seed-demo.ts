@@ -334,6 +334,72 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
     ],
   });
 
+  // --- Kitchen-sink: prerequisite + overrides + nested groups (with a matches
+  // leaf inside an AND, and a regex-matches inside a NOT) + a weighted-split serve.
+  await call("POST", `${prod}/flags`, {
+    key: "enterprise-rollout",
+    type: "boolean",
+    enabled: true,
+    description:
+      "Everything at once: prereq, overrides, AND/OR/NOT groups, sift + regex matches, split serve",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "off" },
+    tags: ["enterprise", "rollout", "experiment"],
+    owner: { name: "Radia Perlman", email: "radia@example.com", team: "Platform" },
+    expectedLifetimeDays: 60,
+    prerequisites: [{ flagKey: "kill-switch", variant: "on" }],
+    overrides: [
+      { targetingKey: "user-design-partner", variant: "on" },
+      { targetingKey: "user-churned-13", variant: "off" },
+    ],
+    rules: [
+      {
+        id: "power-cohort",
+        name: "Eligible plan AND (new app OR big paid team) AND NOT a test account",
+        conditions: [
+          // top-level AND
+          { attribute: "plan", operator: "in", value: ["pro", "enterprise", "beta"] },
+          {
+            any: [
+              { attribute: "appVersion", operator: "semverGreaterThan", value: "4.0.0" },
+              {
+                all: [
+                  { attribute: "seats", operator: "greaterThanOrEqual", value: 25 },
+                  {
+                    attribute: "",
+                    operator: "matches",
+                    matcher: "sift",
+                    value: { $or: [{ region: "us" }, { region: "eu" }] },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            not: {
+              any: [
+                {
+                  attribute: "email",
+                  operator: "matches",
+                  matcher: "regex",
+                  value: { pattern: "@test\\.", flags: "i" },
+                },
+              ],
+            },
+          },
+        ],
+        // gradual rollout among the matched cohort
+        serve: {
+          split: [
+            { variant: "on", weight: 80 },
+            { variant: "off", weight: 20 },
+          ],
+        },
+      },
+    ],
+  });
+
   // --- Publish history (so Snapshots + the append-only Audit have content) ---
   await call("POST", `${prod}/publish`, {
     message: "Initial rollout: checkout, experiments, limits",
@@ -403,8 +469,8 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
   console.log("  Flags (default/production): new-checkout, banner-color (split), api-rate-limit,");
   console.log("    home-layout (json), kill-switch, premium-features (matches: sift+regex,");
   console.log("    overrides), force-upgrade (semver), loyalty-reward (date), beta-program");
-  console.log("    (notInSegment), advanced-targeting (AND/OR/NOT groups), legacy-promo (stale),");
-  console.log("    old-banner (archived), winter-theme.");
+  console.log("    (notInSegment), advanced-targeting (AND/OR/NOT groups), enterprise-rollout");
+  console.log("    (kitchen-sink), legacy-promo (stale), old-banner (archived), winter-theme.");
   console.log("  Segments: eu-beta (inSegment), internal-staff (notInSegment).");
   console.log("  Prerequisite: new-checkout → kill-switch.");
   console.log("  Snapshots: v1, v2 · Audit: publish v1, publish v2, rollback → v1.");

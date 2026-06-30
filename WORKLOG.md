@@ -4,6 +4,16 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — seed: `enterprise-rollout` kitchen-sink flag
+
+Added one flag that exercises (nearly) everything at once, for the demo + as a UI
+stress test: a **prerequisite** (kill-switch), two **overrides**, a rule with
+**nested AND/OR/NOT groups** — including a **sift `matches`** leaf inside an `all`
+group and a **regex `matches`** inside a `not` — and a **weighted-split** serve
+(80/20), plus owner/tags/expectedLifetimeDays. Verified live via `/evaluate`:
+override → on; matching contexts → SPLIT; `@test.` email → NOT fails → fallthrough;
+`free` plan → off. Seed runs clean (28 calls). Seed-only change.
+
 ## 2026-06-30 — condition group tree: recursive filter-builder UI
 
 UI half of the AND/OR/NOT condition groups (engine was the prior commit).
