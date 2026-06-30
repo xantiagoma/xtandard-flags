@@ -118,6 +118,10 @@ export interface DraftDiff {
   /** False when the draft equals the last-published state (nothing to publish). */
   changed: boolean;
   entries: DraftDiffEntry[];
+  /** Pretty-printed JSON of the last-published `{flags,segments}` (timestamps stripped). */
+  before: string;
+  /** Pretty-printed JSON of the current draft `{flags,segments}` (timestamps stripped). */
+  after: string;
 }
 
 /** Thrown by mutating operations when the core is in readonly mode. */
@@ -508,15 +512,31 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
         flags: Record<string, Flag>;
         segments: Record<string, Segment>;
       }>(publishedDraftKey(p, e))) ?? { flags: {}, segments: {} };
-      const current = { flags: draft.flags, segments };
-      // Diff the published baseline → current draft (field-level, via ohash). Build
-      // our own summary from the values — ohash's toString() renders `false` as `{}`.
+
+      // Strip server-stamped timestamps — they change on every save and are noise,
+      // not meaningful config edits. Applied to both the diff and the text blobs.
+      const stripStamps = (m: Record<string, Flag>): Record<string, Flag> => {
+        const out: Record<string, Flag> = {};
+        for (const [k, f] of Object.entries(m)) {
+          const { createdAt: _c, updatedAt: _u, ...rest } = f;
+          out[k] = rest as Flag;
+        }
+        return out;
+      };
+      const before = {
+        flags: stripStamps(baseline.flags ?? {}),
+        segments: baseline.segments ?? {},
+      };
+      const after = { flags: stripStamps(draft.flags), segments };
+
+      // Field-level diff (via ohash). Build our own summary from the values —
+      // ohash's toString() renders `false` as `{}`.
       const fmt = (v: unknown): string => {
         if (v === undefined) return "∅";
         const s = typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
         return s.length > 60 ? `${s.slice(0, 57)}…` : s;
       };
-      const entries: DraftDiffEntry[] = diff(baseline, current)
+      const entries: DraftDiffEntry[] = diff(before, after)
         .slice(0, 500)
         .map((d) => {
           const oldV = d.oldValue?.value;
@@ -529,7 +549,12 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
                 : `Changed ${d.key}: ${fmt(oldV)} → ${fmt(newV)}`;
           return { type: d.type, path: d.key, summary };
         });
-      return { changed: entries.length > 0, entries };
+      return {
+        changed: entries.length > 0,
+        entries,
+        before: JSON.stringify(before, null, 2),
+        after: JSON.stringify(after, null, 2),
+      };
     },
 
     async discardDraft(projectKey, environmentKey) {

@@ -4,6 +4,29 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — publish diff polish: timestamp filtering + git-style diff tab
+
+Building on the unpublished-changes diff:
+
+- **Filter server-stamped `createdAt`/`updatedAt`** from the diff (and the text blobs) —
+  they bumped on every save and were noise. Side effect: timestamp-only draft edits no
+  longer count as "changes" (the demo's legacy-promo backdate), so the demo starts
+  clean (Publish disabled) — correct UX.
+- **`diffDraft` now also returns `before`/`after`** (pretty JSON of `{flags,segments}`,
+  stamps stripped) for a text diff.
+- **Publish dialog gained a Summary | Diff tab toggle.** Summary = the field-level list.
+  Diff = a **git-style unified diff** via `@git-diff-view/react` (+ `@git-diff-view/file`),
+  **lazy-loaded** (`React.lazy` → separate ~1.5 MB chunk with highlight.js; off the
+  critical path, only fetched when the Diff tab opens). Unified mode, `onAllExpand` (no
+  click-to-expand), bounded `max-h-[55vh]` so it has its **own scroll** (doesn't grow the
+  modal). (Chose git-diff-view over `@pierre/diffs` — the latter drags Shiki+WASM.)
+- **Tests**: draft-diff core tests updated for the before/after + timestamp filtering.
+  Verified live (Summary + unified Diff render, bounded scroll, 0 console errors).
+  Gate green: 531 unit + 13 e2e, build, publint.
+- **Caveat / next:** the diff chunk is ~1.5 MB (highlight.js bundles ~190 langs via
+  lowlight) — lazy, but a JSON-only highlighter would slim it. Also: reuse the
+  highlighter for the snapshot view + an audit-entry diff (asked).
+
 ## 2026-06-30 — Publish ⟂ Save parity: unpublished-changes diff + Discard
 
 Mirror the per-flag Save UX at the publish level — the draft→publish model was a

@@ -212,6 +212,8 @@ export interface DraftDiffEntry {
 export interface DraftDiff {
   changed: boolean;
   entries: DraftDiffEntry[];
+  before: string;
+  after: string;
 }
 
 /** Field-level diff of the draft vs the last-published state (unpublished changes). */

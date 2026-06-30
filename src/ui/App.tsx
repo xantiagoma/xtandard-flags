@@ -51,20 +51,28 @@ const DIFF_TONE: Record<string, string> = {
   changed: "text-warning",
 };
 
+const LazyDiffViewer = React.lazy(() => import("./components/DiffViewer.tsx"));
+
 function PublishDialog({
   open,
   onClose,
   onPublish,
   loading,
-  entries,
+  diff,
 }: {
   open: boolean;
   onClose: () => void;
   onPublish: (msg?: string) => void;
   loading: boolean;
-  entries: import("./api.ts").DraftDiffEntry[];
+  diff?: import("./api.ts").DraftDiff;
 }) {
   const [message, setMessage] = useState("");
+  const [tab, setTab] = useState<"summary" | "split">("summary");
+  const entries = diff?.entries ?? [];
+  const theme =
+    typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
+      ? "dark"
+      : "light";
 
   return (
     <Dialog.Root
@@ -75,29 +83,60 @@ function PublishDialog({
     >
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
+        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border border-border bg-card shadow-2xl outline-none">
           <div className="border-b border-border px-5 py-4">
             <Dialog.Title className="text-[15px] font-semibold text-foreground">
               Publish flags
             </Dialog.Title>
           </div>
-          <div className="flex flex-col gap-4 px-5 py-5">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-5">
             <p className="text-[13px] text-muted-foreground">
               Publishing creates a new versioned snapshot of all flags and activates it. This will
               affect live evaluations immediately.
             </p>
             {entries.length > 0 && (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">
-                  {entries.length} change{entries.length !== 1 ? "s" : ""} since last publish
-                </span>
-                <ul className="max-h-48 overflow-y-auto rounded-md border border-border bg-background/40 p-2 font-mono text-[11px] leading-relaxed">
-                  {entries.map((e, i) => (
-                    <li key={i} className={DIFF_TONE[e.type] ?? "text-foreground"}>
-                      {e.summary}
-                    </li>
-                  ))}
-                </ul>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {entries.length} change{entries.length !== 1 ? "s" : ""} since last publish
+                  </span>
+                  <div className="ml-auto flex rounded-md border border-border p-0.5 text-xs">
+                    {(["summary", "split"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTab(t)}
+                        className={cn(
+                          "rounded px-2 py-0.5 font-medium capitalize transition-colors",
+                          tab === t
+                            ? "bg-secondary text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {t === "split" ? "Diff" : "Summary"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {tab === "summary" ? (
+                  <ul className="max-h-64 overflow-y-auto rounded-md border border-border bg-background/40 p-2 font-mono text-[11px] leading-relaxed">
+                    {entries.map((e, i) => (
+                      <li key={i} className={DIFF_TONE[e.type] ?? "text-foreground"}>
+                        {e.summary}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <React.Suspense
+                    fallback={
+                      <div className="rounded-md border border-border p-4 text-center text-xs text-muted-foreground">
+                        Loading diff…
+                      </div>
+                    }
+                  >
+                    <LazyDiffViewer before={diff!.before} after={diff!.after} theme={theme} />
+                  </React.Suspense>
+                )}
               </div>
             )}
             <div className="flex flex-col gap-1.5">
@@ -480,7 +519,7 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
         onClose={() => setPublishOpen(false)}
         onPublish={(msg) => publishMutation.mutate(msg)}
         loading={publishMutation.isPending}
-        entries={diff?.entries ?? []}
+        diff={diff}
       />
 
       {/* ── Discard-changes confirmation ─────────────────────────────────── */}
