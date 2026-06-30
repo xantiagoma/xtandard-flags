@@ -97,6 +97,20 @@ test("creates a project from the creatable combobox", async ({ page }) => {
   await expect(page.getByLabel("Project")).toHaveText(/mobile/);
 });
 
+test("routes views and flags in the URL (deep-linkable)", async ({ page }) => {
+  await page.goto("/");
+  // Tab navigation reflects in the path.
+  await page.getByRole("button", { name: "Segments" }).click();
+  await expect(page).toHaveURL(/\/segments$/);
+  await page.getByRole("button", { name: "Flags" }).click();
+  await expect(page).toHaveURL(/\/(\?.*)?$/);
+
+  // Deep-link straight to a flag detail (served by the SPA catch-all on refresh).
+  await page.goto("/flags/e2e-checkout");
+  await expect(page.getByText("Basics")).toBeVisible();
+  await expect(page.getByText("e2e-checkout").first()).toBeVisible();
+});
+
 test("theme switcher persists across reloads", async ({ page }) => {
   await page.goto("/");
   const htmlTheme = () => page.evaluate(() => document.documentElement.dataset.theme);

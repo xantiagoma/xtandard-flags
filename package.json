@@ -313,7 +313,8 @@
     "typecheck:examples": "tsc -p examples/tsconfig.json"
   },
   "dependencies": {
-    "valibot": "^1.0.0"
+    "valibot": "^1.0.0",
+    "wouter": "^3.10.0"
   },
   "devDependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",

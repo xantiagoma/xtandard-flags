@@ -15,6 +15,12 @@ interface Props {
   projectKey: string;
   environmentKey: string;
   readonly: boolean;
+  /** Routed selection: a flag key, `"new"` for the create flow, or undefined for the list. */
+  selectedKey?: string;
+  /** Navigate to a flag detail (key, or `"new"`). */
+  onOpen: (key: string) => void;
+  /** Navigate back to the list. */
+  onBack: () => void;
 }
 
 const TYPE_BADGE: Record<FlagKind, string> = {
@@ -72,11 +78,19 @@ function defaultFallthrough(type: FlagKind) {
   return type === "boolean" ? { variant: "off" } : { variant: "control" };
 }
 
-export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
+export function FlagsView({
+  projectKey,
+  environmentKey,
+  readonly,
+  selectedKey,
+  onOpen,
+  onBack,
+}: Props) {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedFlagKey, setSelectedFlagKey] = useState<string | "new" | null>(null);
+  // The create flow's seed (key + type) isn't in the URL; it's set by the modal
+  // right before navigating to /flags/new.
   const [createSeed, setCreateSeed] = useState<{ key: string; type: FlagKind } | null>(null);
 
   const toast = useToast();
@@ -142,15 +156,15 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
       })
     : visible;
 
-  // Handle create: seed from modal → open FlagDetail in create mode
+  // Handle create: seed from modal → navigate to /flags/new (create mode).
   const handleCreateSeed = (key: string, type: FlagKind) => {
     setCreateSeed({ key, type });
-    setSelectedFlagKey("new");
+    onOpen("new");
   };
 
-  // Build seed flag for create mode
+  const isCreate = selectedKey === "new";
   const seedFlag: FlagType | null =
-    selectedFlagKey === "new" && createSeed
+    isCreate && createSeed
       ? {
           key: createSeed.key,
           type: createSeed.type,
@@ -162,29 +176,30 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
           overrides: [],
         }
       : null;
+  const existingFlag =
+    selectedKey && !isCreate ? (flags.find((f) => f.key === selectedKey) ?? null) : null;
 
-  const selectedFlag =
-    selectedFlagKey !== null && selectedFlagKey !== "new"
-      ? (flags.find((f) => f.key === selectedFlagKey) ?? null)
-      : selectedFlagKey === "new"
-        ? seedFlag
-        : null;
+  const handleBack = () => {
+    setCreateSeed(null);
+    onBack();
+  };
 
-  // Show full-page detail when a flag is selected or creating
-  if (selectedFlagKey !== null) {
+  // Full-page detail when creating or viewing an existing flag.
+  if (isCreate || existingFlag) {
     return (
       <FlagDetail
-        flag={selectedFlag}
-        isCreate={selectedFlagKey === "new"}
-        onBack={() => {
-          setSelectedFlagKey(null);
-          setCreateSeed(null);
-        }}
+        flag={isCreate ? seedFlag : existingFlag}
+        isCreate={isCreate}
+        onBack={handleBack}
         projectKey={projectKey}
         environmentKey={environmentKey}
         readonly={readonly}
       />
     );
+  }
+  // Deep-linked to a specific flag that's still loading: wait before falling back.
+  if (selectedKey && !isCreate && query.isLoading) {
+    return <p className="mt-10 text-center text-[13px] text-muted-foreground">Loading flag…</p>;
   }
 
   return (
@@ -298,7 +313,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
                     {/* Status dot */}
                     <button
                       className="flex flex-1 items-center gap-3 text-left min-w-0 cursor-pointer"
-                      onClick={() => setSelectedFlagKey(flag.key)}
+                      onClick={() => onOpen(flag.key)}
                     >
                       <span
                         className={cn(
@@ -388,7 +403,7 @@ export function FlagsView({ projectKey, environmentKey, readonly }: Props) {
 
                     {/* Chevron */}
                     <button
-                      onClick={() => setSelectedFlagKey(flag.key)}
+                      onClick={() => onOpen(flag.key)}
                       className="shrink-0"
                       aria-label={`Open ${flag.key}`}
                     >

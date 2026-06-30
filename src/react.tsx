@@ -19,6 +19,10 @@
  */
 
 import React from "react";
+import type { BaseLocationHook } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
+import { useBrowserLocation } from "wouter/use-browser-location";
+import { memoryLocation } from "wouter/memory-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./ui/App.tsx";
 import { ToastProvider } from "./ui/components/Toast.tsx";
@@ -39,6 +43,18 @@ export interface FlagsDashboardProps {
   theme?: "auto" | "inherit";
   /** Extra className on the dashboard root wrapper. */
   className?: string;
+  /**
+   * How the dashboard routes between views/flags.
+   * - `"hash"` (default) — routes in `location.hash`; never touches the host app's
+   *   router or pathname. Safest when mounted inside another app.
+   * - `"browser"` — real history paths (clean URLs). Requires the host to serve the
+   *   panel's `index.html` as a catch-all under `routerBase`, else refresh 404s.
+   * - `"memory"` — in-memory only; no URL coupling at all.
+   * - a custom wouter location hook for full control.
+   */
+  routing?: "hash" | "browser" | "memory" | BaseLocationHook;
+  /** Base path the panel is mounted at, used by `routing: "browser"` (e.g. `"/admin/flags"`). */
+  routerBase?: string;
 }
 
 let fallbackClient: QueryClient | undefined;
@@ -55,6 +71,8 @@ export function FlagsDashboard({
   queryClient,
   theme = "auto",
   className,
+  routing = "hash",
+  routerBase = "",
 }: FlagsDashboardProps): React.ReactElement {
   // Set the API base synchronously so child queries (run on mount) use it.
   setApiBase(apiBaseUrl);
@@ -65,11 +83,21 @@ export function FlagsDashboard({
 
   const client = queryClient ?? getClient();
 
+  // Resolve the routing strategy to a wouter location hook (+ base). The memory
+  // hook is created once so its in-memory history survives re-renders.
+  const memoryHook = React.useMemo(() => memoryLocation().hook, []);
+  const { hook, base } = React.useMemo(() => {
+    if (typeof routing === "function") return { hook: routing, base: routerBase };
+    if (routing === "browser") return { hook: useBrowserLocation, base: routerBase };
+    if (routing === "memory") return { hook: memoryHook, base: "" };
+    return { hook: useHashLocation, base: "" };
+  }, [routing, routerBase, memoryHook]);
+
   return (
     <QueryClientProvider client={client}>
       <ToastProvider>
         <div className={className ? `xtandard-flags ${className}` : "xtandard-flags"}>
-          <App />
+          <App locationHook={hook} base={base} />
         </div>
       </ToastProvider>
     </QueryClientProvider>

@@ -18,6 +18,10 @@ interface Props {
   projectKey: string;
   environmentKey: string;
   readonly: boolean;
+  /** Routed selection: a segment key, `"new"`, or undefined for the list. */
+  selectedKey?: string;
+  onOpen: (key: string) => void;
+  onBack: () => void;
 }
 
 const newCondition = (): Condition => ({ attribute: "", operator: "equals", value: "" });
@@ -235,9 +239,14 @@ function SegmentEditor({
   );
 }
 
-export function SegmentsView({ projectKey, environmentKey, readonly }: Props) {
-  const [selected, setSelected] = useState<string | "new" | null>(null);
-
+export function SegmentsView({
+  projectKey,
+  environmentKey,
+  readonly,
+  selectedKey,
+  onOpen,
+  onBack,
+}: Props) {
   const query = useQuery({
     queryKey: ["segments", projectKey, environmentKey],
     queryFn: () => listSegments(projectKey, environmentKey),
@@ -247,22 +256,25 @@ export function SegmentsView({ projectKey, environmentKey, readonly }: Props) {
   const segments = query.data ?? [];
   const segmentKeys = segments.map((s) => s.key);
 
-  if (selected !== null) {
-    const segment =
-      selected === "new"
-        ? emptySegment()
-        : (segments.find((s) => s.key === selected) ?? emptySegment());
+  const isCreate = selectedKey === "new";
+  const existing =
+    selectedKey && !isCreate ? (segments.find((s) => s.key === selectedKey) ?? null) : null;
+
+  if (isCreate || existing) {
     return (
       <SegmentEditor
-        segment={segment}
-        isCreate={selected === "new"}
+        segment={existing ?? emptySegment()}
+        isCreate={isCreate}
         segmentKeys={segmentKeys}
         projectKey={projectKey}
         environmentKey={environmentKey}
         readonly={readonly}
-        onBack={() => setSelected(null)}
+        onBack={onBack}
       />
     );
+  }
+  if (selectedKey && !isCreate && query.isLoading) {
+    return <p className="mt-10 text-center text-[13px] text-muted-foreground">Loading segment…</p>;
   }
 
   return (
@@ -278,7 +290,7 @@ export function SegmentsView({ projectKey, environmentKey, readonly }: Props) {
           <Button
             variant="primary"
             icon={<Plus className="size-4" />}
-            onClick={() => setSelected("new")}
+            onClick={() => onOpen("new")}
           >
             New segment
           </Button>
@@ -302,7 +314,7 @@ export function SegmentsView({ projectKey, environmentKey, readonly }: Props) {
             <Button
               variant="primary"
               icon={<Plus className="size-4" />}
-              onClick={() => setSelected("new")}
+              onClick={() => onOpen("new")}
             >
               Create your first segment
             </Button>
@@ -315,7 +327,7 @@ export function SegmentsView({ projectKey, environmentKey, readonly }: Props) {
               <li key={segment.key}>
                 <button
                   className="group flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-secondary/30 transition-colors"
-                  onClick={() => setSelected(segment.key)}
+                  onClick={() => onOpen(segment.key)}
                 >
                   <Users className="size-4 shrink-0 text-muted-foreground/60" />
                   <div className="min-w-0 flex-1">

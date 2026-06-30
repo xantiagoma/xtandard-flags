@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { Router, Switch, Route, useLocation, useSearchParams, type BaseLocationHook } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Flag, CloudUpload, Lock } from "lucide-react";
 import type { FlagsConfig } from "./types.ts";
@@ -22,7 +24,13 @@ import { cn } from "./lib/utils.ts";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { TextInput, CreatableCombobox } from "./components/primitives.tsx";
 
-type View = "flags" | "segments" | "snapshots" | "audit";
+// Nav tabs map to route paths. "flags" is the index ("/").
+const NAV_TABS: { path: string; label: string; match: (loc: string) => boolean }[] = [
+  { path: "/", label: "Flags", match: (l) => l === "/" || l.startsWith("/flags") },
+  { path: "/segments", label: "Segments", match: (l) => l.startsWith("/segments") },
+  { path: "/snapshots", label: "Snapshots", match: (l) => l.startsWith("/snapshots") },
+  { path: "/audit", label: "Audit", match: (l) => l.startsWith("/audit") },
+];
 
 declare global {
   interface Window {
@@ -33,13 +41,6 @@ declare global {
 function getBootstrap(): Partial<FlagsConfig> {
   return window.__FLAGS_CONFIG__ ?? {};
 }
-
-const NAV_TABS: { id: View; label: string }[] = [
-  { id: "flags", label: "Flags" },
-  { id: "segments", label: "Segments" },
-  { id: "snapshots", label: "Snapshots" },
-  { id: "audit", label: "Audit" },
-];
 
 function PublishDialog({
   open,
@@ -109,17 +110,62 @@ function PublishDialog({
   );
 }
 
-export function App() {
+/**
+ * The dashboard, wrapped in a wouter {@link Router}. `locationHook` + `base` make
+ * routing pluggable: the bundled SPA uses browser history (clean paths, served by
+ * the handler's SPA catch-all), while the embeddable defaults to hash routing so
+ * it never touches the host app's router. Pass a custom hook (e.g. memory) to override.
+ */
+export function App({
+  locationHook,
+  base = "",
+}: {
+  locationHook?: BaseLocationHook;
+  base?: string;
+}): React.ReactElement {
+  return (
+    <Router hook={locationHook ?? useHashLocation} base={base}>
+      <AppShell />
+    </Router>
+  );
+}
+
+function AppShell() {
   const bootstrap = getBootstrap();
   const toast = useToast();
   const qc = useQueryClient();
 
-  const [view, setView] = useState<View>("flags");
+  const [location, navigate] = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [publishOpen, setPublishOpen] = useState(false);
-  const [projectKey, setProjectKey] = useState(bootstrap.defaultProjectKey ?? "default");
-  const [environmentKey, setEnvironmentKey] = useState(
-    bootstrap.defaultEnvironmentKey ?? "production",
-  );
+
+  // Project/environment live in the URL query so a shared link restores context.
+  const projectKey = searchParams.get("project") || (bootstrap.defaultProjectKey ?? "default");
+  const environmentKey =
+    searchParams.get("env") || (bootstrap.defaultEnvironmentKey ?? "production");
+
+  // Navigate to a path while preserving the project/env query.
+  const search = searchParams.toString();
+  const go = (path: string) => navigate(search ? `${path}?${search}` : path);
+
+  const setProjectKey = (key: string) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("project", key);
+        return next;
+      },
+      { replace: false },
+    );
+  const setEnvironmentKey = (key: string) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("env", key);
+        return next;
+      },
+      { replace: false },
+    );
 
   const configQuery = useQuery({
     queryKey: ["config"],
@@ -261,13 +307,13 @@ export function App() {
           className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-2 sm:px-4"
           aria-label="Main navigation"
         >
-          {NAV_TABS.map(({ id, label }) => (
+          {NAV_TABS.map(({ path, label, match }) => (
             <button
-              key={id}
-              onClick={() => setView(id)}
+              key={path}
+              onClick={() => go(path)}
               className={cn(
                 "whitespace-nowrap px-3 py-2.5 text-[13px] font-medium transition-colors",
-                view === id
+                match(location)
                   ? "relative text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
                   : "text-muted-foreground hover:text-foreground",
               )}
@@ -278,26 +324,54 @@ export function App() {
         </nav>
       </header>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
+      {/* ── Main content (routed) ────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden">
-        {view === "flags" && (
-          <FlagsView projectKey={projectKey} environmentKey={environmentKey} readonly={readonly} />
-        )}
-        {view === "segments" && (
-          <SegmentsView
-            projectKey={projectKey}
-            environmentKey={environmentKey}
-            readonly={readonly}
-          />
-        )}
-        {view === "snapshots" && (
-          <SnapshotsView
-            projectKey={projectKey}
-            environmentKey={environmentKey}
-            readonly={readonly}
-          />
-        )}
-        {view === "audit" && <AuditView projectKey={projectKey} environmentKey={environmentKey} />}
+        <Switch>
+          <Route path="/segments/:segmentKey?">
+            {(params) => (
+              <SegmentsView
+                projectKey={projectKey}
+                environmentKey={environmentKey}
+                readonly={readonly}
+                selectedKey={params.segmentKey}
+                onOpen={(key) => go(`/segments/${encodeURIComponent(key)}`)}
+                onBack={() => go("/segments")}
+              />
+            )}
+          </Route>
+          <Route path="/snapshots">
+            <SnapshotsView
+              projectKey={projectKey}
+              environmentKey={environmentKey}
+              readonly={readonly}
+            />
+          </Route>
+          <Route path="/audit">
+            <AuditView projectKey={projectKey} environmentKey={environmentKey} />
+          </Route>
+          <Route path="/flags/:flagKey?">
+            {(params) => (
+              <FlagsView
+                projectKey={projectKey}
+                environmentKey={environmentKey}
+                readonly={readonly}
+                selectedKey={params.flagKey}
+                onOpen={(key) => go(`/flags/${encodeURIComponent(key)}`)}
+                onBack={() => go("/")}
+              />
+            )}
+          </Route>
+          <Route>
+            <FlagsView
+              projectKey={projectKey}
+              environmentKey={environmentKey}
+              readonly={readonly}
+              selectedKey={undefined}
+              onOpen={(key) => go(`/flags/${encodeURIComponent(key)}`)}
+              onBack={() => go("/")}
+            />
+          </Route>
+        </Switch>
       </main>
 
       {/* ── Publish dialog ───────────────────────────────────────────────── */}
