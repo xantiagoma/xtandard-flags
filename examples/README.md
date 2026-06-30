@@ -80,6 +80,8 @@ you can run several at once without collisions):
 bun run examples:elysia            # or: hono | express | flags-sdk
 bun run examples:storage-drivers   # script example (no server)
 bun run examples:openfeature-redis # needs Redis + published flags
+bun run examples:ofrep             # self-contained OFREP wire-protocol demo
+bun run examples:ofrep-clients     # boots a server + runs Python/Go/TS OFREP clients
 ```
 
 Each prints the URL it chose, e.g. `▶ elysia → http://localhost:3001/flags`.

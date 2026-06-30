@@ -36,6 +36,16 @@ This folder is specifically the **remote, any-language** path.
 
 ## Run it
 
+**Quickest — one command** (from the repo root). Boots a throwaway seeded server,
+runs every client whose toolchain is installed (Python via uv, Go, plain TS), and
+tears the server down:
+
+```bash
+bun run examples:ofrep-clients
+```
+
+Or run a single language manually:
+
 **1. Start a server and seed it.** Any of these works — pick one:
 
 ```bash
