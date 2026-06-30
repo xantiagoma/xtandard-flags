@@ -10,6 +10,7 @@
  * It writes published snapshots to the SAME runtime dir the OpenFeature provider
  * in `flags.ts` reads (`FLAGS_DATA_DIR`), so a Publish here changes the home page.
  */
+import { realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { createFetchHandler } from "@xtandard/flags";
@@ -24,7 +25,14 @@ const RUNTIME_DIR = process.env.FLAGS_DATA_DIR ?? "./.flags-data/runtime";
 // derives that from `import.meta.url`, but Next's bundler can't statically
 // resolve the `new URL("./ui", …)` inside the package, so we point it at the
 // package's shipped `dist/ui` explicitly (resolved from its package.json).
-const pkgJson = createRequire(import.meta.url).resolve("@xtandard/flags/package.json");
+//
+// `realpathSync` is important when developing against a `file:`-linked checkout:
+// the resolved package.json is a symlink into a node_modules copy whose `dist/ui`
+// asset links can go stale after a rebuild. Following the symlink to the real
+// package root points `dist/ui` at the freshly built bundle.
+const pkgJson = realpathSync(
+  createRequire(import.meta.url).resolve("@xtandard/flags/package.json"),
+);
 const uiDir = join(dirname(pkgJson), "dist", "ui");
 
 const { fetch: handler } = createFetchHandler({

@@ -6,6 +6,7 @@
  * @module
  */
 
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { AuthProvider } from "../auth/contract.ts";
 import type { AuthorizationProvider } from "../authorization/contract.ts";
@@ -62,9 +63,23 @@ export interface CreateFetchHandlerResult {
 const defaultAuth: AuthProvider = { authenticate: async () => ({ id: "anonymous" }) };
 const defaultAuthorization: AuthorizationProvider = { authorize: async () => true };
 
+/**
+ * Locate the built admin SPA (`dist/ui`). When this module runs compiled (the
+ * normal npm-consumer case) it lives in `dist/` and the bundle is the sibling
+ * `./ui`. When it runs from TypeScript source (examples / dev against a
+ * `file:`-linked checkout, where the runtime executes `src/server/*.ts`
+ * directly), the bundle is instead at `<repo>/dist/ui` — i.e. `../../dist/ui`
+ * relative to `src/server/`. Try the candidates and return the first that
+ * exists, falling back to the compiled-layout path so the "build the UI" hint
+ * still fires when nothing is built yet.
+ */
 function defaultUiDir(): string {
   try {
-    return fileURLToPath(new URL("./ui", import.meta.url));
+    const candidates = [
+      new URL("./ui", import.meta.url), // compiled: dist/<chunk>.mjs → dist/ui
+      new URL("../../dist/ui", import.meta.url), // source: src/server/*.ts → <repo>/dist/ui
+    ].map((u) => fileURLToPath(u));
+    return candidates.find((p) => existsSync(p)) ?? candidates[0]!;
   } catch {
     return "./ui";
   }
