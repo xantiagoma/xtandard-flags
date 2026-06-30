@@ -62,6 +62,21 @@ describe("SnapshotStore", () => {
     expect(audit[0]).toMatchObject({ action: "rollback", version: "v1", fromVersion: "v2" });
   });
 
+  test("audit is append-only: rollback to v1 keeps v1's original publish entry", async () => {
+    const store = new SnapshotStore(createMemoryStorage());
+    const d = draft([themeFlag()]);
+    await store.publish(d); // v1 publish
+    await store.publish(d); // v2 publish
+    await store.rollback("default", "production", "v1"); // rollback → v1
+    const audit = await store.listAudit("default", "production");
+    // Three immutable events, newest first — the v1 publish is NOT overwritten.
+    expect(audit.map((e) => `${e.action}:${e.version}`)).toEqual([
+      "rollback:v1",
+      "publish:v2",
+      "publish:v1",
+    ]);
+  });
+
   test("rollback to a missing version throws", async () => {
     const store = new SnapshotStore(createMemoryStorage());
     await store.publish(draft([themeFlag()]));

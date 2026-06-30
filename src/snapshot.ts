@@ -11,8 +11,7 @@
 
 import {
   activeVersionKey,
-  auditKey,
-  auditPrefix,
+  auditLogKey,
   draftKey,
   lastSegment,
   snapshotKey,
@@ -218,18 +217,22 @@ export class SnapshotStore {
     return target;
   }
 
-  /** Append an audit entry. */
+  /**
+   * Append an audit entry to the immutable, append-only log. Every event is kept
+   * (never keyed by version), so a rollback to an earlier version does not
+   * overwrite that version's original publish record.
+   */
   async appendAudit(projectKey: string, environmentKey: string, entry: AuditEntry): Promise<void> {
-    await this.storage.setItem(auditKey(projectKey, environmentKey, entry.version), entry);
+    const key = auditLogKey(projectKey, environmentKey);
+    const log = (await this.storage.getItem<AuditEntry[]>(key)) ?? [];
+    log.push(entry);
+    await this.storage.setItem(key, log);
   }
 
   /** List audit entries, newest first. */
   async listAudit(projectKey: string, environmentKey: string): Promise<AuditEntry[]> {
-    const keys = await this.storage.getKeys(auditPrefix(projectKey, environmentKey) + "/");
-    const entries = await Promise.all(keys.map((k) => this.storage.getItem<AuditEntry>(k)));
-    return entries
-      .filter((e): e is AuditEntry => e !== null)
-      .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+    const log = await this.storage.getItem<AuditEntry[]>(auditLogKey(projectKey, environmentKey));
+    return log ? [...log].reverse() : [];
   }
 
   /** Read the working draft, or `null`. */

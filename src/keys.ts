@@ -61,9 +61,13 @@ export const segmentsKey = (projectKey: string, environmentKey: string) =>
 export const auditPrefix = (projectKey: string, environmentKey: string) =>
   `${env(projectKey, environmentKey)}/audit`;
 
-/** A single audit entry, keyed by the version it concerns. */
-export const auditKey = (projectKey: string, environmentKey: string, version: string) =>
-  `${auditPrefix(projectKey, environmentKey)}/${version}`;
+/**
+ * Append-only audit log for an environment, stored as an ordered `AuditEntry[]`.
+ * One immutable entry per event (publish/rollback) — never keyed by version, so
+ * a rollback to an earlier version cannot overwrite that version's publish record.
+ */
+export const auditLogKey = (projectKey: string, environmentKey: string) =>
+  `${env(projectKey, environmentKey)}/audit-log`;
 
 /** Extract the trailing segment (snapshot version / audit version) from a key. */
 export const lastSegment = (key: string): string => {
