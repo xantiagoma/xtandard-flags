@@ -102,17 +102,63 @@ export interface Condition {
 }
 
 /**
- * A named, reusable audience — a set of conditions (logical AND) referenced by
- * targeting rules via the `inSegment` operator. Segments are an **authoring**
- * convenience: they are resolved (inlined) into rules at compile time and never
- * appear in the runtime snapshot, so the evaluator stays segment-agnostic.
+ * A **boolean group** of condition nodes — the building block for AND/OR/NOT
+ * nesting inside a rule (or segment). Exactly one key is set:
+ *
+ * - `all` — every child must match (AND)
+ * - `any` — at least one child must match (OR)
+ * - `not` — the child must **not** match (negates a whole subtree)
+ *
+ * Groups nest arbitrarily; a child is itself a {@link ConditionNode}.
+ */
+export type ConditionGroup =
+  | { all: ConditionNode[]; any?: never; not?: never }
+  | { any: ConditionNode[]; all?: never; not?: never }
+  | { not: ConditionNode; all?: never; any?: never };
+
+/**
+ * A node in a rule/segment's `conditions`: either a leaf {@link Condition} or a
+ * boolean {@link ConditionGroup}. The top-level `conditions` array is an implicit
+ * **AND** of its nodes (so a flat list of leaves behaves exactly as before).
+ */
+export type ConditionNode = Condition | ConditionGroup;
+
+/** Whether a {@link ConditionNode} is a boolean group (vs a leaf condition). */
+export function isConditionGroup(node: ConditionNode): node is ConditionGroup {
+  return (
+    typeof node === "object" && node !== null && ("all" in node || "any" in node || "not" in node)
+  );
+}
+
+/** Depth-first walk of every **leaf** {@link Condition} under a list of nodes. */
+export function leafConditions(nodes: ConditionNode[]): Condition[] {
+  const out: Condition[] = [];
+  const visit = (node: ConditionNode): void => {
+    if (!isConditionGroup(node)) {
+      out.push(node);
+      return;
+    }
+    if (node.all) node.all.forEach(visit);
+    else if (node.any) node.any.forEach(visit);
+    else if (node.not) visit(node.not);
+  };
+  nodes.forEach(visit);
+  return out;
+}
+
+/**
+ * A named, reusable audience — a tree of conditions (top-level AND, with nested
+ * AND/OR/NOT groups) referenced by targeting rules via the `inSegment` operator.
+ * Segments are an **authoring** convenience: a single-key `inSegment` is resolved
+ * (inlined) into rules at compile time; array `inSegment` and `notInSegment` are
+ * embedded in the snapshot and evaluated at runtime.
  */
 export interface Segment {
   key: string;
   name?: string;
   description?: string;
-  /** All conditions must pass (logical AND). May reference other segments via `inSegment`. */
-  conditions: Condition[];
+  /** Top-level AND of {@link ConditionNode}s. May reference other segments via `inSegment`. */
+  conditions: ConditionNode[];
 }
 
 /** One leg of a weighted split. Weights need not sum to 100. */
@@ -133,8 +179,8 @@ export interface Rule {
   /** Stable identifier (used in audit/debugging). */
   id: string;
   name?: string;
-  /** All conditions must pass (logical AND) for the rule to match. */
-  conditions: Condition[];
+  /** Top-level AND of {@link ConditionNode}s (leaf conditions and/or AND/OR/NOT groups). */
+  conditions: ConditionNode[];
   serve: Serve;
 }
 

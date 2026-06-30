@@ -29,6 +29,8 @@ export type {
   Actor,
   AuditEntry,
   Condition,
+  ConditionGroup,
+  ConditionNode,
   ConditionOperator,
   Draft,
   EnvironmentMeta,
@@ -51,13 +53,14 @@ export type {
   SplitEntry,
   Variant,
 } from "./schema.ts";
-export { SNAPSHOT_SCHEMA_VERSION } from "./schema.ts";
+export { isConditionGroup, leafConditions, SNAPSHOT_SCHEMA_VERSION } from "./schema.ts";
 
 // Evaluator (zero-dep, request-path safe)
 export {
   compareSemver,
   evaluateCondition,
   evaluateFlag,
+  evaluateNode,
   matchesRule,
   pickVariant,
   resolveBucketingKey,

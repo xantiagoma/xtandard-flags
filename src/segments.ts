@@ -12,7 +12,8 @@
  * @module
  */
 
-import type { Condition, Flag, Segment } from "./schema.ts";
+import { isConditionGroup, leafConditions } from "./schema.ts";
+import type { ConditionGroup, ConditionNode, Flag, Segment } from "./schema.ts";
 
 /** Thrown when a segment reference cannot be resolved (missing or cyclic). */
 export class SegmentResolutionError extends Error {
@@ -22,59 +23,102 @@ export class SegmentResolutionError extends Error {
   }
 }
 
-/**
- * Expand a list of conditions, replacing every `inSegment` condition with the
- * referenced segment's conditions (recursively). The result is a flat AND list
- * with no `inSegment` operators left.
- *
- * @throws {SegmentResolutionError} if a referenced segment is missing or the
- * reference graph contains a cycle.
- */
-function expandConditions(
-  conditions: Condition[],
+/** Resolve a single-key `inSegment` to the segment's expanded conditions, or throw. */
+function inlineKey(
+  key: string,
   segments: Record<string, Segment>,
   stack: string[],
-): Condition[] {
-  const out: Condition[] = [];
-  for (const condition of conditions) {
-    if (condition.operator !== "inSegment") {
-      out.push(condition);
+): ConditionNode[] {
+  if (!key) throw new SegmentResolutionError(`inSegment condition is missing a segment key`);
+  if (stack.includes(key)) {
+    throw new SegmentResolutionError(`cyclic segment reference: ${[...stack, key].join(" → ")}`);
+  }
+  const segment = segments[key];
+  if (!segment) throw new SegmentResolutionError(`unknown segment "${key}"`);
+  return expandAnd(segment.conditions, segments, [...stack, key]);
+}
+
+/**
+ * Expand nodes in an **AND context** (a rule/segment's top level or inside an
+ * `all` group): a single-key `inSegment` is **spliced** in (its conditions are
+ * ANDed). Array `inSegment` and `notInSegment` are kept for runtime evaluation;
+ * nested groups recurse.
+ */
+function expandAnd(
+  nodes: ConditionNode[],
+  segments: Record<string, Segment>,
+  stack: string[],
+): ConditionNode[] {
+  const out: ConditionNode[] = [];
+  for (const node of nodes) {
+    if (isConditionGroup(node)) {
+      out.push(expandGroup(node, segments, stack));
       continue;
     }
-    // An array value is an OR across segments — it can't be inlined into a flat
-    // AND list, so keep the condition for runtime evaluation against the embedded
-    // segments (same path as `notInSegment`).
-    if (Array.isArray(condition.value)) {
-      out.push(condition);
+    if (node.operator === "inSegment" && typeof node.value === "string") {
+      out.push(...inlineKey(node.value, segments, stack));
       continue;
     }
-    const segmentKey = typeof condition.value === "string" ? condition.value : "";
-    if (!segmentKey) {
-      throw new SegmentResolutionError(`inSegment condition is missing a segment key`);
-    }
-    if (stack.includes(segmentKey)) {
-      throw new SegmentResolutionError(
-        `cyclic segment reference: ${[...stack, segmentKey].join(" → ")}`,
-      );
-    }
-    const segment = segments[segmentKey];
-    if (!segment) {
-      throw new SegmentResolutionError(`unknown segment "${segmentKey}"`);
-    }
-    out.push(...expandConditions(segment.conditions, segments, [...stack, segmentKey]));
+    out.push(node);
   }
   return out;
 }
 
 /**
- * Return a copy of `flag` with all `inSegment` conditions in its rules inlined.
- * Flags without segment references are returned unchanged (same reference).
+ * Expand a node in an **OR/NOT context**: a single-key `inSegment` can't be
+ * spliced (it would OR the segment's conditions), so it becomes an `all` group.
+ */
+function expandOr(
+  node: ConditionNode,
+  segments: Record<string, Segment>,
+  stack: string[],
+): ConditionNode {
+  if (isConditionGroup(node)) return expandGroup(node, segments, stack);
+  if (node.operator === "inSegment" && typeof node.value === "string") {
+    return { all: inlineKey(node.value, segments, stack) };
+  }
+  return node;
+}
+
+/** Expand a group, preserving its kind; AND children splice, OR/NOT children wrap. */
+function expandGroup(
+  group: ConditionGroup,
+  segments: Record<string, Segment>,
+  stack: string[],
+): ConditionGroup {
+  if (group.all) return { all: expandAnd(group.all, segments, stack) };
+  if (group.any) return { any: group.any.map((n) => expandOr(n, segments, stack)) };
+  if (group.not) return { not: expandOr(group.not, segments, stack) };
+  return group;
+}
+
+/**
+ * Expand a node list, inlining single-key `inSegment` references (recursively,
+ * through nested groups). Array `inSegment` / `notInSegment` survive for runtime
+ * evaluation against embedded segments.
+ *
+ * @throws {SegmentResolutionError} if a referenced segment is missing or cyclic.
+ */
+function expandConditions(
+  conditions: ConditionNode[],
+  segments: Record<string, Segment>,
+  stack: string[],
+): ConditionNode[] {
+  return expandAnd(conditions, segments, stack);
+}
+
+/**
+ * Return a copy of `flag` with single-key `inSegment` references in its rules
+ * inlined. Flags without such references are returned unchanged (same reference).
  */
 export function inlineSegmentsInFlag(flag: Flag, segments: Record<string, Segment>): Flag {
   if (!flag.rules || flag.rules.length === 0) return flag;
   let changed = false;
   const rules = flag.rules.map((rule) => {
-    if (!rule.conditions.some((c) => c.operator === "inSegment")) return rule;
+    const inlinable = leafConditions(rule.conditions).some(
+      (c) => c.operator === "inSegment" && typeof c.value === "string",
+    );
+    if (!inlinable) return rule;
     changed = true;
     return { ...rule, conditions: expandConditions(rule.conditions, segments, []) };
   });
@@ -100,11 +144,11 @@ function segmentKeysOfValue(value: unknown): string[] {
   return [];
 }
 
-/** Collect the segment keys referenced (directly) by a flag's rule conditions. */
+/** Collect the segment keys referenced (anywhere in the tree) by a flag's rules. */
 export function referencedSegmentKeys(flag: Flag): string[] {
   const keys = new Set<string>();
   for (const rule of flag.rules ?? []) {
-    for (const condition of rule.conditions) {
+    for (const condition of leafConditions(rule.conditions)) {
       if (condition.operator === "inSegment") {
         for (const k of segmentKeysOfValue(condition.value)) keys.add(k);
       }
@@ -114,9 +158,10 @@ export function referencedSegmentKeys(flag: Flag): string[] {
 }
 
 /**
- * Resolve every segment for embedding in a snapshot: `inSegment` conditions are
- * inlined (so embedded segments hold only primitive + `notInSegment` conditions),
- * which is what {@link ./evaluator.evaluateFlag} needs to check membership.
+ * Resolve every segment for embedding in a snapshot: single-key `inSegment`
+ * references are inlined (so embedded segments hold only leaf conditions, groups,
+ * array `inSegment`, and `notInSegment`), which is what
+ * {@link ./evaluator.evaluateFlag} needs to check membership.
  */
 export function resolveSegments(segments: Record<string, Segment>): Record<string, Segment> {
   const out: Record<string, Segment> = {};
@@ -130,7 +175,7 @@ export function resolveSegments(segments: Record<string, Segment>): Record<strin
 export function usesNotInSegment(flags: Record<string, Flag>): boolean {
   for (const flag of Object.values(flags)) {
     for (const rule of flag.rules ?? []) {
-      if (rule.conditions.some((c) => c.operator === "notInSegment")) return true;
+      if (leafConditions(rule.conditions).some((c) => c.operator === "notInSegment")) return true;
     }
   }
   return false;
@@ -145,7 +190,7 @@ export function usesNotInSegment(flags: Record<string, Flag>): boolean {
 export function usesEmbeddedSegments(flags: Record<string, Flag>): boolean {
   for (const flag of Object.values(flags)) {
     for (const rule of flag.rules ?? []) {
-      for (const c of rule.conditions) {
+      for (const c of leafConditions(rule.conditions)) {
         if (c.operator === "notInSegment") return true;
         if (c.operator === "inSegment" && Array.isArray(c.value)) return true;
       }
@@ -199,18 +244,18 @@ export function validateSegmentReferences(
   // array (`OR`) `inSegment` — are evaluated at runtime against embedded segments.
   // Check they point at existing segments. Cycles are safe at runtime (guarded),
   // so only dangling refs are an error.
-  const checkNonInlined = (conditions: Condition[], path: string) => {
-    conditions.forEach((c, i) => {
+  const checkNonInlined = (conditions: ConditionNode[], path: string) => {
+    leafConditions(conditions).forEach((c) => {
       const nonInlined =
         c.operator === "notInSegment" || (c.operator === "inSegment" && Array.isArray(c.value));
       if (!nonInlined) return;
       const keys = segmentKeysOfValue(c.value);
       if (keys.length === 0) {
-        errors.push({ path: `${path}[${i}].value`, message: `unknown segment ""` });
+        errors.push({ path: `${path}.value`, message: `unknown segment ""` });
       }
       for (const key of keys) {
         if (!segments[key]) {
-          errors.push({ path: `${path}[${i}].value`, message: `unknown segment "${key}"` });
+          errors.push({ path: `${path}.value`, message: `unknown segment "${key}"` });
         }
       }
     });

@@ -10,7 +10,8 @@
  */
 
 import * as v from "valibot";
-import type { Condition, Draft, Flag, FlagType, Segment, Serve } from "./schema.ts";
+import { leafConditions } from "./schema.ts";
+import type { ConditionNode, Draft, Flag, FlagType, Segment, Serve } from "./schema.ts";
 
 const conditionOperatorSchema = v.picklist([
   "equals",
@@ -57,11 +58,22 @@ const conditionSchema = v.object({
   matcher: v.optional(v.string()),
 });
 
+// A node is a leaf condition or a boolean group (`all`/`any`/`not`), nested
+// arbitrarily. Recursive, so the group arms reference the node schema lazily.
+const conditionNodeSchema: v.GenericSchema<unknown> = v.lazy(() =>
+  v.union([
+    conditionSchema,
+    v.object({ all: v.array(conditionNodeSchema) }),
+    v.object({ any: v.array(conditionNodeSchema) }),
+    v.object({ not: conditionNodeSchema }),
+  ]),
+);
+
 const segmentSchema = v.object({
   key: v.pipe(v.string(), v.minLength(1), v.regex(/^[a-zA-Z0-9._-]+$/)),
   name: v.optional(v.string()),
   description: v.optional(v.string()),
-  conditions: v.array(conditionSchema),
+  conditions: v.array(conditionNodeSchema),
 });
 
 const splitEntrySchema = v.object({
@@ -77,7 +89,7 @@ const serveSchema = v.union([
 const ruleSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
   name: v.optional(v.string()),
-  conditions: v.array(conditionSchema),
+  conditions: v.array(conditionNodeSchema),
   serve: serveSchema,
 });
 
@@ -159,8 +171,13 @@ function valueMatchesType(value: unknown, type: FlagType): boolean {
  * (attribute optional — empty matches the whole context); every other operator
  * needs a non-empty `attribute`.
  */
-function checkConditions(conditions: Condition[], path: string, errors: ValidationError[]): void {
-  conditions.forEach((c, i) => {
+function checkConditions(
+  conditions: ConditionNode[],
+  path: string,
+  errors: ValidationError[],
+): void {
+  // Per-operator checks apply to leaf conditions anywhere in the AND/OR/NOT tree.
+  leafConditions(conditions).forEach((c, i) => {
     if (c.operator === "inSegment" || c.operator === "notInSegment") {
       // A single non-empty key, or a non-empty array of non-empty keys (OR).
       const validKey = (k: unknown): k is string => typeof k === "string" && k.length > 0;

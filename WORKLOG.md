@@ -4,6 +4,34 @@ Reverse-chronological. Each entry: timestamp · task · files · tests · blocke
 
 ---
 
+## 2026-06-30 — condition group tree: AND/OR/NOT nesting (engine)
+
+Rules/segments were a flat AND. Now a `conditions` node is a **leaf Condition or a
+boolean group** — `{all:[…]}` (AND), `{any:[…]}` (OR), `{not:<node>}` — nesting
+arbitrarily, modeled on `@xtandard/filters`' FilterNode. Confirmed with the user that
+AND-only was **not** an OpenFeature constraint (OF has no rule model at all). This is
+the general OR/nesting tool; `matches` (external engine) and `inSegment [A,B]` remain
+conveniences. **Engine/headless only; the UI still authors flat rules — recursive
+builder lands next, so no group examples in the seed yet.**
+
+- **schema.ts**: `ConditionGroup` (all/any/not) + `ConditionNode = Condition | group`;
+  `Rule.conditions`/`Segment.conditions` widened to `ConditionNode[]` (a flat leaf list
+  still means top-level AND — back-compat). Helpers `isConditionGroup` + `leafConditions`
+  (depth-first leaf walk). Exported from root.
+- **evaluator.ts**: `evaluateNode` (all→every, any→some, not→negate; empty all matches,
+  empty any/malformed → false); `matchesRule` and `matchesSegment` recurse it. Exported.
+- **segments.ts**: expand split into `expandAnd` (AND ctx → splice single-key inSegment)
+  / `expandOr` (OR/NOT ctx → wrap single inSegment as `{all:…}`, since you can't splice
+  into an OR) / `expandGroup`. `referencedSegmentKeys`/`usesNotInSegment`/
+  `usesEmbeddedSegments`/`validateSegmentReferences` walk leaves via `leafConditions`.
+- **validation.ts**: recursive `conditionNodeSchema` (valibot `v.lazy` union); per-operator
+  checks run over `leafConditions`. **openapi.ts**: recursive `ConditionNode` schema
+  ($ref self-ref); Rule/Segment point at it.
+- **Tests:** `test/condition-groups.test.ts` (9) — AND/OR/NOT, nesting, empty-group edge
+  cases, end-to-end flag rule, publish+evaluate, single-key inSegment inside an OR group.
+  Existing segment tests adjusted for `ConditionNode` narrowing.
+- Gate green: typecheck/lint/format, 512 tests, build, publint.
+
 ## 2026-06-30 — multi-segment OR: inSegment/notInSegment accept a key or array
 
 Closes the "OR across segments" gap ADR 0006 left open. `inSegment`/`notInSegment`

@@ -89,6 +89,32 @@ const schemas = {
       },
     },
   },
+  ConditionNode: {
+    description:
+      "A leaf Condition or a boolean group: { all: [...] } (AND), { any: [...] } (OR), or { not: <node> }.",
+    oneOf: [
+      { $ref: "#/components/schemas/Condition" },
+      {
+        type: "object",
+        required: ["all"],
+        properties: {
+          all: { type: "array", items: { $ref: "#/components/schemas/ConditionNode" } },
+        },
+      },
+      {
+        type: "object",
+        required: ["any"],
+        properties: {
+          any: { type: "array", items: { $ref: "#/components/schemas/ConditionNode" } },
+        },
+      },
+      {
+        type: "object",
+        required: ["not"],
+        properties: { not: { $ref: "#/components/schemas/ConditionNode" } },
+      },
+    ],
+  },
   Serve: serveSchema,
   Rule: {
     type: "object",
@@ -96,7 +122,7 @@ const schemas = {
     properties: {
       id: { type: "string" },
       name: { type: "string" },
-      conditions: { type: "array", items: { $ref: "#/components/schemas/Condition" } },
+      conditions: { type: "array", items: { $ref: "#/components/schemas/ConditionNode" } },
       serve: { $ref: "#/components/schemas/Serve" },
     },
   },
@@ -126,7 +152,7 @@ const schemas = {
       key: { type: "string", pattern: "^[a-zA-Z0-9._-]+$" },
       name: { type: "string" },
       description: { type: "string" },
-      conditions: { type: "array", items: { $ref: "#/components/schemas/Condition" } },
+      conditions: { type: "array", items: { $ref: "#/components/schemas/ConditionNode" } },
     },
   },
   Flag: {

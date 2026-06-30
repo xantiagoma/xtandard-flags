@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { createFlagsCore } from "../src/core.ts";
 import { evaluateFlag } from "../src/evaluator.ts";
-import type { Flag, Segment } from "../src/schema.ts";
+import type { Condition, Flag, Segment } from "../src/schema.ts";
 import { compileDraft } from "../src/snapshot.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
 import { booleanFlag, draft as makeDraft } from "./fixtures.ts";
@@ -97,7 +97,7 @@ describe("inSegment array — compile + core", () => {
     expect(snap.segments!.eu).toBeDefined();
     expect(snap.segments!.staff).toBeDefined();
     // The array condition is NOT inlined — it survives in the compiled rule.
-    const cond = snap.flags["new-dashboard"]!.rules![0]!.conditions[0]!;
+    const cond = snap.flags["new-dashboard"]!.rules![0]!.conditions[0]! as Condition;
     expect(cond.operator).toBe("inSegment");
     expect(cond.value).toEqual(["eu", "staff"]);
   });
@@ -116,7 +116,9 @@ describe("inSegment array — compile + core", () => {
     const snap = compileDraft(makeDraft([f]), { version: "v1", segments });
     expect(snap.segments).toBeUndefined();
     // inlined → the rule now carries the segment's own condition, not inSegment.
-    expect(snap.flags["new-dashboard"]!.rules![0]!.conditions[0]!.operator).toBe("in");
+    expect((snap.flags["new-dashboard"]!.rules![0]!.conditions[0]! as Condition).operator).toBe(
+      "in",
+    );
   });
 
   test("publish + active evaluation resolves an array inSegment", async () => {

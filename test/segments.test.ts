@@ -10,6 +10,7 @@ import { createFlagsCore, NotFoundError } from "../src/core.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
 import { createFetchHandler } from "../src/server/create-fetch-handler.ts";
 import { evaluateFlag } from "../src/evaluator.ts";
+import { leafConditions } from "../src/schema.ts";
 import type { Flag, Segment } from "../src/schema.ts";
 import { booleanFlag } from "./fixtures.ts";
 
@@ -61,7 +62,9 @@ describe("segments — inlining", () => {
       { attribute: "country", operator: "in", value: ["FR", "DE"] },
     ]);
     // no inSegment operator survives
-    expect(out.rules![0]!.conditions.some((c) => c.operator === "inSegment")).toBe(false);
+    expect(leafConditions(out.rules![0]!.conditions).some((c) => c.operator === "inSegment")).toBe(
+      false,
+    );
   });
 
   test("resolves nested segments recursively", () => {

@@ -23,8 +23,10 @@ import { compareViaComparators } from "./comparators.ts";
 import { hashToUnitInterval } from "./hash.ts";
 import { DEFAULT_MATCHER, resolveMatcher } from "./matchers.ts";
 import { tryCatchSync } from "./try-catch.ts";
+import { isConditionGroup } from "./schema.ts";
 import type {
   Condition,
+  ConditionNode,
   ConditionOperator,
   EvaluationContext,
   EvaluationReason,
@@ -54,7 +56,7 @@ function matchesSegment(
   const segment = segments[key];
   if (!segment) return false;
   const next = new Set(seen).add(key);
-  return segment.conditions.every((c) => evaluateCondition(c, context, segments, next));
+  return segment.conditions.every((n) => evaluateNode(n, context, segments, next));
 }
 
 /** The segment key(s) a condition value names: a single key string, or an array (OR). */
@@ -404,13 +406,34 @@ export function evaluateCondition(
   }
 }
 
-/** All conditions must pass (logical AND). An empty condition list always matches. */
+/**
+ * Evaluate a single {@link ConditionNode} — a leaf condition or an AND/OR/NOT
+ * group — recursively. Groups: `all` → every child (AND), `any` → some child
+ * (OR), `not` → negation. An empty `all` matches; an empty `any` does not.
+ */
+export function evaluateNode(
+  node: ConditionNode,
+  context: EvaluationContext,
+  segments: SegmentMap = {},
+  seen: Set<string> = new Set(),
+): boolean {
+  if (!isConditionGroup(node)) return evaluateCondition(node, context, segments, seen);
+  if (node.all) return node.all.every((n) => evaluateNode(n, context, segments, seen));
+  if (node.any) return node.any.some((n) => evaluateNode(n, context, segments, seen));
+  if (node.not) return !evaluateNode(node.not, context, segments, seen);
+  return false; // malformed group (no all/any/not) never matches
+}
+
+/**
+ * All top-level nodes must pass (logical AND). An empty list always matches.
+ * Each node may itself be a nested AND/OR/NOT group (see {@link evaluateNode}).
+ */
 export function matchesRule(
-  conditions: Condition[],
+  conditions: ConditionNode[],
   context: EvaluationContext,
   segments: SegmentMap = {},
 ): boolean {
-  return conditions.every((c) => evaluateCondition(c, context, segments));
+  return conditions.every((n) => evaluateNode(n, context, segments));
 }
 
 /** Input to {@link pickVariant}. */
