@@ -33,6 +33,16 @@ const core = panel.core;
 
 `flagsPanel` from `@xtandard/flags/elysia` returns a function with a `.core` property attached, giving you access to the `FlagsCore` instance for programmatic use.
 
+> **CORS + `.mount()`:** a mounted handler is opaque to the host's lifecycle
+> hooks, so a host-level `cors()` plugin generally **does not** wrap the panel
+> routes — and the panel does not inherit that config. For a cross-origin embed,
+> pass CORS to the panel itself: `flagsPanel({ …, cors: { origin, credentials: true } })`
+> (see [UI.md → Cross-origin embed](UI.md#cross-origin-embed-dashboard-and-panel-on-different-origins)).
+> Set it on **exactly one** layer — if both the host plugin and the panel emit
+> `Access-Control-Allow-Origin`, browsers reject the duplicate. If you instead
+> use `flagsElysia` (the typed plugin below), it declares real routes that the
+> host `cors()` **does** wrap, so leave the panel `cors` unset in that mode.
+
 ---
 
 ## Hono — `@xtandard/flags/hono`
