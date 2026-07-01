@@ -655,11 +655,26 @@ export async function handleApiRequest(
   }
 }
 
+/**
+ * A hook denial, detected by `name` rather than `instanceof`: a hook thrown from
+ * a separate subpath bundle (e.g. `hooks/test-gate`) carries its own copy of the
+ * `HookDeniedError` class, so `instanceof` would miss it and mis-map the denial
+ * to 500. Returns the status to respond with, or `null` if not a denial.
+ */
+function hookDeniedStatus(err: unknown): number | null {
+  if (err instanceof HookDeniedError) return err.status;
+  if (err instanceof Error && err.name === "HookDeniedError") {
+    const status = (err as { status?: unknown }).status;
+    return typeof status === "number" ? status : 403;
+  }
+  return null;
+}
+
 /** Map domain errors to HTTP responses. */
 function mapError(err: unknown): Response {
   if (err instanceof ReadonlyError) return error(403, err.message, { code: "READONLY" });
-  if (err instanceof HookDeniedError)
-    return error(err.status, err.message, { code: "HOOK_DENIED" });
+  const denied = hookDeniedStatus(err);
+  if (denied !== null) return error(denied, (err as Error).message, { code: "HOOK_DENIED" });
   if (err instanceof NotFoundError) return error(404, err.message);
   if (err instanceof FlagValidationError) {
     return error(422, err.message, { code: "VALIDATION", errors: err.errors });
