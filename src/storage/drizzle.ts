@@ -25,7 +25,7 @@
  */
 
 import { eq, sql, type Column, type SQL, type Table } from "drizzle-orm";
-import type { FlagsStorage, StorageChangeEvent, WatchableFlagsStorage } from "./contract.ts";
+import type { FlagsStorage } from "./contract.ts";
 
 /** The KV table shape this adapter reads/writes (produced by the `*FlagsTable` factories). */
 export type DrizzleKvTable = Table & { key: Column; value: Column };
@@ -56,34 +56,6 @@ interface DrizzleLikeDatabase {
   delete(table: Table): { where(where: SQL): PromiseLike<unknown> };
 }
 
-/**
- * A dedicated notification-capable client for {@link DrizzleWatchOptions} —
- * satisfied by a `pg` `Client`. Used for `LISTEN`/`UNLISTEN` on the change channel.
- */
-export interface DrizzleNotificationClient {
-  query(sql: string): Promise<unknown>;
-  on(event: "notification", listener: (msg: { channel: string; payload?: string }) => void): void;
-  removeListener(
-    event: "notification",
-    listener: (msg: { channel: string; payload?: string }) => void,
-  ): void;
-}
-
-/** Opt-in change notifications via Postgres `LISTEN`/`NOTIFY`. */
-export interface DrizzleWatchOptions {
-  /**
-   * A dedicated notification client (e.g. a `pg` `Client` you `connect()`).
-   * Its lifecycle is yours — the adapter never closes it.
-   */
-  client: DrizzleNotificationClient;
-  /**
-   * `NOTIFY` channel your trigger fires on, with the changed key as the payload.
-   * Default `"xtandard_flags"`. You own the trigger (added via your migrations) —
-   * the adapter issues no DDL.
-   */
-  channel?: string;
-}
-
 /** Options for {@link createDrizzleStorage}. */
 export interface DrizzleStorageOptions {
   /**
@@ -94,12 +66,14 @@ export interface DrizzleStorageOptions {
   db: unknown;
   /** The KV table built with a `*FlagsTable` factory (or matching that shape). */
   table: DrizzleKvTable;
-  /** Enable push change-notifications (Postgres `LISTEN`/`NOTIFY`). Adds `watch`. */
-  watch?: DrizzleWatchOptions;
 }
 
-/** A {@link FlagsStorage} over a Drizzle table; gains `watch` when configured. */
-export type DrizzleFlagsStorage = FlagsStorage & Partial<Pick<WatchableFlagsStorage, "watch">>;
+/**
+ * A {@link FlagsStorage} over a Drizzle table. For push change-notifications,
+ * compose it with {@link ./watch.withWatch} + a change source (e.g.
+ * {@link ./watch.pgListenNotify}) — `watch` is orthogonal to the adapter.
+ */
+export type DrizzleFlagsStorage = FlagsStorage;
 
 /** Escape LIKE wildcards so `getKeys` matches the prefix verbatim (paired with `ESCAPE '\'`). */
 const escapeLike = (literal: string): string => literal.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -125,7 +99,7 @@ export function createDrizzleStorage(options: DrizzleStorageOptions): DrizzleFla
   const db = options.db as DrizzleLikeDatabase;
   const { table } = options;
 
-  const storage: DrizzleFlagsStorage = {
+  return {
     async getItem<T>(key: string): Promise<T | null> {
       const rows = (await db
         .select({ value: table.value })
@@ -163,25 +137,4 @@ export function createDrizzleStorage(options: DrizzleStorageOptions): DrizzleFla
       return rows.map((row) => String(row.key));
     },
   };
-
-  const watch = options.watch;
-  if (watch) {
-    const channel = watch.channel ?? "xtandard_flags";
-    storage.watch = async (prefix, callback) => {
-      const listener = (msg: { channel: string; payload?: string }) => {
-        if (msg.channel !== channel) return;
-        const key = msg.payload ?? "";
-        if (key && !key.startsWith(prefix)) return;
-        callback({ type: "update", key: key || prefix } satisfies StorageChangeEvent);
-      };
-      watch.client.on("notification", listener);
-      await watch.client.query(`LISTEN "${channel}"`);
-      return async () => {
-        watch.client.removeListener("notification", listener);
-        await watch.client.query(`UNLISTEN "${channel}"`);
-      };
-    };
-  }
-
-  return storage;
 }

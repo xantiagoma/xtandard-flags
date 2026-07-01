@@ -284,12 +284,43 @@ import { flagsKv } from "./schema.ts";
 const storage = createDrizzleStorage({ db, table: flagsKv }); // `db` = your Drizzle instance
 ```
 
-### Opt-in `watch` (Postgres `LISTEN`/`NOTIFY`)
+The Drizzle adapter has **no built-in `watch`** — change notifications are
+composable and adapter-agnostic. See [Change notifications](#change-notifications-withwatch)
+below to add `watch` from any source (Postgres `LISTEN`/`NOTIFY`, an ORM
+write-hook, Redis pub/sub, …). Without it, the runtime provider polls
+(`refreshIntervalMs`) — fine for the **source** plane.
 
-The adapter creates **no DDL**, so push notifications are opt-in and require a
-trigger _you_ add via your migrations, plus a dedicated notification client
-(a `pg` `Client`). The trigger `NOTIFY`s a channel with the changed key as the
-payload:
+## Change notifications (`withWatch`)
+
+`watch` (push-based snapshot refresh) is **orthogonal** to which storage you use,
+so it's a composable wrapper rather than an adapter option. `withWatch(storage,
+subscribe)` returns a `WatchableFlagsStorage` that delegates all reads/writes to
+`storage` and drives `watch` from whatever change source **you** provide. This
+gives `watch` to adapters that don't implement it (postgres, drizzle, mongodb,
+unstorage, cloudflare-kv, …).
+
+```ts
+import { withWatch } from "@xtandard/flags";
+
+// Bring your own source — an ORM write-hook, Redis pub/sub, a websocket, an
+// EventEmitter. Call notify(changedKey?) on each change; return an unsubscribe.
+const storage = withWatch(base, (notify) => {
+  const sub = redis.subscribe("flag-changes", (msg) => notify(msg.key));
+  return () => sub.unsubscribe();
+});
+```
+
+`notify(key?)` filters by the watched prefix; a call with no key is delivered as
+a change to the prefix itself (enough to trigger a refresh). Because the source
+is yours, this works for **any** dialect (MySQL/SQLite included) using whatever
+signal your stack already emits (e.g. an ORM's `onInsert`/`onUpdate`/`onDelete`
+hooks).
+
+### Built-in helper: Postgres `LISTEN`/`NOTIFY`
+
+`pgListenNotify(client, channel?)` returns a ready-made source. You own the
+trigger (added via your migrations — the adapters issue no DDL) that `pg_notify`s
+the channel with the changed key:
 
 ```sql
 -- migration (yours): notify "xtandard_flags" with the key on every change
@@ -305,20 +336,17 @@ CREATE TRIGGER flags_kv_notify_trg
 ```
 
 ```ts
+import { withWatch, pgListenNotify } from "@xtandard/flags";
 import { Client } from "pg";
+
 const listener = new Client({ connectionString: process.env.DATABASE_URL });
-await listener.connect();
+await listener.connect(); // a dedicated Client — a pooled connection won't do
 
-const storage = createDrizzleStorage({
-  db,
-  table: flagsKv,
-  watch: { client: listener, channel: "xtandard_flags" },
-});
+const storage = withWatch(
+  createDrizzleStorage({ db, table: flagsKv }), // or createPostgresStorage(...)
+  pgListenNotify(listener, "xtandard_flags"),
+);
 ```
-
-Without `watch`, the runtime provider falls back to polling (`refreshIntervalMs`)
-— fine for the **source** plane (off the evaluation path); enable `watch` when
-using it as the **runtime** plane.
 
 ## MongoDB (`@xtandard/flags/storage/mongodb`)
 

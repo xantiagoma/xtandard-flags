@@ -132,6 +132,9 @@ export type { SegmentReferenceError } from "./segments.ts";
 
 // Storage contracts
 export { isCompareAndSwap, isTransactional, isWatchable, requirePeer } from "./storage/contract.ts";
+// Composable change-notifications (add `watch` to any storage from any source)
+export { pgListenNotify, withWatch } from "./storage/watch.ts";
+export type { PgNotificationClient, WatchSubscribe } from "./storage/watch.ts";
 export type {
   CompareAndSwapFlagsStorage,
   FlagsStorage,
