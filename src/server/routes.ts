@@ -21,11 +21,14 @@ import {
 } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
 import { HookDeniedError } from "../hooks/contract.ts";
+import type { EvaluationErrorReporter, EvaluationListener } from "../evaluation-sink.ts";
+import { emitEvaluation } from "../evaluation-sink.ts";
+import type { FlagEvaluationResult } from "../core.ts";
 import { buildImportSchema, buildOpenApiDocument } from "./openapi.ts";
 import { toOfrepBulkResponse, toOfrepEvaluation } from "./ofrep.ts";
 import type { SseManager } from "./sse.ts";
 import { murmur3 } from "../hash.ts";
-import type { Draft, Flag, Segment } from "../schema.ts";
+import type { Draft, EvaluationContext, Flag, Segment } from "../schema.ts";
 
 /** Everything the API router needs. */
 export interface ApiContext {
@@ -38,6 +41,40 @@ export interface ApiContext {
   logoUrl?: string;
   /** Opt-in OFREP SSE broadcaster (present only when `streaming` is enabled). */
   sse?: SseManager;
+  /** Fire-and-forget observer invoked per OFREP evaluation (off the response path). */
+  onEvaluation?: EvaluationListener;
+  /** Reporter for errors thrown by {@link onEvaluation}. */
+  onEvaluationError?: EvaluationErrorReporter;
+}
+
+/** Emit an evaluation event per OFREP result (fire-and-forget). */
+function emitOfrepEvaluations(
+  ctx: ApiContext,
+  results: FlagEvaluationResult[],
+  context: EvaluationContext,
+  projectKey: string,
+  environmentKey: string,
+): void {
+  if (!ctx.onEvaluation) return;
+  const at = new Date().toISOString();
+  for (const r of results) {
+    emitEvaluation(
+      ctx.onEvaluation,
+      {
+        flagKey: r.key,
+        value: r.value,
+        variant: r.variant,
+        reason: r.reason,
+        errorCode: r.errorCode,
+        context,
+        projectKey,
+        environmentKey,
+        source: "ofrep",
+        at,
+      },
+      ctx.onEvaluationError,
+    );
+  }
 }
 
 const json = (data: unknown, status = 200): Response =>
@@ -609,6 +646,7 @@ export async function handleApiRequest(
         if (!result) {
           return error(404, `flag "${key}" not found`, { key, errorCode: "FLAG_NOT_FOUND" });
         }
+        emitOfrepEvaluations(ctx, [result], context, resolvedProject, resolvedEnv);
         return json(toOfrepEvaluation(result, { version }));
       }
 
@@ -637,6 +675,7 @@ export async function handleApiRequest(
           projectKey,
           environmentKey,
         });
+        emitOfrepEvaluations(ctx, results, context, resolvedProject, resolvedEnv);
         // Advertise the SSE stream so OFREP clients can subscribe for live updates.
         const eventStreams = ctx.sse ? [{ url: `${ctx.basePath}${ctx.sse.path}` }] : undefined;
         return new Response(

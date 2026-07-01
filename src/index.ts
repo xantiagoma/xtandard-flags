@@ -171,6 +171,14 @@ export type {
   HookErrorReporter,
 } from "./hooks/contract.ts";
 
+// Evaluation sink (runtime-plane observer — usage/exposure)
+export { emitEvaluation } from "./evaluation-sink.ts";
+export type {
+  EvaluationErrorReporter,
+  EvaluationEvent,
+  EvaluationListener,
+} from "./evaluation-sink.ts";
+
 // Admin core + server handler
 export { createFlagsCore } from "./core.ts";
 export type {
