@@ -749,6 +749,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
           projectKey: p,
           environmentKey: e,
           draft,
+          segments,
           actor: input.by ?? null,
           message: input.message,
         });

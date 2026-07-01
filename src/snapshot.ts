@@ -38,12 +38,15 @@ export interface CompileOptions {
  * Deep-clone flags so the compiled snapshot is decoupled from the live draft.
  * Archived flags ({@link Flag.archivedAt} set) are excluded so they leave SDK
  * payloads and stop being evaluated — they remain in the draft for restore.
+ * Pinned {@link Flag.tests} are stripped: they are dev/CI gating metadata, not
+ * runtime data, so they never bloat SDK payloads.
  */
 function freezeFlags(flags: Record<string, Flag>): Record<string, Flag> {
   const live: Record<string, Flag> = {};
   for (const [key, flag] of Object.entries(flags)) {
     if (flag.archivedAt) continue;
-    live[key] = flag;
+    const { tests: _tests, ...rest } = flag;
+    live[key] = rest;
   }
   return structuredClone(live);
 }

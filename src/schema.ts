@@ -299,6 +299,30 @@ export interface Flag {
    * {@link Flag.enabled} or archive the flag.
    */
   schedule?: FlagSchedule;
+  /**
+   * Pinned example evaluations used to **gate publishing** (see
+   * {@link ./hooks/test-gate.createTestGate}). Each case pairs a context with an
+   * expected `variant` and/or `value`; on publish, the gate re-evaluates the
+   * draft and denies if any case regresses. Dev/CI metadata only — **stripped
+   * from compiled snapshots** (never shipped to runtimes, never seen by the
+   * evaluator at request time).
+   */
+  tests?: FlagTest[];
+}
+
+/** One pinned expectation for {@link Flag.tests}. */
+export interface FlagTest {
+  /** Human-readable label shown in gate failures (e.g. "enterprise user sees new flow"). */
+  name?: string;
+  /** The evaluation context to run the flag against. */
+  context: EvaluationContext;
+  /** The expected outcome. At least one of `variant` / `value` must be set. */
+  expect: {
+    /** Expected served variant key. */
+    variant?: string;
+    /** Expected served value (deep-compared for `json` flags). */
+    value?: FlagValue;
+  };
 }
 
 /**
