@@ -346,18 +346,19 @@ implementations of public contracts. See [docs/STORAGE.md](docs/STORAGE.md).
 
 ## Subpath exports
 
-| Import                                                                                               | What                                                                     |
-| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| `@xtandard/flags`                                                                                    | core types, evaluator, snapshot, `createFlagsCore`, `createFetchHandler` |
-| `@xtandard/flags/openfeature`                                                                        | OpenFeature provider                                                     |
-| `@xtandard/flags/storage/{memory,file,redis,unstorage,postgres,mongodb,sqlite,libsql,cloudflare-kv}` | storage adapters                                                         |
-| `@xtandard/flags/match/sift`                                                                         | sift query matcher for `matches` / `notMatches`                          |
-| `@xtandard/flags/hooks/{webhook,log,test-gate}`                                                      | bundled control-plane hooks (webhook, log, publish test-gate)            |
-| `@xtandard/flags/auth/{none,basic,delegated}`                                                        | auth providers                                                           |
-| `@xtandard/flags/authorization/{none,roles,delegated}`                                               | authorization providers                                                  |
-| `@xtandard/flags/{elysia,hono,bun,express}`                                                          | framework adapters                                                       |
-| `@xtandard/flags/react`                                                                              | embeddable `<FlagsDashboard/>` component (advanced; React peer)          |
-| `@xtandard/flags/testing`                                                                            | in-memory panel + flag builders                                          |
+| Import                                                                                                       | What                                                                     |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `@xtandard/flags`                                                                                            | core types, evaluator, snapshot, `createFlagsCore`, `createFetchHandler` |
+| `@xtandard/flags/openfeature`                                                                                | OpenFeature provider                                                     |
+| `@xtandard/flags/storage/{memory,file,redis,unstorage,postgres,mongodb,sqlite,libsql,cloudflare-kv,drizzle}` | storage adapters                                                         |
+| `@xtandard/flags/drizzle/{pg,mysql,sqlite}`                                                                  | Drizzle table factories for the `drizzle` storage adapter                |
+| `@xtandard/flags/match/sift`                                                                                 | sift query matcher for `matches` / `notMatches`                          |
+| `@xtandard/flags/hooks/{webhook,log,test-gate}`                                                              | bundled control-plane hooks (webhook, log, publish test-gate)            |
+| `@xtandard/flags/auth/{none,basic,delegated}`                                                                | auth providers                                                           |
+| `@xtandard/flags/authorization/{none,roles,delegated}`                                                       | authorization providers                                                  |
+| `@xtandard/flags/{elysia,hono,bun,express}`                                                                  | framework adapters                                                       |
+| `@xtandard/flags/react`                                                                                      | embeddable `<FlagsDashboard/>` component (advanced; React peer)          |
+| `@xtandard/flags/testing`                                                                                    | in-memory panel + flag builders                                          |
 
 ## Examples
 

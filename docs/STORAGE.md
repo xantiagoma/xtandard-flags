@@ -252,6 +252,74 @@ const storage = createPostgresStorage({ client: new PGlite(), table: "xtandard_f
 Data lives in one table `key text PRIMARY KEY, value jsonb` (auto-created on first
 use). `table` defaults to `xtandard_flags` and is validated as a safe identifier.
 
+## Drizzle (`@xtandard/flags/storage/drizzle`)
+
+Peer dep: `drizzle-orm`. Use this instead of the Postgres adapter when you already
+use Drizzle and want the flags table to live in **your schema + migrations**
+(not auto-created via `CREATE TABLE`) and to **reuse your existing connection**
+(the adapter never opens or closes a pool). Works with Postgres, MySQL, and
+SQLite Drizzle databases — the upsert dialect is detected at runtime.
+
+**1. Declare the table** with the matching factory and add it to your schema so
+`drizzle-kit` generates the migration:
+
+```ts
+// schema.ts — pick the factory for your dialect:
+import { pgFlagsTable } from "@xtandard/flags/drizzle/pg"; // key text PK, value jsonb
+// import { mysqlFlagsTable } from "@xtandard/flags/drizzle/mysql";  // key varchar PK, value json
+// import { sqliteFlagsTable } from "@xtandard/flags/drizzle/sqlite"; // key text PK, value text(json)
+
+export const flagsKv = pgFlagsTable("flags_kv");
+```
+
+Each factory takes optional `extraColumns()` / `extraIndexes(table)` (mirroring
+`drizzle-audit`), plus `schema` (pg) / `keyLength` (mysql).
+
+**2. Build the storage** over your existing `db`:
+
+```ts
+import { createDrizzleStorage } from "@xtandard/flags/storage/drizzle";
+import { flagsKv } from "./schema.ts";
+
+const storage = createDrizzleStorage({ db, table: flagsKv }); // `db` = your Drizzle instance
+```
+
+### Opt-in `watch` (Postgres `LISTEN`/`NOTIFY`)
+
+The adapter creates **no DDL**, so push notifications are opt-in and require a
+trigger _you_ add via your migrations, plus a dedicated notification client
+(a `pg` `Client`). The trigger `NOTIFY`s a channel with the changed key as the
+payload:
+
+```sql
+-- migration (yours): notify "xtandard_flags" with the key on every change
+CREATE FUNCTION flags_kv_notify() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('xtandard_flags', COALESCE(NEW.key, OLD.key));
+  RETURN NULL;
+END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER flags_kv_notify_trg
+  AFTER INSERT OR UPDATE OR DELETE ON flags_kv
+  FOR EACH ROW EXECUTE FUNCTION flags_kv_notify();
+```
+
+```ts
+import { Client } from "pg";
+const listener = new Client({ connectionString: process.env.DATABASE_URL });
+await listener.connect();
+
+const storage = createDrizzleStorage({
+  db,
+  table: flagsKv,
+  watch: { client: listener, channel: "xtandard_flags" },
+});
+```
+
+Without `watch`, the runtime provider falls back to polling (`refreshIntervalMs`)
+— fine for the **source** plane (off the evaluation path); enable `watch` when
+using it as the **runtime** plane.
+
 ## MongoDB (`@xtandard/flags/storage/mongodb`)
 
 Peer dep: `mongodb`.
@@ -374,17 +442,18 @@ snapshots loaded once into memory; prefer Redis/libSQL for the write-heavy
 
 ## Choosing a backend
 
-| Backend        | Adapter                 | Runtime    | Best for                                            |
-| -------------- | ----------------------- | ---------- | --------------------------------------------------- |
-| Memory         | `storage/memory`        | any        | tests, single-process experiments                   |
-| File           | `storage/file`          | any        | local dev, GitOps drafts in VCS                     |
-| Redis          | `storage/redis`         | any        | multi-node, push-based refresh (`watch`)            |
-| Postgres       | `storage/postgres`      | any        | you already run Postgres; transactional source      |
-| MongoDB        | `storage/mongodb`       | any        | you already run Mongo                               |
-| SQLite         | `storage/sqlite`        | **Bun**    | single-node persistence, zero deps                  |
-| libSQL / Turso | `storage/libsql`        | any / edge | edge-replicated runtime, serverless SQLite          |
-| Cloudflare KV  | `storage/cloudflare-kv` | Workers    | runtime snapshots inside Cloudflare Workers         |
-| Anything else  | `storage/unstorage`     | any        | 20+ drivers (Upstash, Vercel KV, S3/R2, Netlify, …) |
+| Backend        | Adapter                 | Runtime    | Best for                                              |
+| -------------- | ----------------------- | ---------- | ----------------------------------------------------- |
+| Memory         | `storage/memory`        | any        | tests, single-process experiments                     |
+| File           | `storage/file`          | any        | local dev, GitOps drafts in VCS                       |
+| Redis          | `storage/redis`         | any        | multi-node, push-based refresh (`watch`)              |
+| Postgres       | `storage/postgres`      | any        | you already run Postgres; transactional source        |
+| Drizzle        | `storage/drizzle`       | any        | you use Drizzle — table in your migrations, your pool |
+| MongoDB        | `storage/mongodb`       | any        | you already run Mongo                                 |
+| SQLite         | `storage/sqlite`        | **Bun**    | single-node persistence, zero deps                    |
+| libSQL / Turso | `storage/libsql`        | any / edge | edge-replicated runtime, serverless SQLite            |
+| Cloudflare KV  | `storage/cloudflare-kv` | Workers    | runtime snapshots inside Cloudflare Workers           |
+| Anything else  | `storage/unstorage`     | any        | 20+ drivers (Upstash, Vercel KV, S3/R2, Netlify, …)   |
 
 A common production split is a **durable, transactional source** (Postgres/Redis)
 plus a **fast, close-to-the-app runtime** (Redis/libSQL/KV). See the

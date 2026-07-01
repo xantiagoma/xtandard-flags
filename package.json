@@ -209,6 +209,46 @@
         "default": "./dist/entry-storage-cloudflare-kv.cjs"
       }
     },
+    "./storage/drizzle": {
+      "import": {
+        "types": "./dist/entry-storage-drizzle.d.mts",
+        "default": "./dist/entry-storage-drizzle.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-storage-drizzle.d.cts",
+        "default": "./dist/entry-storage-drizzle.cjs"
+      }
+    },
+    "./drizzle/pg": {
+      "import": {
+        "types": "./dist/entry-drizzle-pg.d.mts",
+        "default": "./dist/entry-drizzle-pg.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-drizzle-pg.d.cts",
+        "default": "./dist/entry-drizzle-pg.cjs"
+      }
+    },
+    "./drizzle/mysql": {
+      "import": {
+        "types": "./dist/entry-drizzle-mysql.d.mts",
+        "default": "./dist/entry-drizzle-mysql.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-drizzle-mysql.d.cts",
+        "default": "./dist/entry-drizzle-mysql.cjs"
+      }
+    },
+    "./drizzle/sqlite": {
+      "import": {
+        "types": "./dist/entry-drizzle-sqlite.d.mts",
+        "default": "./dist/entry-drizzle-sqlite.mjs"
+      },
+      "require": {
+        "types": "./dist/entry-drizzle-sqlite.d.cts",
+        "default": "./dist/entry-drizzle-sqlite.cjs"
+      }
+    },
     "./hooks/log": {
       "import": {
         "types": "./dist/entry-hooks-log.d.mts",
@@ -425,6 +465,7 @@
     "changelogen": "^0.6.2",
     "class-variance-authority": "^0.7",
     "clsx": "^2.1",
+    "drizzle-orm": "^0.45.2",
     "elysia": "^1.4",
     "express": "^5.0.0",
     "get-port-please": "^3.2.0",
@@ -450,6 +491,7 @@
   "peerDependencies": {
     "@libsql/client": "0.15.15",
     "@openfeature/server-sdk": "^1.0.0",
+    "drizzle-orm": "^0.44.0 || ^0.45.0",
     "elysia": "^1.0.0 || ^2.0.0",
     "express": "^4.0.0 || ^5.0.0",
     "hono": "^4.0.0",
@@ -496,6 +538,9 @@
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "drizzle-orm": {
       "optional": true
     }
   },
