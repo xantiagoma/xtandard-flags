@@ -152,7 +152,7 @@ Without this, `watch` calls will silently receive no events and the provider fal
 
 ### Unstorage — `@xtandard/flags/storage/unstorage`
 
-Wraps any [unstorage](https://unstorage.unjs.io) `Storage` instance. You choose and configure the unstorage driver; this adapter normalises its API to `FlagsStorage`. No watch support (use the Redis or file adapter if you need push notifications).
+Wraps any [unstorage](https://unstorage.unjs.io) `Storage` instance. You choose and configure the unstorage driver; this adapter normalises its API to `FlagsStorage`. No built-in `watch` — wrap it with [`withWatch`](#change-notifications-withwatch) if you have a change source, or use the Redis/file adapter for out-of-the-box push notifications.
 
 ```ts
 import { createUnstorageStorage } from "@xtandard/flags/storage/unstorage";
@@ -292,12 +292,27 @@ write-hook, Redis pub/sub, …). Without it, the runtime provider polls
 
 ## Change notifications (`withWatch`)
 
-`watch` (push-based snapshot refresh) is **orthogonal** to which storage you use,
-so it's a composable wrapper rather than an adapter option. `withWatch(storage,
-subscribe)` returns a `WatchableFlagsStorage` that delegates all reads/writes to
-`storage` and drives `watch` from whatever change source **you** provide. This
-gives `watch` to adapters that don't implement it (postgres, drizzle, mongodb,
-unstorage, cloudflare-kv, …).
+Some adapters detect their own changes and implement `watch`; the rest need a
+change signal supplied. `watch` drives **push-based snapshot refresh** in the
+runtime provider — **without it the provider polls** every `refreshIntervalMs`
+(fine for the source plane, which is off the evaluation path).
+
+| Adapter                                                              | Built-in `watch`? | How                                                   |
+| -------------------------------------------------------------------- | ----------------- | ----------------------------------------------------- |
+| memory                                                               | ✅ yes            | microtask callbacks                                   |
+| file                                                                 | ✅ yes            | `fs.watch`                                            |
+| redis                                                                | ✅ yes            | keyspace notifications (`notify-keyspace-events KEA`) |
+| postgres, drizzle, mongodb, sqlite, libsql, unstorage, cloudflare-kv | ❌ no             | wrap with `withWatch` (below)                         |
+
+`watch` is **orthogonal** to which storage you use, so it's a composable wrapper
+rather than an adapter option. `withWatch(storage, subscribe)` returns a
+`WatchableFlagsStorage` that delegates all reads/writes to `storage` and drives
+`watch` from whatever change source **you** provide.
+
+> **`withWatch` does not detect writes by itself** — it needs a real change
+> signal you plug in (a Postgres `NOTIFY`, an ORM write-hook, a Redis message, a
+> websocket, …). If a backend has no change feed to subscribe to (e.g. Cloudflare
+> KV), there's nothing to wire and it stays polling-only.
 
 ```ts
 import { withWatch } from "@xtandard/flags";
@@ -363,8 +378,9 @@ const storage = createMongoStorage({
 // …or pass a connected MongoClient via { client }.
 ```
 
-Documents are `{ _id: <key>, value: <any> }`. `watch` is not implemented (change
-streams require a replica set); the provider's polling refresh covers updates.
+Documents are `{ _id: <key>, value: <any> }`. No built-in `watch` (change streams
+require a replica set); the provider's polling refresh covers updates, or wrap
+with [`withWatch`](#change-notifications-withwatch) driven by a change stream.
 
 ## unstorage driver ecosystem (`@xtandard/flags/storage/unstorage`)
 
