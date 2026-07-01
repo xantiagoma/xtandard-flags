@@ -29,6 +29,9 @@ import {
   type PgColumnBuilderBase,
   type PgTableExtraConfigValue,
 } from "drizzle-orm/pg-core";
+import type { DrizzleKvTable } from "./table.ts";
+
+export type { DrizzleKvTable } from "./table.ts";
 
 /** The `self` passed to an {@link PgFlagsTableOptions.extraIndexes} callback. */
 type PgFlagsColumns = BuildExtraConfigColumns<string, Record<string, PgColumnBuilderBase>, "pg">;
@@ -48,7 +51,7 @@ export interface PgFlagsTableOptions {
  * `key text PRIMARY KEY`, `value jsonb NOT NULL` — and required by
  * `createDrizzleStorage`; `schema`/`extraColumns`/`extraIndexes` extend it.
  */
-export function pgFlagsTable(name: string, opts?: PgFlagsTableOptions) {
+export function pgFlagsTable(name: string, opts?: PgFlagsTableOptions): DrizzleKvTable {
   const columns = {
     key: text("key").primaryKey(),
     value: jsonb("value").notNull(),

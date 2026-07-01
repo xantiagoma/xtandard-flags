@@ -26,9 +26,9 @@
 
 import { eq, sql, type Column, type SQL, type Table } from "drizzle-orm";
 import type { FlagsStorage } from "./contract.ts";
+import type { DrizzleKvTable } from "../drizzle/table.ts";
 
-/** The KV table shape this adapter reads/writes (produced by the `*FlagsTable` factories). */
-export type DrizzleKvTable = Table & { key: Column; value: Column };
+export type { DrizzleKvTable } from "../drizzle/table.ts";
 
 /**
  * Minimal structural view of a Drizzle database — the query-builder entry points

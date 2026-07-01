@@ -22,6 +22,9 @@ import {
   type MySqlColumnBuilderBase,
   type MySqlTableExtraConfigValue,
 } from "drizzle-orm/mysql-core";
+import type { DrizzleKvTable } from "./table.ts";
+
+export type { DrizzleKvTable } from "./table.ts";
 
 /** The `self` passed to an {@link MysqlFlagsTableOptions.extraIndexes} callback. */
 type MysqlFlagsColumns = BuildColumns<string, Record<string, MySqlColumnBuilderBase>, "mysql">;
@@ -43,7 +46,7 @@ export interface MysqlFlagsTableOptions {
  * Build the MySQL `mysqlTable` for the flags KV store: `key varchar PRIMARY KEY`,
  * `value json NOT NULL`.
  */
-export function mysqlFlagsTable(name: string, opts?: MysqlFlagsTableOptions) {
+export function mysqlFlagsTable(name: string, opts?: MysqlFlagsTableOptions): DrizzleKvTable {
   const columns = {
     key: varchar("key", { length: opts?.keyLength ?? 512 }).primaryKey(),
     value: json("value").notNull(),
