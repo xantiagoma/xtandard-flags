@@ -296,4 +296,24 @@ describe("hooks — HTTP mapping via the panel", () => {
     const res = await fetch(req("POST", `${BASE}/flags`, booleanFlag()));
     expect(res.status).toBe(500);
   });
+
+  test("a HookDeniedError from a SEPARATE bundle (name+status, not instanceof) still maps", async () => {
+    // Simulates a hook thrown from a subpath bundle (e.g. hooks/test-gate) whose
+    // HookDeniedError is a distinct class copy — `instanceof` would miss it.
+    const foreign = Object.assign(new Error("denied by foreign hook"), {
+      name: "HookDeniedError",
+      status: 422,
+    });
+    const { fetch } = createFetchHandler({
+      sourceStorage: createMemoryStorage(),
+      hooks: {
+        before: (e) => {
+          if (e.type === "flag.upsert") throw foreign;
+        },
+      },
+    });
+    const res = await fetch(req("POST", `${BASE}/flags`, booleanFlag()));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ code: "HOOK_DENIED" });
+  });
 });
