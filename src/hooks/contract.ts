@@ -49,6 +49,8 @@ export type BeforeEvent =
       environmentKey: string;
       /** The working draft about to be compiled + published. */
       draft: Draft;
+      /** The env's reusable segments (raw, unresolved) — for gates that evaluate the draft. */
+      segments: Record<string, Segment>;
       actor: Actor | null;
       message?: string;
     }

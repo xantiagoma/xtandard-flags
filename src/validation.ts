@@ -133,6 +133,15 @@ const lifecycleSchema = v.object({
   idle: v.optional(flagDurationSchema),
 });
 
+const flagTestSchema = v.object({
+  name: v.optional(v.string()),
+  context: v.record(v.string(), v.unknown()),
+  expect: v.object({
+    variant: v.optional(v.string()),
+    value: v.optional(jsonValueSchema),
+  }),
+});
+
 const flagTypeSchema = v.picklist(["boolean", "string", "number", "json"]);
 
 /** Structural schema for a {@link Flag}. Semantic checks run separately. */
@@ -157,6 +166,7 @@ export const flagSchema = v.object({
   schedule: v.optional(
     v.object({ enableAt: v.optional(v.string()), disableAt: v.optional(v.string()) }),
   ),
+  tests: v.optional(v.array(flagTestSchema)),
 });
 
 /** A single validation problem with a dotted path into the offending data. */
@@ -306,6 +316,20 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
       });
     }
   }
+  (flag.tests ?? []).forEach((t, i) => {
+    if (t.expect.variant === undefined && t.expect.value === undefined) {
+      errors.push({
+        path: `${basePath}.tests[${i}].expect`,
+        message: "a test must expect at least one of `variant` or `value`",
+      });
+    }
+    if (t.expect.variant !== undefined && !variantKeys.has(t.expect.variant)) {
+      errors.push({
+        path: `${basePath}.tests[${i}].expect.variant`,
+        message: `unknown variant "${t.expect.variant}"`,
+      });
+    }
+  });
   (flag.overrides ?? []).forEach((o, i) => {
     if (!variantKeys.has(o.variant)) {
       errors.push({

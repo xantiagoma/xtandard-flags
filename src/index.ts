@@ -43,6 +43,7 @@ export type {
   FlagErrorCode,
   FlagOwner,
   FlagSchedule,
+  FlagTest,
   FlagType,
   FlagValue,
   JsonValue,

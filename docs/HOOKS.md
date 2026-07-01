@@ -141,6 +141,44 @@ createFetchHandler({ sourceStorage, hooks: createLogHook() });
 // options: { log?, includeBefore?, format? }
 ```
 
+### `@xtandard/flags/hooks/test-gate`
+
+Gate publishing on **pinned flag tests**. Attach example evaluations to a flag
+via its `tests` array; on publish the gate re-evaluates the draft and **denies**
+(HTTP `422`) if any case regresses. Turns "did I break targeting?" into a
+pre-publish check — built entirely on the pure evaluator.
+
+```ts
+import { createTestGate } from "@xtandard/flags/hooks/test-gate";
+
+createFetchHandler({ sourceStorage, hooks: createTestGate() });
+```
+
+A flag pins its expectations (dev/CI metadata — **stripped from compiled
+snapshots**, never shipped to runtimes):
+
+```ts
+{
+  key: "checkout", type: "string", /* …variants, rules… */
+  tests: [
+    { name: "enterprise sees new flow",
+      context: { targetingKey: "u1", plan: "enterprise" },
+      expect: { variant: "new" } },
+    { context: { targetingKey: "u2" }, expect: { value: "old" } },
+  ],
+}
+```
+
+On regression the publish is blocked with a message naming each failing case:
+
+```
+Publish blocked — 1 flag test(s) failed:
+  - checkout "enterprise sees new flow": expected variant "new", got "old" (DEFAULT)
+```
+
+The pure checker (`runFlagTests(flags, segments)`) is exported for use in your
+own CI outside the publish path.
+
 ---
 
 ## Recipes (write your own)
