@@ -1,8 +1,9 @@
 # Hooks — policy + side effects around admin mutations
 
-[Hooks](../../docs/HOOKS.md) are plain JS wired into the panel that run around
-admin mutations. This example mounts one panel with all four flavors and a
-self-hosted webhook receiver so you can watch everything happen in the console.
+[Hooks](../../docs/HOOKS.md) are plain JS wired into the panel: **admin-plane**
+hooks around mutations, plus the **runtime-plane** `onEvaluation` observer. This
+example mounts one panel with all of them and a self-hosted webhook receiver so
+you can watch everything happen in the console.
 
 ```bash
 bun install
@@ -10,15 +11,34 @@ bun run start
 # or from the repo root:  bun run examples:hooks
 ```
 
-| Hook                 | Phase    | What it does here                                                      |
-| -------------------- | -------- | ---------------------------------------------------------------------- |
-| `createLogHook`      | `after`  | logs every mutation (`📝`) to the console                              |
-| publish-message gate | `before` | denies publish unless the message references a ticket (e.g. `ABC-123`) |
-| `createWebhookHook`  | `after`  | POSTs a **signed** event to `/_webhook` on publish/rollback (`📨`)     |
-| `createTestGate`     | `before` | denies publish if a flag's **pinned tests** regress (HTTP `422`)       |
+| Hook / observer      | Plane / phase      | What it does here                                                                               |
+| -------------------- | ------------------ | ----------------------------------------------------------------------------------------------- |
+| `createLogHook`      | admin · `after`    | logs every mutation (`📝`) to the console                                                       |
+| publish-message gate | admin · `before`   | denies publish unless the message references a ticket (e.g. `ABC-123`)                          |
+| `createWebhookHook`  | admin · `after`    | POSTs a **signed** event to `/_webhook` on publish/rollback (`📨`)                              |
+| `createTestGate`     | admin · `before`   | denies publish if a flag's **pinned tests** regress (HTTP `422`)                                |
+| `onEvaluation`       | runtime · per-eval | logs each **evaluation** (`📊`) — from OFREP (`ofrep`) and the in-process provider (`provider`) |
 
-On boot it seeds a `checkout-flow` flag with two pinned tests
-(`vip → new`, everyone else → `old`) so publishing works out of the box.
+On boot it seeds + publishes a `checkout-flow` flag (two pinned tests:
+`vip → new`, everyone else → `old`), then runs one **in-process provider**
+evaluation so you immediately see a `📊 eval [provider]` line.
+
+## Two evaluation surfaces (`onEvaluation`)
+
+The same sink is wired on both runtime surfaces, distinguished by `event.source`:
+
+- **`provider`** — the in-process, memory-first (resilient) provider. Demonstrated
+  on boot; keeps evaluating from its in-memory snapshot even if storage drops.
+- **`ofrep`** — remote evaluation over HTTP. Hit the OFREP endpoint to see it:
+
+```bash
+curl -sS -X POST http://localhost:3000/ofrep/v1/evaluate/flags \
+  -H 'content-type: application/json' -d '{"context":{"targetingKey":"vip"}}'
+# console: 📊 eval [ofrep] checkout-flow → new (STATIC)
+```
+
+(The admin UI's "test targeting" preview does **not** fire `onEvaluation` — only
+real runtime evaluations count.)
 
 ## Click-through (UI)
 
