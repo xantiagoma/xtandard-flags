@@ -208,3 +208,17 @@ flagsPanel({
 `(origin) => boolean`. With `credentials: true` the browser forbids `"*"`, so the
 handler echoes the caller's exact origin (and adds `Vary: Origin`). Also
 supports `methods`, `headers`, and `maxAge`.
+
+**Who owns CORS — set it on exactly one layer.** The panel does **not** inherit
+your host framework's CORS middleware; it's a standalone handler. Whether that
+middleware even reaches the panel depends on how you integrate:
+
+- **Mounted handler** (`Elysia.mount` / Hono / Express sub-app): the host's
+  `cors()` plugin generally does **not** wrap a mounted handler, so the panel
+  gets no CORS from it → use the panel's `cors` option.
+- **Typed plugin** (e.g. `flagsElysia`): declares real routes the host `cors()`
+  **does** wrap → leave the panel `cors` unset and let the host handle it.
+
+Never both: two `Access-Control-Allow-Origin` headers on one response make the
+browser reject it. You also don't need to re-list `headers` — the preflight
+reflects the request's `Access-Control-Request-Headers` by default.
