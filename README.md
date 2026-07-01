@@ -352,6 +352,7 @@ implementations of public contracts. See [docs/STORAGE.md](docs/STORAGE.md).
 | `@xtandard/flags/openfeature`                                                                        | OpenFeature provider                                                     |
 | `@xtandard/flags/storage/{memory,file,redis,unstorage,postgres,mongodb,sqlite,libsql,cloudflare-kv}` | storage adapters                                                         |
 | `@xtandard/flags/match/sift`                                                                         | sift query matcher for `matches` / `notMatches`                          |
+| `@xtandard/flags/hooks/{webhook,log}`                                                                | bundled control-plane hooks (webhook, log)                               |
 | `@xtandard/flags/auth/{none,basic,delegated}`                                                        | auth providers                                                           |
 | `@xtandard/flags/authorization/{none,roles,delegated}`                                               | authorization providers                                                  |
 | `@xtandard/flags/{elysia,hono,bun,express}`                                                          | framework adapters                                                       |
@@ -409,7 +410,7 @@ without installing.
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md) · [Getting started](docs/GETTING_STARTED.md)
-- [Storage](docs/STORAGE.md) · [Auth](docs/AUTH.md) · [Authorization](docs/AUTHORIZATION.md)
+- [Storage](docs/STORAGE.md) · [Auth](docs/AUTH.md) · [Authorization](docs/AUTHORIZATION.md) · [Hooks](docs/HOOKS.md)
 - [OpenFeature](docs/OPENFEATURE.md) · [UI](docs/UI.md) · [Operators](docs/OPERATORS.md) · [Adapters](docs/ADAPTERS.md)
 - [Deployment](docs/DEPLOYMENT.md) · [Testing](docs/TESTING.md) · [Releases](docs/RELEASES.md)
 - ADRs in [docs/ADR](docs/ADR/)
