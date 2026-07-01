@@ -229,6 +229,53 @@ For distinct failure modes, prefer separate hooks — each is independent and, f
 
 ---
 
+## Evaluation sink (`onEvaluation`)
+
+Everything above is the **admin plane** (mutations). The **runtime plane** —
+actual flag evaluations — has a _separate_ observer: `onEvaluation`. It is not a
+`FlagsHooks` member, on purpose:
+
+- Evaluations run on the hot request path (potentially thousands/sec), so the
+  sink is **fire-and-forget**: invoked _after_ the value is resolved, **never
+  awaited**, and its errors never touch the result.
+- It lives on the runtime provider + OFREP server (which only read published
+  snapshots), not on the admin core.
+
+Use it for usage/exposure pipelines: usage-driven stale detection ("not
+evaluated in N days"), exposure export to analytics, per-flag metrics — the
+"experimentation without a stats engine" story.
+
+```ts
+import { createOpenFeatureProvider } from "@xtandard/flags";
+import type { EvaluationEvent } from "@xtandard/flags";
+
+const provider = createOpenFeatureProvider({
+  storage,
+  onEvaluation: (e: EvaluationEvent) => {
+    // fire-and-forget: record last-seen, export exposure, bump a counter…
+    metrics.increment(`flag.${e.flagKey}.${e.variant}`, { reason: e.reason });
+  },
+});
+```
+
+For **OFREP** (remote HTTP) evaluations, configure it on the panel instead —
+`e.source` is `"ofrep"` there vs `"provider"` in-process:
+
+```ts
+createFetchHandler({ sourceStorage, onEvaluation: (e) => usage.touch(e.flagKey, e.at) });
+```
+
+The event: `{ flagKey, value, variant?, reason, errorCode?, context, projectKey,
+environmentKey, source: "provider" | "ofrep", at }`. Fires for **every**
+evaluation, including error outcomes (useful for misconfig alerting). Errors
+thrown by the sink go to `onEvaluationError` (default `console.warn`).
+
+> Not OpenFeature's client-side [Hooks](https://openfeature.dev/specification/sections/hooks)
+> either — those wrap a single SDK call in-process; this observes server-side
+> evaluations for pipelines.
+
+---
+
 ## API
 
 ```ts
@@ -239,8 +286,15 @@ interface FlagsHooks {
   before?(event: BeforeEvent): void | Promise<void>; // throw to deny
   after?(event: AfterEvent): void | Promise<void>; // side effects only
 }
+
+// Runtime-plane evaluation observer (separate from FlagsHooks):
+type EvaluationListener = (event: EvaluationEvent) => void | Promise<void>;
 ```
 
-Configure via `createFlagsCore({ hooks, onHookError })` or
+Configure admin hooks via `createFlagsCore({ hooks, onHookError })` or
 `createFetchHandler({ hooks, onHookError })`. When you pass a prebuilt `core` to
 `createFetchHandler`, configure hooks on that core instead.
+
+Configure the evaluation sink via `createOpenFeatureProvider({ onEvaluation,
+onEvaluationError })` (in-process) and/or `createFetchHandler({ onEvaluation,
+onEvaluationError })` (OFREP).

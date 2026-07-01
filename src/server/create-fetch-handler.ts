@@ -12,6 +12,7 @@ import type { AuthProvider } from "../auth/contract.ts";
 import type { AuthorizationProvider } from "../authorization/contract.ts";
 import { createFlagsCore, type FlagsCore } from "../core.ts";
 import type { FlagsHooksInput, HookErrorReporter } from "../hooks/contract.ts";
+import type { EvaluationErrorReporter, EvaluationListener } from "../evaluation-sink.ts";
 import type { FlagsStorage } from "../storage/contract.ts";
 import { normalizeBasePath, stripBasePath } from "./base-path.ts";
 import { renderIndexHtml } from "./render-index-html.ts";
@@ -54,6 +55,15 @@ export interface FlagsPanelOptions {
   hooks?: FlagsHooksInput;
   /** Reporter for errors thrown by `after` hooks. Default: `console.warn`. */
   onHookError?: HookErrorReporter;
+  /**
+   * Fire-and-forget observer invoked per **OFREP** evaluation served by this
+   * panel (off the response path). For usage/exposure pipelines. See
+   * {@link ../evaluation-sink.EvaluationListener}. (In-process evaluation is
+   * observed via the provider's own `onEvaluation` option.)
+   */
+  onEvaluation?: EvaluationListener;
+  /** Reporter for errors thrown by `onEvaluation`. Default: `console.warn`. */
+  onEvaluationError?: EvaluationErrorReporter;
   /**
    * Enable the opt-in OFREP SSE stream (`{basePath}/ofrep/v1/stream`) that pushes
    * `configuration_changed` events on publish/rollback. Requires a streaming
@@ -146,6 +156,11 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
     basePath,
     logoUrl: options.logoUrl,
     sse: options.streaming ? createSseManager({ core }) : undefined,
+    onEvaluation: options.onEvaluation,
+    onEvaluationError:
+      options.onEvaluationError ??
+      ((error, event) =>
+        console.warn(`[@xtandard/flags] onEvaluation for "${event.flagKey}" threw:`, error)),
   };
 
   async function fetch(request: Request): Promise<Response> {

@@ -33,6 +33,8 @@
 import type { ComparatorRegistry } from "./comparators.ts";
 import { withComparators } from "./comparators.ts";
 import { evaluateFlag } from "./evaluator.ts";
+import type { EvaluationErrorReporter, EvaluationListener } from "./evaluation-sink.ts";
+import { emitEvaluation } from "./evaluation-sink.ts";
 import type { MatcherRegistry } from "./matchers.ts";
 import { withMatchers } from "./matchers.ts";
 import { activeVersionKey, snapshotsPrefix } from "./keys.ts";
@@ -140,6 +142,14 @@ export interface OpenFeatureProviderOptions {
    * See {@link ./matchers.MatcherRegistry}.
    */
   matchers?: MatcherRegistry;
+  /**
+   * Fire-and-forget observer invoked once per evaluation (off the return path).
+   * For usage/exposure pipelines — never blocks or fails an evaluation. See
+   * {@link ./evaluation-sink.EvaluationListener}.
+   */
+  onEvaluation?: EvaluationListener;
+  /** Reporter for errors thrown by `onEvaluation`. Default: `console.warn`. */
+  onEvaluationError?: EvaluationErrorReporter;
 }
 
 /**
@@ -272,6 +282,11 @@ export function createOpenFeatureProvider(
   const refreshIntervalMs = options.refreshIntervalMs ?? 30_000;
   const logger = options.logger;
   const store = new SnapshotStore(options.storage);
+  const onEvaluation = options.onEvaluation;
+  const onEvaluationError: EvaluationErrorReporter =
+    options.onEvaluationError ??
+    ((error, event) =>
+      console.warn(`[@xtandard/flags] onEvaluation for "${event.flagKey}" threw:`, error));
 
   // --- In-memory, last-known-good state. ---
   let snapshot: Snapshot | null = null;
@@ -400,7 +415,38 @@ export function createOpenFeatureProvider(
    * Build a {@link OFResolutionDetails} for the four typed resolve methods. Pure,
    * synchronous, reads only in-memory state.
    */
+  // Compute the resolution, then (if a sink is configured) emit an evaluation
+  // event off the return path — fire-and-forget, never awaited, never throwing
+  // into the result.
   function resolve<T extends FlagValue>(
+    kind: ResolveKind,
+    flagKey: string,
+    defaultValue: T,
+    context: OFEvaluationContext,
+  ): OFResolutionDetails<T> {
+    const details = computeResolution(kind, flagKey, defaultValue, context);
+    if (onEvaluation) {
+      emitEvaluation(
+        onEvaluation,
+        {
+          flagKey,
+          value: details.value,
+          variant: details.variant,
+          reason: details.reason ?? "UNKNOWN",
+          errorCode: details.errorCode,
+          context: toInternalContext(context),
+          projectKey,
+          environmentKey,
+          source: "provider",
+          at: new Date().toISOString(),
+        },
+        onEvaluationError,
+      );
+    }
+    return details;
+  }
+
+  function computeResolution<T extends FlagValue>(
     kind: ResolveKind,
     flagKey: string,
     defaultValue: T,
