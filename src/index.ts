@@ -153,7 +153,13 @@ export type {
 export { isMutatingAction, MUTATING_ACTIONS } from "./authorization/contract.ts";
 
 // Control-plane hooks (before/after admin mutations)
-export { defaultHookErrorReporter, normalizeHooks, runAfter, runBefore } from "./hooks/contract.ts";
+export {
+  defaultHookErrorReporter,
+  HookDeniedError,
+  normalizeHooks,
+  runAfter,
+  runBefore,
+} from "./hooks/contract.ts";
 export type {
   AfterEvent,
   AfterEventType,

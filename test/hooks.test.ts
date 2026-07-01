@@ -1,7 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
 import { createFlagsCore } from "../src/core.ts";
 import type { AfterEvent, BeforeEvent, FlagsHooks } from "../src/hooks/contract.ts";
-import { normalizeHooks } from "../src/hooks/contract.ts";
+import { HookDeniedError, normalizeHooks } from "../src/hooks/contract.ts";
+import { createFetchHandler } from "../src/server/create-fetch-handler.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
 import { booleanFlag } from "./fixtures.ts";
 
@@ -241,5 +242,58 @@ describe("hooks — event coverage", () => {
       expect(rolledback.fromVersion).toBe("v2");
       expect(rolledback.actor).toMatchObject({ id: "bob" });
     }
+  });
+});
+
+describe("hooks — HTTP mapping via the panel", () => {
+  const BASE = "/api/projects/default/environments/production";
+  const req = (method: string, path: string, body?: unknown) =>
+    new Request(`http://localhost${path}`, {
+      method,
+      headers: body !== undefined ? { "content-type": "application/json" } : {},
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+
+  test("HookDeniedError maps to its status (default 403) with code HOOK_DENIED", async () => {
+    const { fetch } = createFetchHandler({
+      sourceStorage: createMemoryStorage(),
+      hooks: {
+        before: (e) => {
+          if (e.type === "flag.upsert") throw new HookDeniedError("naming policy");
+        },
+      },
+    });
+    const res = await fetch(req("POST", `${BASE}/flags`, booleanFlag()));
+    expect(res.status).toBe(403);
+    const bodyJson = await res.json();
+    expect(bodyJson).toMatchObject({ code: "HOOK_DENIED" });
+    expect(JSON.stringify(bodyJson)).toContain("naming policy");
+  });
+
+  test("HookDeniedError honors a custom status (e.g. 409)", async () => {
+    const { fetch } = createFetchHandler({
+      sourceStorage: createMemoryStorage(),
+      hooks: {
+        before: (e) => {
+          if (e.type === "publish") throw new HookDeniedError("locked", { status: 409 });
+        },
+      },
+    });
+    await fetch(req("POST", `${BASE}/flags`, booleanFlag()));
+    const res = await fetch(req("POST", `${BASE}/publish`, { message: "x" }));
+    expect(res.status).toBe(409);
+  });
+
+  test("a plain Error from before maps to 500 (unexpected bug, not a policy deny)", async () => {
+    const { fetch } = createFetchHandler({
+      sourceStorage: createMemoryStorage(),
+      hooks: {
+        before: (e) => {
+          if (e.type === "flag.upsert") throw new Error("boom");
+        },
+      },
+    });
+    const res = await fetch(req("POST", `${BASE}/flags`, booleanFlag()));
+    expect(res.status).toBe(500);
   });
 });

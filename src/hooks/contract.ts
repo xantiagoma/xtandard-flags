@@ -122,6 +122,32 @@ export type BeforeEventType = BeforeEvent["type"];
 export type AfterEventType = AfterEvent["type"];
 
 /**
+ * Thrown from a {@link FlagsHooks.before} handler to **deny** a mutation with a
+ * clean HTTP status (default `403`). Any thrown error denies the mutation, but
+ * a plain `Error` maps to `500` at the API layer (treated as an unexpected
+ * bug); throw this to signal a deliberate policy rejection (`403`, or a custom
+ * `status` such as `409`/`422`).
+ *
+ * @example
+ * ```ts
+ * before(event) {
+ *   if (event.type === "publish" && isFrozen()) {
+ *     throw new HookDeniedError("Publishing is frozen until Jan 2.");
+ *   }
+ * }
+ * ```
+ */
+export class HookDeniedError extends Error {
+  /** HTTP status the API layer should respond with. Default `403`. */
+  readonly status: number;
+  constructor(message: string, options?: { status?: number; cause?: unknown }) {
+    super(message, options?.cause !== undefined ? { cause: options.cause } : undefined);
+    this.name = "HookDeniedError";
+    this.status = options?.status ?? 403;
+  }
+}
+
+/**
  * A control-plane hook. Implement `before`, `after`, or both. Pass one — or an
  * array — to {@link ../core.createFlagsCore} via `hooks`.
  */
