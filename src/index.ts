@@ -152,6 +152,18 @@ export type {
 } from "./authorization/contract.ts";
 export { isMutatingAction, MUTATING_ACTIONS } from "./authorization/contract.ts";
 
+// Control-plane hooks (before/after admin mutations)
+export { defaultHookErrorReporter, normalizeHooks, runAfter, runBefore } from "./hooks/contract.ts";
+export type {
+  AfterEvent,
+  AfterEventType,
+  BeforeEvent,
+  BeforeEventType,
+  FlagsHooks,
+  FlagsHooksInput,
+  HookErrorReporter,
+} from "./hooks/contract.ts";
+
 // Admin core + server handler
 export { createFlagsCore } from "./core.ts";
 export type {
