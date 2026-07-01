@@ -5,7 +5,7 @@ import { text } from "drizzle-orm/pg-core";
 import { pgFlagsTable } from "../src/drizzle/pg.ts";
 import { mysqlFlagsTable } from "../src/drizzle/mysql.ts";
 import { sqliteFlagsTable } from "../src/drizzle/sqlite.ts";
-import { createDrizzleStorage, type DrizzleNotificationClient } from "../src/storage/drizzle.ts";
+import { createDrizzleStorage } from "../src/storage/drizzle.ts";
 import { isWatchable } from "../src/storage/contract.ts";
 import { runStorageContractTests } from "./storage-contract.ts";
 
@@ -47,63 +47,11 @@ describe("createDrizzleStorage (pg/pglite)", () => {
     expect(await storage.getItem("k")).toEqual({ n: 2 });
   });
 
-  test("no watch option → not watchable", async () => {
+  test("plain storage is not watchable (watch is composed via withWatch)", async () => {
     const client = new PGlite();
     await client.exec(`CREATE TABLE kv (key text PRIMARY KEY, value jsonb NOT NULL)`);
     const storage = createDrizzleStorage({ db: drizzle(client), table: pgFlagsTable("kv") });
     expect(isWatchable(storage)).toBe(false);
-  });
-});
-
-describe("createDrizzleStorage — opt-in watch (LISTEN/NOTIFY wiring)", () => {
-  // A fake notification client: records LISTEN/UNLISTEN and lets us emit events.
-  function fakeClient() {
-    const queries: string[] = [];
-    let handler: ((msg: { channel: string; payload?: string }) => void) | undefined;
-    const client: DrizzleNotificationClient = {
-      query: vi.fn(async (sql: string) => {
-        queries.push(sql);
-      }),
-      on: (_e, listener) => {
-        handler = listener;
-      },
-      removeListener: () => {
-        handler = undefined;
-      },
-    };
-    return {
-      client,
-      queries,
-      emit: (payload?: string) => handler?.({ channel: "flags_ch", payload }),
-    };
-  }
-
-  const table = pgFlagsTable("kv");
-  const withWatch = (client: DrizzleNotificationClient) =>
-    createDrizzleStorage({
-      db: {}, // watch path does not touch db
-      table,
-      watch: { client, channel: "flags_ch" },
-    });
-
-  test("watch option makes it watchable and LISTENs on the channel", async () => {
-    const { client, queries } = fakeClient();
-    const storage = withWatch(client);
-    expect(isWatchable(storage)).toBe(true);
-    const off = await storage.watch!("flags/", () => {});
-    expect(queries.some((q) => q.includes(`LISTEN "flags_ch"`))).toBe(true);
-    await off();
-    expect(queries.some((q) => q.includes(`UNLISTEN "flags_ch"`))).toBe(true);
-  });
-
-  test("delivers notifications whose payload matches the prefix, filters others", async () => {
-    const { client, emit } = fakeClient();
-    const storage = withWatch(client);
-    const seen: string[] = [];
-    await storage.watch!("flags/p1/", (e) => seen.push(e.key));
-    emit("flags/p1/e/a"); // match
-    emit("flags/p2/e/b"); // filtered out
-    expect(seen).toEqual(["flags/p1/e/a"]);
   });
 });
 
