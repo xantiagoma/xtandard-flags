@@ -22,6 +22,9 @@ import {
   type SQLiteColumnBuilderBase,
   type SQLiteTableExtraConfigValue,
 } from "drizzle-orm/sqlite-core";
+import type { DrizzleKvTable } from "./table.ts";
+
+export type { DrizzleKvTable } from "./table.ts";
 
 /** The `self` passed to an {@link SqliteFlagsTableOptions.extraIndexes} callback. */
 type SqliteFlagsColumns = BuildColumns<string, Record<string, SQLiteColumnBuilderBase>, "sqlite">;
@@ -38,7 +41,7 @@ export interface SqliteFlagsTableOptions {
  * Build the SQLite `sqliteTable` for the flags KV store: `key text PRIMARY KEY`,
  * `value text NOT NULL` (JSON mode).
  */
-export function sqliteFlagsTable(name: string, opts?: SqliteFlagsTableOptions) {
+export function sqliteFlagsTable(name: string, opts?: SqliteFlagsTableOptions): DrizzleKvTable {
   const columns = {
     key: text("key").primaryKey(),
     value: text("value", { mode: "json" }).notNull(),

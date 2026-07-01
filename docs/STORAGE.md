@@ -254,11 +254,14 @@ use). `table` defaults to `xtandard_flags` and is validated as a safe identifier
 
 ## Drizzle (`@xtandard/flags/storage/drizzle`)
 
-Peer dep: `drizzle-orm`. Use this instead of the Postgres adapter when you already
-use Drizzle and want the flags table to live in **your schema + migrations**
-(not auto-created via `CREATE TABLE`) and to **reuse your existing connection**
-(the adapter never opens or closes a pool). Works with Postgres, MySQL, and
-SQLite Drizzle databases — the upsert dialect is detected at runtime.
+Peer dep: `drizzle-orm` (supports `0.44`/`0.45` **and** the `1.0` beta — the
+factories return the dialect-agnostic `DrizzleKvTable` rather than a
+version-specific inferred type, so they stay portable across `drizzle-orm`
+versions). Use this instead of the Postgres adapter when you already use Drizzle
+and want the flags table to live in **your schema + migrations** (not
+auto-created via `CREATE TABLE`) and to **reuse your existing connection** (the
+adapter never opens or closes a pool). Works with Postgres, MySQL, and SQLite
+Drizzle databases — the upsert dialect is detected at runtime.
 
 **1. Declare the table** with the matching factory and add it to your schema so
 `drizzle-kit` generates the migration:
