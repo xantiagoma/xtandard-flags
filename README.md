@@ -364,19 +364,20 @@ implementations of public contracts. See [docs/STORAGE.md](docs/STORAGE.md).
 Runnable mini-projects in [`examples/`](examples/) — each mounts the panel **and**
 shows flags driving real behavior (change a flag, publish, watch the app change):
 
-| Example                                            | Shows                                                                |
-| -------------------------------------------------- | -------------------------------------------------------------------- |
-| [`elysia/`](examples/elysia)                       | Mount the panel + a route whose response a flag controls.            |
-| [`hono/`](examples/hono)                           | Same, on Hono.                                                       |
-| [`express/`](examples/express)                     | Same, on Express.                                                    |
-| [`auth/`](examples/auth)                           | Auth + RBAC flexibility: none/basic/header/cookie/JWT/query.         |
-| [`flags-sdk/`](examples/flags-sdk)                 | Next.js + Vercel Flags SDK; panel mounted + a home page flags drive. |
-| [`openfeature-redis/`](examples/openfeature-redis) | Evaluate at runtime via the OpenFeature provider over Redis.         |
-| [`ofrep/`](examples/ofrep)                         | Remote eval via **OFREP** over HTTP — bulk/single, ETag/304, SSE.    |
-| [`ofrep-clients/`](examples/ofrep-clients)         | Consume flags from **Python, Go, plain TS** via OpenFeature + OFREP. |
-| [`storage-drivers/`](examples/storage-drivers)     | One contract, every backend.                                         |
-| [`react-embed/`](examples/react-embed)             | Embed `<FlagsDashboard/>` in an existing React app.                  |
-| [`standalone-docker/`](examples/standalone-docker) | The Docker image + Redis via `docker compose`.                       |
+| Example                                            | Shows                                                                 |
+| -------------------------------------------------- | --------------------------------------------------------------------- |
+| [`elysia/`](examples/elysia)                       | Mount the panel + a route whose response a flag controls.             |
+| [`hono/`](examples/hono)                           | Same, on Hono.                                                        |
+| [`express/`](examples/express)                     | Same, on Express.                                                     |
+| [`auth/`](examples/auth)                           | Auth + RBAC flexibility: none/basic/header/cookie/JWT/query.          |
+| [`hooks/`](examples/hooks)                         | Control-plane hooks: log + publish gate + signed webhook + test-gate. |
+| [`flags-sdk/`](examples/flags-sdk)                 | Next.js + Vercel Flags SDK; panel mounted + a home page flags drive.  |
+| [`openfeature-redis/`](examples/openfeature-redis) | Evaluate at runtime via the OpenFeature provider over Redis.          |
+| [`ofrep/`](examples/ofrep)                         | Remote eval via **OFREP** over HTTP — bulk/single, ETag/304, SSE.     |
+| [`ofrep-clients/`](examples/ofrep-clients)         | Consume flags from **Python, Go, plain TS** via OpenFeature + OFREP.  |
+| [`storage-drivers/`](examples/storage-drivers)     | One contract, every backend.                                          |
+| [`react-embed/`](examples/react-embed)             | Embed `<FlagsDashboard/>` in an existing React app.                   |
+| [`standalone-docker/`](examples/standalone-docker) | The Docker image + Redis via `docker compose`.                        |
 
 ```bash
 bun run build               # build dist/ + dist/ui once

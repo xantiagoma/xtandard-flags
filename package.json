@@ -377,6 +377,7 @@
     "examples:openfeature-redis": "bun scripts/example.ts openfeature-redis",
     "examples:auth": "bun scripts/example.ts auth",
     "examples:ofrep": "bun scripts/example.ts ofrep",
+    "examples:hooks": "bun scripts/example.ts hooks",
     "examples:ofrep-clients": "bun scripts/ofrep-clients.ts",
     "test": "vp test run",
     "test:coverage": "vp test run --coverage",
