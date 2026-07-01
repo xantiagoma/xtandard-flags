@@ -1,18 +1,22 @@
 /**
- * Control-plane hooks demo. One server wires all four hook flavors, plus a
- * self-hosted webhook receiver so you can watch deliveries in the console:
+ * Hooks demo. One server wires the admin-plane hooks + the runtime-plane
+ * evaluation observer, plus a self-hosted webhook receiver, so you can watch it
+ * all in the console:
  *
  *   bun run src/index.ts
  *
- * - **log** hook (observer)      → every mutation is logged to the console.
- * - **before** gate (policy)     → publishing requires a ticket ref (e.g. ABC-123).
- * - **webhook** hook (side effect)→ publish/rollback POST a signed event to /_webhook.
- * - **test-gate** (before)        → a flag's pinned tests must pass or publish is denied (422).
+ * - **log** hook (admin observer)  → every mutation is logged (📝).
+ * - **before** gate (policy)       → publishing requires a ticket ref (e.g. ABC-123).
+ * - **webhook** hook (side effect) → publish/rollback POST a signed event to /_webhook (📨).
+ * - **test-gate** (before)         → a flag's pinned tests must pass or publish is denied (422).
+ * - **onEvaluation** (runtime)     → every evaluation is logged (📊), from OFREP + the
+ *                                    in-process provider (see `event.source`).
  *
  * See ../README.md for the click-through and curl walkthrough.
  */
 import { createFetchHandler, HookDeniedError } from "@xtandard/flags";
-import type { Flag } from "@xtandard/flags";
+import type { EvaluationEvent, Flag } from "@xtandard/flags";
+import { createOpenFeatureProvider } from "@xtandard/flags/openfeature";
 import { createMemoryStorage } from "@xtandard/flags/storage/memory";
 import { createLogHook } from "@xtandard/flags/hooks/log";
 import { createWebhookHook } from "@xtandard/flags/hooks/webhook";
@@ -22,10 +26,19 @@ const port = Number(process.env.PORT) || 3000;
 const WEBHOOK_SECRET = "demo-secret";
 const WEBHOOK_URL = `http://localhost:${port}/_webhook`;
 
+// Runtime-plane observer — fires once per flag *evaluation* (not a mutation).
+// `e.source` is "ofrep" (remote HTTP) or "provider" (in-process, memory-first).
+const logEval = (e: EvaluationEvent) =>
+  console.log(`  📊 eval [${e.source}] ${e.flagKey} → ${e.variant} (${e.reason})`);
+
+const storage = createMemoryStorage();
+
 const panel = createFetchHandler({
   basePath: "",
-  sourceStorage: createMemoryStorage(),
+  sourceStorage: storage,
   title: "Hooks demo",
+  // Runtime plane: observe OFREP (remote HTTP) evaluations served by this panel.
+  onEvaluation: logEval,
   hooks: [
     // 1. Observer — log every admin mutation.
     createLogHook({ log: (l) => console.log(`  📝 ${l.replace("[@xtandard/flags] ", "")}`) }),
@@ -107,21 +120,38 @@ const seed: Flag = {
   ],
 };
 await panel.core.upsertFlag(seed);
+// Publish once on boot (ticket ref satisfies the message gate) so there's an
+// active snapshot for the in-process provider to evaluate.
+await panel.core.publish({ message: "seed FLAGS-1" });
 
-console.log(`▶ hooks demo on http://localhost:${port}\n`);
-console.log("Seeded flag `checkout-flow` with 2 pinned tests.\n");
+// Runtime plane, second surface: the in-process (memory-first, resilient)
+// provider reading the same runtime storage. Wire the SAME onEvaluation sink —
+// events arrive with source "provider" instead of "ofrep".
+const provider = createOpenFeatureProvider({
+  storage,
+  refreshIntervalMs: 0,
+  onEvaluation: logEval,
+});
+await provider.initialize();
+console.log("\n— demonstrating an in-process (provider) evaluation on boot —");
+await provider.resolveStringEvaluation("checkout-flow", "old", { targetingKey: "vip" });
+
+console.log(`\n▶ hooks demo on http://localhost:${port}\n`);
+console.log("Seeded + published `checkout-flow` (2 pinned tests).\n");
 console.log("Try it:");
 console.log(
   `  1. Open http://localhost:${port} — edit + publish (message must have a ticket ref).`,
 );
-console.log("  2. Watch this console for 📝 mutation logs and 📨 webhook deliveries.");
+console.log("  2. Watch this console for 📝 mutations, 📨 webhooks, and 📊 evaluations.");
 console.log(`  3. Publish without a ticket ref → denied (422). With "ABC-123" → allowed.`);
 console.log("  4. Remove the `vip` override, then publish → the test-gate blocks it (422).\n");
 const base = `http://localhost:${port}/api/projects/default/environments/production`;
 console.log("Or via curl:");
 console.log(
-  `  curl -sS -X POST ${base}/publish -H 'content-type: application/json' -d '{"message":"no ticket"}'`,
-);
-console.log(
   `  curl -sS -X POST ${base}/publish -H 'content-type: application/json' -d '{"message":"ship ABC-123"}'`,
+);
+console.log("  # trigger an OFREP (source=ofrep) evaluation → prints a 📊 line:");
+console.log(
+  `  curl -sS -X POST http://localhost:${port}/ofrep/v1/evaluate/flags` +
+    ` -H 'content-type: application/json' -d '{"context":{"targetingKey":"vip"}}'`,
 );
