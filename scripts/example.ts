@@ -84,6 +84,13 @@ const EXAMPLES: Record<string, ExampleConfig> = {
     run: ["bun", "run", "start"],
     note: "self-contained: boots a panel + acts as an OFREP client (bulk/single/ETag/SSE)",
   },
+  hooks: {
+    dir: "examples/hooks",
+    kind: "server",
+    run: ["bun", "run", "start"],
+    preferredPort: 3000,
+    note: "control-plane hooks — log + publish-message gate + signed webhook + test-gate",
+  },
 };
 
 const name = process.argv[2];

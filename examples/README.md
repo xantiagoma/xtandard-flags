@@ -2,21 +2,22 @@
 
 Each example is a standalone mini-project — copy it out, `bun install`, run.
 
-| Example                                       | What it shows                                                                       |
-| --------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [`elysia/`](./elysia)                         | Mount the admin panel under `/flags` in an Elysia app (file storage).               |
-| [`hono/`](./hono)                             | Mount the admin panel under `/flags` in a Hono app (file storage).                  |
-| [`express/`](./express)                       | Mount the admin panel under `/flags` in an Express app (file storage).              |
-| [`auth/`](./auth)                             | Auth + authorization flexibility: none/basic/header/cookie/JWT/query + RBAC.        |
-| [`openfeature-redis/`](./openfeature-redis)   | Evaluate flags at runtime via the OpenFeature provider over Redis.                  |
-| [`ofrep/`](./ofrep)                           | Remote evaluation via **OFREP** over plain HTTP — bulk/single, ETag/304, live SSE.  |
-| [`ofrep-clients/`](./ofrep-clients)           | Consume flags from **Python, Go, and plain TypeScript** via OpenFeature + OFREP.    |
-| [`flags-sdk/`](./flags-sdk)                   | Next.js app using the Vercel Flags SDK via its OpenFeature adapter.                 |
-| [`storage-drivers/`](./storage-drivers)       | One contract, every backend — incl. libSQL/Turso + Cloudflare KV.                   |
-| [`postgres-redis/`](./postgres-redis)         | **Split planes**: Postgres source (durable) + Redis runtime (fast, watch-based).    |
-| [`turso/`](./turso)                           | Edge SQLite via libSQL/Turso; seed → publish → evaluate over a `file:` or Turso db. |
-| [`cloudflare-workers/`](./cloudflare-workers) | Panel API + flag evaluation **on the edge** with two Workers KV namespaces.         |
-| [`standalone-docker/`](./standalone-docker)   | Run the standalone Docker image + Redis with `docker compose`.                      |
+| Example                                       | What it shows                                                                         |
+| --------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [`elysia/`](./elysia)                         | Mount the admin panel under `/flags` in an Elysia app (file storage).                 |
+| [`hono/`](./hono)                             | Mount the admin panel under `/flags` in a Hono app (file storage).                    |
+| [`express/`](./express)                       | Mount the admin panel under `/flags` in an Express app (file storage).                |
+| [`auth/`](./auth)                             | Auth + authorization flexibility: none/basic/header/cookie/JWT/query + RBAC.          |
+| [`hooks/`](./hooks)                           | Control-plane hooks: log + publish-message gate + signed webhook + publish test-gate. |
+| [`openfeature-redis/`](./openfeature-redis)   | Evaluate flags at runtime via the OpenFeature provider over Redis.                    |
+| [`ofrep/`](./ofrep)                           | Remote evaluation via **OFREP** over plain HTTP — bulk/single, ETag/304, live SSE.    |
+| [`ofrep-clients/`](./ofrep-clients)           | Consume flags from **Python, Go, and plain TypeScript** via OpenFeature + OFREP.      |
+| [`flags-sdk/`](./flags-sdk)                   | Next.js app using the Vercel Flags SDK via its OpenFeature adapter.                   |
+| [`storage-drivers/`](./storage-drivers)       | One contract, every backend — incl. libSQL/Turso + Cloudflare KV.                     |
+| [`postgres-redis/`](./postgres-redis)         | **Split planes**: Postgres source (durable) + Redis runtime (fast, watch-based).      |
+| [`turso/`](./turso)                           | Edge SQLite via libSQL/Turso; seed → publish → evaluate over a `file:` or Turso db.   |
+| [`cloudflare-workers/`](./cloudflare-workers) | Panel API + flag evaluation **on the edge** with two Workers KV namespaces.           |
+| [`standalone-docker/`](./standalone-docker)   | Run the standalone Docker image + Redis with `docker compose`.                        |
 
 ## Storage backends
 
@@ -79,6 +80,7 @@ you can run several at once without collisions):
 
 ```bash
 bun run examples:elysia            # or: hono | express | flags-sdk
+bun run examples:hooks             # control-plane hooks (log + gate + webhook + test-gate)
 bun run examples:storage-drivers   # script example (no server)
 bun run examples:openfeature-redis # needs Redis + published flags
 bun run examples:ofrep             # self-contained OFREP wire-protocol demo
