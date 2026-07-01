@@ -37,6 +37,14 @@ import type {
 import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
 import type { ComparatorRegistry } from "./comparators.ts";
 import { withComparators } from "./comparators.ts";
+import type {
+  AfterEvent,
+  BeforeEvent,
+  FlagsHooks,
+  FlagsHooksInput,
+  HookErrorReporter,
+} from "./hooks/contract.ts";
+import { defaultHookErrorReporter, normalizeHooks, runAfter, runBefore } from "./hooks/contract.ts";
 import { evaluateFlag } from "./evaluator.ts";
 import type { MatcherRegistry } from "./matchers.ts";
 import { withMatchers } from "./matchers.ts";
@@ -97,6 +105,19 @@ export interface FlagsCoreOptions {
    * {@link FlagsCore.evaluate}. See {@link ./matchers.MatcherRegistry}.
    */
   matchers?: MatcherRegistry;
+  /**
+   * Control-plane hooks fired around admin mutations. Pass one hook or an array.
+   * `before` hooks run sequentially and may **throw to deny**; `after` hooks run
+   * post-commit for side effects and never fail the operation. See
+   * {@link ./hooks/contract.FlagsHooks}.
+   */
+  hooks?: FlagsHooksInput;
+  /**
+   * Reporter invoked when an `after` hook throws. Defaults to a `console.warn`.
+   * The error is always swallowed — a failing side effect never rolls back an
+   * already-committed mutation.
+   */
+  onHookError?: HookErrorReporter;
 }
 
 /** A snapshot version with its publish metadata, for history views. */
@@ -146,11 +167,13 @@ export class NotFoundError extends Error {
 /** The admin core surface. */
 export interface FlagsCore {
   readonly options: Required<
-    Omit<FlagsCoreOptions, "runtimeStorage" | "comparators" | "matchers">
+    Omit<FlagsCoreOptions, "runtimeStorage" | "comparators" | "matchers" | "hooks" | "onHookError">
   > & {
     runtimeStorage: FlagsStorage;
     comparators?: ComparatorRegistry;
     matchers?: MatcherRegistry;
+    /** Normalized hooks (always an array). */
+    hooks: FlagsHooks[];
   };
 
   // Projects
@@ -285,6 +308,8 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
   const readonly = options.readonly ?? false;
   const comparators = options.comparators;
   const matchers = options.matchers;
+  const hooks = normalizeHooks(options.hooks);
+  const onHookError = options.onHookError ?? defaultHookErrorReporter;
 
   const source = new SnapshotStore(sourceStorage);
   const runtime = new SnapshotStore(runtimeStorage);
@@ -292,6 +317,11 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
   const guard = (op: string) => {
     if (readonly) throw new ReadonlyError(op);
   };
+
+  // Hook dispatch: `before` may throw to deny (runs before commit); `after` is
+  // best-effort (runs after commit, never fails the op). No-ops when unset.
+  const before = hooks.length ? (event: BeforeEvent) => runBefore(hooks, event) : null;
+  const after = hooks.length ? (event: AfterEvent) => runAfter(hooks, event, onHookError) : null;
 
   const pk = (k?: string) => k ?? defaultProjectKey;
   const ek = (k?: string) => k ?? defaultEnvironmentKey;
@@ -346,6 +376,22 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
     );
   }
 
+  // Stamp timestamps + persist a flag into the draft. No hooks, no validation —
+  // callers (upsert/archive/restore) run those + fire the appropriate events.
+  async function writeFlag(flag: Flag, projectKey: string, environmentKey: string): Promise<Flag> {
+    const draft = await loadDraft(projectKey, environmentKey);
+    const existing = draft.flags[flag.key];
+    const now = new Date().toISOString();
+    const stamped: Flag = {
+      ...flag,
+      createdAt: flag.createdAt ?? existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    draft.flags[flag.key] = stamped;
+    await source.putDraft(draft);
+    return stamped;
+  }
+
   return {
     options: {
       sourceStorage,
@@ -355,6 +401,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       readonly,
       comparators,
       matchers,
+      hooks,
     },
 
     async listProjects() {
@@ -425,16 +472,17 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const p = pk(projectKey);
       const e = ek(environmentKey);
       await ensureEnvironment(p, e);
-      const draft = await loadDraft(p, e);
-      const existing = draft.flags[flag.key];
-      const now = new Date().toISOString();
-      const stamped: Flag = {
-        ...flag,
-        createdAt: flag.createdAt ?? existing?.createdAt ?? now,
-        updatedAt: now,
-      };
-      draft.flags[flag.key] = stamped;
-      await source.putDraft(draft);
+      if (before) await before({ type: "flag.upsert", projectKey: p, environmentKey: e, flag });
+      const stamped = await writeFlag(flag, p, e);
+      if (after) {
+        await after({
+          type: "flag.upserted",
+          projectKey: p,
+          environmentKey: e,
+          flag: stamped,
+          at: stamped.updatedAt!,
+        });
+      }
       return stamped;
     },
 
@@ -445,7 +493,27 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const draft = await loadDraft(p, e);
       const flag = draft.flags[flagKey];
       if (!flag) throw new NotFoundError(`flag "${flagKey}" not found`);
-      return this.upsertFlag({ ...flag, archivedAt: new Date().toISOString() }, p, e);
+      const archived: Flag = { ...flag, archivedAt: new Date().toISOString() };
+      if (before) {
+        await before({
+          type: "flag.archive",
+          projectKey: p,
+          environmentKey: e,
+          flagKey,
+          flag: archived,
+        });
+      }
+      const stamped = await writeFlag(archived, p, e);
+      if (after) {
+        await after({
+          type: "flag.archived",
+          projectKey: p,
+          environmentKey: e,
+          flag: stamped,
+          at: stamped.updatedAt!,
+        });
+      }
+      return stamped;
     },
 
     async restoreFlag(flagKey, projectKey, environmentKey) {
@@ -457,7 +525,26 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       if (!flag) throw new NotFoundError(`flag "${flagKey}" not found`);
       const restored: Flag = { ...flag };
       delete restored.archivedAt;
-      return this.upsertFlag(restored, p, e);
+      if (before) {
+        await before({
+          type: "flag.restore",
+          projectKey: p,
+          environmentKey: e,
+          flagKey,
+          flag: restored,
+        });
+      }
+      const stamped = await writeFlag(restored, p, e);
+      if (after) {
+        await after({
+          type: "flag.restored",
+          projectKey: p,
+          environmentKey: e,
+          flag: stamped,
+          at: stamped.updatedAt!,
+        });
+      }
+      return stamped;
     },
 
     async listSegments(projectKey, environmentKey) {
@@ -482,9 +569,20 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const p = pk(projectKey);
       const e = ek(environmentKey);
       await ensureEnvironment(p, e);
+      if (before)
+        await before({ type: "segment.upsert", projectKey: p, environmentKey: e, segment });
       const segments = await loadSegments(p, e);
       segments[segment.key] = segment;
       await sourceStorage.setItem(segmentsKey(p, e), segments);
+      if (after) {
+        await after({
+          type: "segment.upserted",
+          projectKey: p,
+          environmentKey: e,
+          segment,
+          at: new Date().toISOString(),
+        });
+      }
       return segment;
     },
 
@@ -496,8 +594,20 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       if (!(segmentKey in segments)) {
         throw new NotFoundError(`segment "${segmentKey}" not found`);
       }
+      if (before) {
+        await before({ type: "segment.delete", projectKey: p, environmentKey: e, segmentKey });
+      }
       delete segments[segmentKey];
       await sourceStorage.setItem(segmentsKey(p, e), segments);
+      if (after) {
+        await after({
+          type: "segment.deleted",
+          projectKey: p,
+          environmentKey: e,
+          segmentKey,
+          at: new Date().toISOString(),
+        });
+      }
     },
 
     async deleteFlag(flagKey, projectKey, environmentKey) {
@@ -506,8 +616,18 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const e = ek(environmentKey);
       const draft = await loadDraft(p, e);
       if (!(flagKey in draft.flags)) throw new NotFoundError(`flag "${flagKey}" not found`);
+      if (before) await before({ type: "flag.delete", projectKey: p, environmentKey: e, flagKey });
       delete draft.flags[flagKey];
       await source.putDraft(draft);
+      if (after) {
+        await after({
+          type: "flag.deleted",
+          projectKey: p,
+          environmentKey: e,
+          flagKey,
+          at: new Date().toISOString(),
+        });
+      }
     },
 
     async replaceDraft(draft) {
@@ -621,6 +741,19 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const refErrors = validateSegmentReferences(draft.flags, segments);
       if (refErrors.length > 0) throw new DraftValidationError(refErrors);
 
+      // Gate: a `before` hook may veto the publish (e.g. test-gating, freeze
+      // windows). Runs on the validated draft, before anything is written.
+      if (before) {
+        await before({
+          type: "publish",
+          projectKey: p,
+          environmentKey: e,
+          draft,
+          actor: input.by ?? null,
+          message: input.message,
+        });
+      }
+
       const existing = await source.listVersions(p, e);
       const version = nextVersion(existing);
       const snapshot = compileDraft(draft, { version, createdBy: input.by ?? null, segments });
@@ -640,6 +773,17 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       });
       // Record the draft as-published — the baseline for diff + discard.
       await sourceStorage.setItem(publishedDraftKey(p, e), { flags: draft.flags, segments });
+      if (after) {
+        await after({
+          type: "published",
+          projectKey: p,
+          environmentKey: e,
+          snapshot,
+          actor: input.by ?? null,
+          message: input.message,
+          at: snapshot.createdAt,
+        });
+      }
       return snapshot;
     },
 
@@ -650,20 +794,44 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       const target = await source.getSnapshot(p, e, input.version);
       if (!target) throw new NotFoundError(`snapshot "${input.version}" not found`);
       const from = await source.getActiveVersion(p, e);
+      if (before) {
+        await before({
+          type: "rollback",
+          projectKey: p,
+          environmentKey: e,
+          toVersion: input.version,
+          fromVersion: from ?? undefined,
+          actor: input.by ?? null,
+          message: input.message,
+        });
+      }
       // Ensure runtime has the target snapshot (it should from publish), then re-point.
       await runtime.putSnapshot(target);
       await Promise.all([
         source.setActiveVersion(p, e, input.version),
         runtime.setActiveVersion(p, e, input.version),
       ]);
+      const at = new Date().toISOString();
       await source.appendAudit(p, e, {
         version: input.version,
         action: "rollback",
-        at: new Date().toISOString(),
+        at,
         by: input.by ?? null,
         fromVersion: from ?? undefined,
         message: input.message,
       });
+      if (after) {
+        await after({
+          type: "rolledback",
+          projectKey: p,
+          environmentKey: e,
+          version: input.version,
+          fromVersion: from ?? undefined,
+          actor: input.by ?? null,
+          message: input.message,
+          at,
+        });
+      }
       return target;
     },
 
