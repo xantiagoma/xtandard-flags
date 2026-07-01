@@ -314,6 +314,13 @@ rather than an adapter option. `withWatch(storage, subscribe)` returns a
 > websocket, …). If a backend has no change feed to subscribe to (e.g. Cloudflare
 > KV), there's nothing to wire and it stays polling-only.
 
+You _can_ wrap an already-watchable adapter (memory/file/redis) — reads/writes
+still delegate — but the wrapper's `watch` **replaces** the adapter's built-in
+one (your source wins; there's no double-subscription). Normally you'd only wrap
+adapters that lack `watch`; wrap a watchable one only to deliberately swap its
+signal (e.g. drive redis storage off your app's own pub/sub instead of keyspace
+notifications).
+
 ```ts
 import { withWatch } from "@xtandard/flags";
 
