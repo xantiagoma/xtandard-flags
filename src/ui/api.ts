@@ -12,20 +12,40 @@ import { FlagsApiError } from "./types.ts";
 // relative URLs (resolved against the injected <base href>). The React component
 // export sets this to the panel's mount URL via setApiBase().
 let apiBase = "";
+// Credentials mode for every request. `same-origin` (default) is right for the
+// bundled SPA and same-origin embeds; a cross-origin embed (panel on another
+// origin) must use `include` so the session cookie is sent. See setApiBase().
+let apiCredentials: RequestCredentials = "same-origin";
+// Optional custom fetch (e.g. to inject a bearer token / extra headers when the
+// panel is protected by a non-cookie scheme). Defaults to the global fetch.
+let apiFetch: FetchLike = (input, init) => fetch(input, init);
+
+/** The subset of `fetch` the client uses (the global `fetch` satisfies it). */
+export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/** Options for {@link setApiBase}. */
+export interface ApiClientOptions {
+  /** `credentials` mode for requests. Use `"include"` for cross-origin cookie auth. */
+  credentials?: RequestCredentials;
+  /** Custom fetch implementation (bearer tokens, extra headers, instrumentation). */
+  fetch?: FetchLike;
+}
 
 /** Point the API client at a base URL (used by the `@xtandard/flags/react` export). */
-export function setApiBase(base: string): void {
+export function setApiBase(base: string, opts?: ApiClientOptions): void {
   apiBase = base.replace(/\/$/, "");
+  if (opts?.credentials) apiCredentials = opts.credentials;
+  if (opts?.fetch) apiFetch = opts.fetch;
 }
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(apiBase ? `${apiBase}/${path}` : path, {
-    credentials: "same-origin",
+  const res = await apiFetch(apiBase ? `${apiBase}/${path}` : path, {
+    credentials: apiCredentials,
+    ...init,
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
     },
-    ...init,
   });
 
   if (!res.ok) {

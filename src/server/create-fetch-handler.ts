@@ -14,6 +14,7 @@ import { createFlagsCore, type FlagsCore } from "../core.ts";
 import type { FlagsHooksInput, HookErrorReporter } from "../hooks/contract.ts";
 import type { EvaluationErrorReporter, EvaluationListener } from "../evaluation-sink.ts";
 import type { FlagsStorage } from "../storage/contract.ts";
+import { applyCorsHeaders, preflightResponse, type FlagsCorsOptions } from "./cors.ts";
 import { normalizeBasePath, stripBasePath } from "./base-path.ts";
 import { renderIndexHtml } from "./render-index-html.ts";
 import { buildOpenApiDocument } from "./openapi.ts";
@@ -64,6 +65,12 @@ export interface FlagsPanelOptions {
   onEvaluation?: EvaluationListener;
   /** Reporter for errors thrown by `onEvaluation`. Default: `console.warn`. */
   onEvaluationError?: EvaluationErrorReporter;
+  /**
+   * Enable CORS on the handler itself — answers `OPTIONS` preflights and attaches
+   * `Access-Control-*` headers to every response, so a **cross-origin** embed
+   * works regardless of the host framework. See {@link ./cors.FlagsCorsOptions}.
+   */
+  cors?: FlagsCorsOptions;
   /**
    * Enable the opt-in OFREP SSE stream (`{basePath}/ofrep/v1/stream`) that pushes
    * `configuration_changed` events on publish/rollback. Requires a streaming
@@ -163,7 +170,17 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
         console.warn(`[@xtandard/flags] onEvaluation for "${event.flagKey}" threw:`, error)),
   };
 
+  const cors = options.cors;
+
   async function fetch(request: Request): Promise<Response> {
+    // CORS preflight: answer OPTIONS directly so it works for any path,
+    // independent of the host framework wrapping this handler.
+    if (cors && request.method === "OPTIONS") return preflightResponse(request, cors);
+    const response = await respond(request);
+    return cors ? applyCorsHeaders(request, response, cors) : response;
+  }
+
+  async function respond(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const path = stripBasePath(url.pathname, basePath);
 

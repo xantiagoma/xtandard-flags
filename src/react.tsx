@@ -26,7 +26,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "./ui/App.tsx";
 import { ToastProvider } from "./ui/components/Toast.tsx";
-import { setApiBase } from "./ui/api.ts";
+import { setApiBase, type FetchLike } from "./ui/api.ts";
 import { initTheme } from "./ui/theme.ts";
 import "./ui/styles.css";
 
@@ -37,6 +37,18 @@ export interface FlagsDashboardProps {
    * `"https://admin.example.com/flags"`). Defaults to `""` (same origin, relative).
    */
   apiBaseUrl?: string;
+  /**
+   * `credentials` mode for API requests. Defaults to `"same-origin"`. For a
+   * **cross-origin** embed (panel served from a different origin than this app)
+   * with cookie-based auth, set `"include"` — and enable `cors` on the panel
+   * server so it returns `Access-Control-Allow-Credentials`.
+   */
+  credentials?: RequestCredentials;
+  /**
+   * Custom `fetch` for API requests — inject a bearer token / extra headers, or
+   * instrument calls. Defaults to the global `fetch`.
+   */
+  fetch?: FetchLike;
   /** Bring your own QueryClient; one is created if omitted. */
   queryClient?: QueryClient;
   /** Control theme handling. `"auto"` (default) initializes the system/light/dark switcher. */
@@ -70,6 +82,8 @@ function getClient(): QueryClient {
 /** The full feature-flag admin dashboard as an embeddable React component. */
 export function FlagsDashboard({
   apiBaseUrl = "",
+  credentials,
+  fetch: fetchImpl,
   queryClient,
   theme = "auto",
   className,
@@ -78,7 +92,7 @@ export function FlagsDashboard({
   logoUrl,
 }: FlagsDashboardProps): React.ReactElement {
   // Set the API base synchronously so child queries (run on mount) use it.
-  setApiBase(apiBaseUrl);
+  setApiBase(apiBaseUrl, { credentials, fetch: fetchImpl });
 
   React.useEffect(() => {
     if (theme === "auto") initTheme();
