@@ -1,6 +1,37 @@
 # Changelog
 
 
+## v0.1.5
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.4...v0.1.5)
+
+### 🚀 Enhancements
+
+- **hooks:** Control-plane `before`/`after` hooks on the admin core (throw to deny; best-effort side effects) ([e40d149](https://github.com/xantiagoma/xtandard-flags/commit/e40d149))
+- **hooks:** Map before-hook denials to HTTP status via `HookDeniedError` ([8bf47ef](https://github.com/xantiagoma/xtandard-flags/commit/8bf47ef))
+- **hooks:** Bundled `hooks/webhook` (HMAC + retry) and `hooks/log` reference adapters ([4ae1dba](https://github.com/xantiagoma/xtandard-flags/commit/4ae1dba))
+- **hooks:** Pinned flag tests that gate publishing (`hooks/test-gate` + `Flag.tests`) ([b117e8b](https://github.com/xantiagoma/xtandard-flags/commit/b117e8b))
+- **eval:** `onEvaluation` runtime-plane observer for usage/exposure (in-process provider + OFREP) ([70ea275](https://github.com/xantiagoma/xtandard-flags/commit/70ea275))
+- **embed:** Cross-origin support for the embedded dashboard (`credentials`/`fetch` props + panel `cors`) ([cc6a15c](https://github.com/xantiagoma/xtandard-flags/commit/cc6a15c))
+- **storage:** Drizzle adapter (`storage/drizzle`) + `drizzle/{pg,mysql,sqlite}` table factories ([1649545](https://github.com/xantiagoma/xtandard-flags/commit/1649545))
+- **storage:** Composable `withWatch` + `pgListenNotify` — add `watch` to any storage from any change source ([17dab87](https://github.com/xantiagoma/xtandard-flags/commit/17dab87))
+
+### 🩹 Fixes
+
+- **hooks:** Map `HookDeniedError` from separate bundles by name, not `instanceof` ([723121c](https://github.com/xantiagoma/xtandard-flags/commit/723121c))
+- **examples:** Map `@xtandard/flags/hooks/*` to source in examples tsconfig ([20760de](https://github.com/xantiagoma/xtandard-flags/commit/20760de))
+
+### 📖 Documentation
+
+- **hooks:** Add `docs/HOOKS.md` + runnable `examples/hooks` (all hook flavors incl. `onEvaluation`) ([3839a16](https://github.com/xantiagoma/xtandard-flags/commit/3839a16))
+- **embed:** Document CORS ownership — mount vs plugin, no double-up ([b0c12d6](https://github.com/xantiagoma/xtandard-flags/commit/b0c12d6))
+- **storage:** Make watch coverage explicit (which adapters self-notify) + `withWatch` override behavior ([e9b3325](https://github.com/xantiagoma/xtandard-flags/commit/e9b3325))
+
+### ❤️ Contributors
+
+- Santiago Montoya ([@xantiagoma](https://github.com/xantiagoma))
+
+
 ## v0.1.4
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.3...v0.1.4)
