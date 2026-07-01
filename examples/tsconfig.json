@@ -20,7 +20,8 @@
       "@xtandard/flags/express": ["../src/adapters/express.ts"],
       "@xtandard/flags/storage/*": ["../src/storage/*"],
       "@xtandard/flags/auth/*": ["../src/auth/*"],
-      "@xtandard/flags/authorization/*": ["../src/authorization/*"]
+      "@xtandard/flags/authorization/*": ["../src/authorization/*"],
+      "@xtandard/flags/hooks/*": ["../src/hooks/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],
