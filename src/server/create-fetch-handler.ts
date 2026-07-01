@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import type { AuthProvider } from "../auth/contract.ts";
 import type { AuthorizationProvider } from "../authorization/contract.ts";
 import { createFlagsCore, type FlagsCore } from "../core.ts";
+import type { FlagsHooksInput, HookErrorReporter } from "../hooks/contract.ts";
 import type { FlagsStorage } from "../storage/contract.ts";
 import { normalizeBasePath, stripBasePath } from "./base-path.ts";
 import { renderIndexHtml } from "./render-index-html.ts";
@@ -45,6 +46,14 @@ export interface FlagsPanelOptions {
   uiDir?: string;
   /** Reuse an existing core instead of constructing one. */
   core?: FlagsCore;
+  /**
+   * Control-plane hooks fired around admin mutations (see
+   * {@link ../hooks/contract.FlagsHooks}). Ignored when `core` is supplied —
+   * configure hooks on that core instead.
+   */
+  hooks?: FlagsHooksInput;
+  /** Reporter for errors thrown by `after` hooks. Default: `console.warn`. */
+  onHookError?: HookErrorReporter;
   /**
    * Enable the opt-in OFREP SSE stream (`{basePath}/ofrep/v1/stream`) that pushes
    * `configuration_changed` events on publish/rollback. Requires a streaming
@@ -124,6 +133,8 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
       defaultProjectKey: options.defaultProjectKey,
       defaultEnvironmentKey: options.defaultEnvironmentKey,
       readonly,
+      hooks: options.hooks,
+      onHookError: options.onHookError,
     });
 
   const apiCtx: ApiContext = {

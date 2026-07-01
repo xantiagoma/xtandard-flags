@@ -20,6 +20,7 @@ import {
   type FlagsCore,
 } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
+import { HookDeniedError } from "../hooks/contract.ts";
 import { buildImportSchema, buildOpenApiDocument } from "./openapi.ts";
 import { toOfrepBulkResponse, toOfrepEvaluation } from "./ofrep.ts";
 import type { SseManager } from "./sse.ts";
@@ -657,6 +658,8 @@ export async function handleApiRequest(
 /** Map domain errors to HTTP responses. */
 function mapError(err: unknown): Response {
   if (err instanceof ReadonlyError) return error(403, err.message, { code: "READONLY" });
+  if (err instanceof HookDeniedError)
+    return error(err.status, err.message, { code: "HOOK_DENIED" });
   if (err instanceof NotFoundError) return error(404, err.message);
   if (err instanceof FlagValidationError) {
     return error(422, err.message, { code: "VALIDATION", errors: err.errors });
