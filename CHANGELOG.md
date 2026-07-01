@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.6
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.5...v0.1.6)
+
+### 🩹 Fixes
+
+- **storage:** Make the Drizzle exports compatible with `drizzle-orm@1.0` beta — widen the peer range (`>=0.44.0 || >=1.0.0-0`) and return the portable `DrizzleKvTable` from the `*FlagsTable` factories so their `.d.ts` no longer freezes the 0.45 `PgColumn` brand (fixes TS2883/TS2322 for consumers on `1.0.0-beta.x`). Verified against both `1.0.0-beta.22` and `0.45.x`. ([8397b69](https://github.com/xantiagoma/xtandard-flags/commit/8397b69))
+
+### ❤️ Contributors
+
+- Santiago Montoya ([@xantiagoma](https://github.com/xantiagoma))
+
+
 ## v0.1.5
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.4...v0.1.5)
