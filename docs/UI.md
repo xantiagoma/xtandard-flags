@@ -163,3 +163,48 @@ Query and styles are bundled. The component ships as `dist/react.js` + a single
 `dist/react.css`. See [`examples/react-embed`](../examples/react-embed) for a
 working host app (Vite dev proxy → standalone panel). The system/light/dark
 switcher is included; pass `theme="inherit"` to manage the theme yourself.
+
+### Cross-origin embed (dashboard and panel on different origins)
+
+When the app hosting `<FlagsDashboard>` is served from a **different origin**
+than the panel API (e.g. SPA on `app.example.com`, panel on
+`api.example.com/flags`), cookie-based auth needs two matching settings — one on
+each side:
+
+**Client** — send credentials cross-origin (default is `same-origin`, which
+drops the cookie):
+
+```tsx
+<FlagsDashboard apiBaseUrl="https://api.example.com/flags" credentials="include" />
+```
+
+For a non-cookie scheme (bearer token, extra headers), pass a custom `fetch`
+instead:
+
+```tsx
+<FlagsDashboard
+  apiBaseUrl="https://api.example.com/flags"
+  fetch={(input, init) =>
+    fetch(input, { ...init, headers: { ...init?.headers, authorization: `Bearer ${token}` } })
+  }
+/>
+```
+
+**Server** — enable CORS on the panel itself so it returns the required headers
+and answers the `OPTIONS` preflight, independent of the host framework's own
+CORS middleware (which may not wrap a mounted sub-handler):
+
+```ts
+flagsPanel({
+  basePath: "/flags",
+  sourceStorage,
+  cors: { origin: "https://app.example.com", credentials: true }, // exact origin, not "*"
+  auth,
+  authorization,
+});
+```
+
+`cors.origin` accepts an exact origin, `"*"`, a list, or a predicate
+`(origin) => boolean`. With `credentials: true` the browser forbids `"*"`, so the
+handler echoes the caller's exact origin (and adds `Vary: Origin`). Also
+supports `methods`, `headers`, and `maxAge`.

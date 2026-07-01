@@ -192,5 +192,6 @@ export type {
 } from "./core.ts";
 export { createFetchHandler } from "./server/create-fetch-handler.ts";
 export type { CreateFetchHandlerResult, FlagsPanelOptions } from "./server/create-fetch-handler.ts";
+export type { FlagsCorsOptions } from "./server/cors.ts";
 export { buildOpenApiDocument } from "./server/openapi.ts";
 export type { OpenApiOptions } from "./server/openapi.ts";
