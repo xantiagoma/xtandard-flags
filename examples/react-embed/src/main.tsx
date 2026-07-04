@@ -22,6 +22,8 @@ function HostApp() {
         <span style={{ opacity: 0.3 }}>/</span>
         <span>Feature Flags</span>
       </div>
+      {/* Pre-select a project/env for this embed (URL ?project=/&env= still wins):
+          <FlagsDashboard apiBaseUrl="/flags" initialProjectKey="billing" initialEnvironmentKey="staging" /> */}
       <FlagsDashboard apiBaseUrl="/flags" />
     </div>
   );

@@ -69,6 +69,15 @@ export interface FlagsDashboardProps {
   routerBase?: string;
   /** Navbar logo image URL (replaces the title wordmark). Overrides server `/config`. */
   logoUrl?: string;
+  /**
+   * Pre-select a project on first render, overriding the server's configured
+   * default — e.g. an admin panel embedding one dashboard per tenant. The URL
+   * still wins when it names one (`?project=`), so deep links and the in-app
+   * switcher behave normally afterwards.
+   */
+  initialProjectKey?: string;
+  /** Pre-select an environment on first render (see {@link initialProjectKey}). */
+  initialEnvironmentKey?: string;
 }
 
 let fallbackClient: QueryClient | undefined;
@@ -90,6 +99,8 @@ export function FlagsDashboard({
   routing = "hash",
   routerBase = "",
   logoUrl,
+  initialProjectKey,
+  initialEnvironmentKey,
 }: FlagsDashboardProps): React.ReactElement {
   // Set the API base synchronously so child queries (run on mount) use it.
   setApiBase(apiBaseUrl, { credentials, fetch: fetchImpl });
@@ -114,7 +125,13 @@ export function FlagsDashboard({
     <QueryClientProvider client={client}>
       <ToastProvider>
         <div className={className ? `xtandard-flags ${className}` : "xtandard-flags"}>
-          <App locationHook={hook} base={base} logoUrl={logoUrl} />
+          <App
+            locationHook={hook}
+            base={base}
+            logoUrl={logoUrl}
+            initialProjectKey={initialProjectKey}
+            initialEnvironmentKey={initialEnvironmentKey}
+          />
         </div>
       </ToastProvider>
     </QueryClientProvider>
