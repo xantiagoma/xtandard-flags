@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.7
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.6...v0.1.7)
+
+### 🚀 Enhancements
+
+- **snapshots:** Guarded deletion + configurable retention (count and/or age) — `deleteSnapshot` in core/API/UI/CLI (never the active or latest version; the delete stays on the audit record), plus a `retention` policy (`{ snapshots/audit: { keepLast?, maxAge? } }`, union-of-keeps) applied after each publish with `SNAPSHOT_/AUDIT_KEEP_LAST`/`_MAX_AGE` env support. The removed payloads are surfaced to `after` hooks (`snapshot.deleted`, `audit.pruned`) for offloading. ([d2977c5](https://github.com/xantiagoma/xtandard-flags/commit/d2977c5))
+- **storage:** `createRedisJSONStorage` — native RedisJSON documents (`JSON.SET`/`JSON.GET`) on the same `storage/redis` subpath, making stored snapshots/drafts JSONPath-queryable and RediSearch-indexable (server needs the JSON module: Redis 8 / Redis Stack; zero new client deps). ([9fa002f](https://github.com/xantiagoma/xtandard-flags/commit/9fa002f))
+- **react:** `initialProjectKey`/`initialEnvironmentKey` on `<FlagsDashboard/>` — embed hosts can pre-select where the dashboard opens (URL `?project=`/`?env=` still wins). ([6de66ce](https://github.com/xantiagoma/xtandard-flags/commit/6de66ce))
+
+### 📖 Documentation
+
+- **demo:** The seeded demo (`bun run demo`) showcases snapshot deletion — several deletable versions, a pre-deleted v2 in the audit, protected active/latest. ([b455ace](https://github.com/xantiagoma/xtandard-flags/commit/b455ace))
+- **examples:** One-command runner for the react-embed example (`bun run examples:react-embed`). ([9df10dd](https://github.com/xantiagoma/xtandard-flags/commit/9df10dd))
+
+### ❤️ Contributors
+
+- Santiago Montoya ([@xantiagoma](https://github.com/xantiagoma))
+
+
 ## v0.1.6
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.5...v0.1.6)
