@@ -87,16 +87,23 @@ function AuditDiffDialog({
         ? prevVersion(afterV)
         : null;
 
+  // A "delete" entry records a removed payload — there is nothing to diff.
+  const isDeleteEntry = entry?.action === "delete";
+
   const afterQ = useQuery({
     queryKey: ["snapshot", projectKey, environmentKey, afterV],
     queryFn: () => getSnapshot(projectKey, environmentKey, afterV!),
-    enabled: open && afterV !== null,
+    enabled: open && afterV !== null && !isDeleteEntry,
+    retry: false,
   });
   const beforeQ = useQuery({
     queryKey: ["snapshot", projectKey, environmentKey, beforeV],
     queryFn: () => getSnapshot(projectKey, environmentKey, beforeV!),
-    enabled: open && beforeV !== null,
+    enabled: open && beforeV !== null && !isDeleteEntry,
+    retry: false,
   });
+  // A referenced snapshot may have been deleted or pruned since this entry was written.
+  const unavailable = isDeleteEntry || afterQ.isError || (beforeV !== null && beforeQ.isError);
 
   const theme =
     typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
@@ -121,7 +128,13 @@ function AuditDiffDialog({
             </p>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {!ready ? (
+            {unavailable ? (
+              <p className="text-[13px] text-muted-foreground">
+                {isDeleteEntry
+                  ? `The payload of ${afterV} was deleted — there is nothing to diff. The audit record remains.`
+                  : "A snapshot referenced by this entry is no longer available (deleted or pruned), so the diff cannot be shown."}
+              </p>
+            ) : !ready ? (
               <p className="text-[13px] text-muted-foreground">Loading diff…</p>
             ) : (
               <React.Suspense

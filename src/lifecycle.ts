@@ -28,7 +28,7 @@ const MS_PER: Record<FlagDuration["unit"], number> = {
 };
 
 /** A duration in milliseconds, or `null` if malformed. */
-function durationMs(d: FlagDuration | undefined): number | null {
+export function durationMs(d: FlagDuration | undefined): number | null {
   if (!d || typeof d.value !== "number" || !Number.isFinite(d.value)) return null;
   const per = MS_PER[d.unit];
   return per ? d.value * per : null;

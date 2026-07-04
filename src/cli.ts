@@ -9,7 +9,13 @@
  * @module
  */
 
-import { createFlagsCore, type FlagsCore } from "./core.ts";
+import {
+  createFlagsCore,
+  type FlagsCore,
+  type RetentionOptions,
+  type RetentionRule,
+} from "./core.ts";
+import type { FlagDuration } from "./schema.ts";
 import { validateDraft } from "./validation.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
 import type { AuthProvider } from "./auth/contract.ts";
@@ -18,6 +24,46 @@ import type { AuthorizationProvider } from "./authorization/contract.ts";
 type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb" | "sqlite";
 
 const env = (key: string, fallback = ""): string => process.env[key] ?? fallback;
+
+/** Parse a duration env like `"34h"`, `"30d"`, `"90m"`, `"10s"` into a {@link FlagDuration}. */
+function parseDurationEnv(name: string): FlagDuration | undefined {
+  const raw = env(name);
+  if (!raw) return undefined;
+  const m = /^(\d+)\s*(s|m|h|d)$/.exec(raw.trim());
+  if (!m) {
+    process.stderr.write(
+      `[xtandard/flags] Ignoring ${name}="${raw}" — expected <number><unit> with unit s|m|h|d (e.g. 34h, 30d).\n`,
+    );
+    return undefined;
+  }
+  const unit = ({ s: "seconds", m: "minutes", h: "hours", d: "days" } as const)[
+    m[2] as "s" | "m" | "h" | "d"
+  ];
+  return { value: Number(m[1]), unit };
+}
+
+/**
+ * Retention from env: `SNAPSHOT_KEEP_LAST` / `SNAPSHOT_MAX_AGE` and
+ * `AUDIT_KEEP_LAST` / `AUDIT_MAX_AGE`. Returns undefined when none are set.
+ */
+function retentionFromEnv(): RetentionOptions | undefined {
+  const rule = (keepVar: string, ageVar: string): RetentionRule | undefined => {
+    const keepRaw = env(keepVar);
+    const keepLast = keepRaw && /^\d+$/.test(keepRaw) ? Number(keepRaw) : undefined;
+    if (keepRaw && keepLast === undefined) {
+      process.stderr.write(
+        `[xtandard/flags] Ignoring ${keepVar}="${keepRaw}" — expected a number.\n`,
+      );
+    }
+    const maxAge = parseDurationEnv(ageVar);
+    if (keepLast === undefined && !maxAge) return undefined;
+    return { keepLast, maxAge };
+  };
+  const snapshots = rule("SNAPSHOT_KEEP_LAST", "SNAPSHOT_MAX_AGE");
+  const audit = rule("AUDIT_KEEP_LAST", "AUDIT_MAX_AGE");
+  if (!snapshots && !audit) return undefined;
+  return { snapshots, audit };
+}
 
 async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
   const driver = (env(`${role}_STORAGE_DRIVER`, "file") as Driver) || "file";
@@ -239,6 +285,7 @@ async function makeCore(flags: Record<string, string | boolean>): Promise<FlagsC
     runtimeStorage,
     defaultProjectKey: (flags.project as string) || env("PROJECT", "default"),
     defaultEnvironmentKey: (flags.env as string) || env("ENVIRONMENT", "production"),
+    retention: retentionFromEnv(),
   });
 }
 
@@ -270,6 +317,7 @@ Commands:
   validate                      Validate the draft (exit 1 if invalid).
   publish [--message <m>]       Compile the draft → snapshot → activate it.
   rollback <version>            Re-point the active version to an existing snapshot.
+  delete-snapshot <version>     Delete a snapshot (never the active or latest version).
   inspect [--version <v>]       Print the active (or given) snapshot as JSON.
   eval [--key <k>] [--context '<json>'] [--source draft|active]
                                 Test how flags resolve for an evaluation context.
@@ -307,6 +355,13 @@ Environment variables
     AUTH_USERNAME   admin       Username for basic auth.
     AUTH_PASSWORD_HASH          scrypt hash (preferred; see docs/AUTH.md).
     AUTH_PASSWORD               Plaintext password (dev only).
+
+  Retention  (applied after each publish; kept if EITHER rule keeps it;
+              the active + latest snapshots are always kept):
+    SNAPSHOT_KEEP_LAST  100     Keep at most the N most recent snapshots.
+    SNAPSHOT_MAX_AGE    30d     Keep snapshots newer than this (s|m|h|d, e.g. 34h).
+    AUDIT_KEEP_LAST     500     Keep at most the N most recent audit entries.
+    AUDIT_MAX_AGE       90d     Keep audit entries newer than this.
 
   CLI defaults:
     PROJECT (default) · ENVIRONMENT (production)
@@ -410,6 +465,17 @@ export async function run(argv: string[]): Promise<number> {
         process.stdout.write(`Rolled back to ${snapshot.version}.\n`);
         return 0;
       }
+      case "delete-snapshot": {
+        const version = _[1];
+        if (!version) {
+          process.stderr.write("Usage: xtandard-flags delete-snapshot <version>\n");
+          return 1;
+        }
+        const core = await makeCore(flags);
+        await core.deleteSnapshot({ version });
+        process.stdout.write(`Deleted snapshot ${version}.\n`);
+        return 0;
+      }
       case "eval": {
         const core = await makeCore(flags);
         let context: Record<string, unknown> = {};
@@ -467,6 +533,7 @@ export async function run(argv: string[]): Promise<number> {
           auth,
           authorization,
           streaming,
+          retention: retentionFromEnv(),
         });
 
         const normalizedBase =

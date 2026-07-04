@@ -44,6 +44,7 @@ Return `true` to allow, `false` to deny. The server returns `403` on denial.
 | `snapshot:read`      | `GET .../snapshots`, `GET .../snapshots/:v`, `GET .../active` |
 | `snapshot:publish`   | `POST .../publish`                                            |
 | `snapshot:rollback`  | `POST .../rollback`                                           |
+| `snapshot:delete`    | `DELETE .../snapshots/:v`                                     |
 | `audit:read`         | `GET .../audit`                                               |
 
 ## `FlagsResource` — Full List

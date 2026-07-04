@@ -25,7 +25,7 @@
  * @module
  */
 
-import type { Actor, Draft, Flag, Segment, Snapshot } from "../schema.ts";
+import type { Actor, AuditEntry, Draft, Flag, Segment, Snapshot } from "../schema.ts";
 
 /**
  * Event delivered to {@link FlagsHooks.before} — the *proposed* mutation, before
@@ -64,6 +64,14 @@ export type BeforeEvent =
       fromVersion?: string;
       actor: Actor | null;
       message?: string;
+    }
+  | {
+      /** A manual snapshot deletion (retention pruning is not vetoable and skips `before`). */
+      type: "snapshot.delete";
+      projectKey: string;
+      environmentKey: string;
+      version: string;
+      actor: Actor | null;
     };
 
 /**
@@ -116,6 +124,33 @@ export type AfterEvent =
       fromVersion?: string;
       actor: Actor | null;
       message?: string;
+      at: string;
+    }
+  | {
+      /**
+       * A snapshot's payload was removed (manual delete or retention pruning).
+       * Carries the **full snapshot** — this event is the last chance to offload
+       * it (S3, warehouse, SIEM) before it is gone from storage.
+       */
+      type: "snapshot.deleted";
+      projectKey: string;
+      environmentKey: string;
+      version: string;
+      snapshot: Snapshot;
+      /** True when removed by retention policy rather than an explicit delete. */
+      pruned: boolean;
+      actor: Actor | null;
+      at: string;
+    }
+  | {
+      /**
+       * Audit entries were removed by retention policy. Carries the **removed
+       * entries** (oldest-first) — the last chance to offload them.
+       */
+      type: "audit.pruned";
+      projectKey: string;
+      environmentKey: string;
+      entries: AuditEntry[];
       at: string;
     };
 

@@ -168,6 +168,15 @@ export class SnapshotStore {
     );
   }
 
+  /**
+   * Remove a snapshot's payload (does not touch active_version or audit).
+   * Guards (never the active/latest version) live in the core, which also
+   * removes the copy in runtime storage — use {@link ../core.FlagsCore.deleteSnapshot}.
+   */
+  async deleteSnapshot(projectKey: string, environmentKey: string, version: string): Promise<void> {
+    await this.storage.removeItem(snapshotKey(projectKey, environmentKey, version));
+  }
+
   /** Set the active version pointer. */
   async setActiveVersion(
     projectKey: string,
@@ -235,6 +244,19 @@ export class SnapshotStore {
     const log = (await this.storage.getItem<AuditEntry[]>(key)) ?? [];
     log.push(entry);
     await this.storage.setItem(key, log);
+  }
+
+  /**
+   * Overwrite the audit log with `entries` (oldest-first, the stored order).
+   * Used by retention pruning in the core; the removed entries are surfaced to
+   * `after` hooks (`audit.pruned`) so they can be offloaded before they're gone.
+   */
+  async replaceAudit(
+    projectKey: string,
+    environmentKey: string,
+    entries: AuditEntry[],
+  ): Promise<void> {
+    await this.storage.setItem(auditLogKey(projectKey, environmentKey), entries);
   }
 
   /** List audit entries, newest first. */

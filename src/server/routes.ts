@@ -17,6 +17,7 @@ import {
   NotFoundError,
   ReadonlyError,
   SegmentValidationError,
+  SnapshotProtectedError,
   type FlagsCore,
 } from "../core.ts";
 import { DraftValidationError } from "../validation.ts";
@@ -515,6 +516,23 @@ export async function handleApiRequest(
       const snapshot = await ctx.core.getSnapshot(version!, projectKey, environmentKey);
       return snapshot ? json(snapshot) : error(404, `snapshot "${version}" not found`);
     }
+    if (m && method === "DELETE") {
+      const { projectKey, environmentKey, version } = m.params;
+      const denied = await authorize("snapshot:delete", {
+        type: "snapshot",
+        projectKey: projectKey!,
+        environmentKey: environmentKey!,
+        version: version!,
+      });
+      if (denied) return denied;
+      await ctx.core.deleteSnapshot({
+        version: version!,
+        projectKey,
+        environmentKey,
+        by: principal,
+      });
+      return new Response(null, { status: 204 });
+    }
 
     // --- Active snapshot (convenience) ---
     m = match(`${base}/active`, path);
@@ -715,6 +733,9 @@ function mapError(err: unknown): Response {
   const denied = hookDeniedStatus(err);
   if (denied !== null) return error(denied, (err as Error).message, { code: "HOOK_DENIED" });
   if (err instanceof NotFoundError) return error(404, err.message);
+  if (err instanceof SnapshotProtectedError) {
+    return error(409, err.message, { code: "SNAPSHOT_PROTECTED" });
+  }
   if (err instanceof FlagValidationError) {
     return error(422, err.message, { code: "VALIDATION", errors: err.errors });
   }

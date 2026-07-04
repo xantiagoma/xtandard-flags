@@ -33,6 +33,7 @@ export const ALL_ACTIONS: readonly FlagsAction[] = [
   "snapshot:read",
   "snapshot:publish",
   "snapshot:rollback",
+  "snapshot:delete",
   "audit:read",
 ];
 

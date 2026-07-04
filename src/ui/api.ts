@@ -191,6 +191,17 @@ export function rollback(
   });
 }
 
+/** Delete a snapshot (server rejects the active + latest versions with 409). */
+export function deleteSnapshot(
+  projectKey: string,
+  environmentKey: string,
+  version: string,
+): Promise<void> {
+  return req<void>(`${envBase(projectKey, environmentKey)}/snapshots/${version}`, {
+    method: "DELETE",
+  });
+}
+
 export function listSnapshots(
   projectKey: string,
   environmentKey: string,

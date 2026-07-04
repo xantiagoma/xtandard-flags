@@ -50,7 +50,16 @@ PORT=4000 \
 | `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                                         |
 | `READONLY`               | `false`                    | Set to `1` or `true` to block all mutating operations.                                  |
 | `STREAMING`              | `false`                    | Set to `1` or `true` to enable the opt-in OFREP SSE stream (`/ofrep/v1/stream`).        |
+| `SNAPSHOT_KEEP_LAST`     | unset (keep all)           | Retention: keep at most the N most recent snapshots (pruned after each publish).        |
+| `SNAPSHOT_MAX_AGE`       | unset (keep all)           | Retention: keep snapshots newer than this (`<n><s\|m\|h\|d>`, e.g. `34h`, `30d`).       |
+| `AUDIT_KEEP_LAST`        | unset (keep all)           | Retention: keep at most the N most recent audit entries.                                |
+| `AUDIT_MAX_AGE`          | unset (keep all)           | Retention: keep audit entries newer than this (`<n><s\|m\|h\|d>`).                      |
 | `UI_DIR`                 | resolved from module path  | Override the bundled UI directory (e.g. in custom Docker images).                       |
+
+When both a `*_KEEP_LAST` and a `*_MAX_AGE` are set, an item is kept if **either**
+rule keeps it (union). The **active** and **latest** snapshots are always kept.
+Removed payloads are surfaced to `after` hooks (`snapshot.deleted` / `audit.pruned`)
+for offloading — see [Hooks](HOOKS.md).
 
 ### Healthcheck
 

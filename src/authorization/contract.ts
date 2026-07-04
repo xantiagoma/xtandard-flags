@@ -27,6 +27,7 @@ export type FlagsAction =
   | "snapshot:read"
   | "snapshot:publish"
   | "snapshot:rollback"
+  | "snapshot:delete"
   | "audit:read";
 
 /** The resource an action targets. */
@@ -63,6 +64,7 @@ export const MUTATING_ACTIONS: ReadonlySet<FlagsAction> = new Set<FlagsAction>([
   "flag:delete",
   "snapshot:publish",
   "snapshot:rollback",
+  "snapshot:delete",
 ]);
 
 /** True if the action mutates state. */
