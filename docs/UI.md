@@ -164,6 +164,20 @@ Query and styles are bundled. The component ships as `dist/react.js` + a single
 working host app (Vite dev proxy → standalone panel). The system/light/dark
 switcher is included; pass `theme="inherit"` to manage the theme yourself.
 
+### Pre-selecting the project/environment
+
+By default the dashboard opens on the server's configured defaults. An embed
+host can pre-select a different pair — e.g. an admin panel rendering one
+dashboard per tenant/environment:
+
+```tsx
+<FlagsDashboard apiBaseUrl="/flags" initialProjectKey="billing" initialEnvironmentKey="staging" />
+```
+
+Precedence: the **URL** wins when it names one (`?project=` / `?env=` — deep
+links restore context and the in-app switcher keeps working), then the
+`initial*` props, then the server `/config` defaults.
+
 ### Cross-origin embed (dashboard and panel on different origins)
 
 When the app hosting `<FlagsDashboard>` is served from a **different origin**

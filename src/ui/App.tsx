@@ -184,20 +184,38 @@ export function App({
   locationHook,
   base = "",
   logoUrl,
+  initialProjectKey,
+  initialEnvironmentKey,
 }: {
   locationHook?: BaseLocationHook;
   base?: string;
   /** Override the navbar logo image (otherwise taken from server `/config`). */
   logoUrl?: string;
+  /** Pre-select a project when the URL doesn't name one (embed hosts). */
+  initialProjectKey?: string;
+  /** Pre-select an environment when the URL doesn't name one (embed hosts). */
+  initialEnvironmentKey?: string;
 }): React.ReactElement {
   return (
     <Router hook={locationHook ?? useHashLocation} base={base}>
-      <AppShell logoUrl={logoUrl} />
+      <AppShell
+        logoUrl={logoUrl}
+        initialProjectKey={initialProjectKey}
+        initialEnvironmentKey={initialEnvironmentKey}
+      />
     </Router>
   );
 }
 
-function AppShell({ logoUrl }: { logoUrl?: string }) {
+function AppShell({
+  logoUrl,
+  initialProjectKey,
+  initialEnvironmentKey,
+}: {
+  logoUrl?: string;
+  initialProjectKey?: string;
+  initialEnvironmentKey?: string;
+}) {
   const bootstrap = getBootstrap();
   const toast = useToast();
   const qc = useQueryClient();
@@ -206,10 +224,16 @@ function AppShell({ logoUrl }: { logoUrl?: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [publishOpen, setPublishOpen] = useState(false);
 
-  // Project/environment live in the URL query so a shared link restores context.
-  const projectKey = searchParams.get("project") || (bootstrap.defaultProjectKey ?? "default");
+  // Project/environment selection precedence: the URL query wins (a shared link
+  // restores context; the switcher writes here), then the embed host's
+  // initial* props, then the server's configured defaults.
+  const projectKey =
+    searchParams.get("project") || initialProjectKey || bootstrap.defaultProjectKey || "default";
   const environmentKey =
-    searchParams.get("env") || (bootstrap.defaultEnvironmentKey ?? "production");
+    searchParams.get("env") ||
+    initialEnvironmentKey ||
+    bootstrap.defaultEnvironmentKey ||
+    "production";
 
   // Navigate to a path while preserving the project/env query. All in-app
   // navigation funnels through these helpers, so they consult the nav guard —
