@@ -450,6 +450,44 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
   // roll back to v1 → audit keeps publish v1, publish v2, and the rollback (append-only)
   await call("POST", `${prod}/rollback`, { version: "v1", message: "Hold winter-theme for now" });
 
+  // …then the season arrives: enable winter-theme → v3
+  await call("POST", `${prod}/flags`, {
+    key: "winter-theme",
+    type: "boolean",
+    enabled: true,
+    description: "Seasonal theme",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "on" },
+    tags: ["seasonal"],
+    lifecycle: { expiry: { kind: "datetime", at: daysAgo(30) } },
+  });
+  await call("POST", `${prod}/publish`, { message: "Enable winter-theme for the season" });
+
+  // a copy tweak → v4, which regresses → roll back to v3 (active=v3, latest=v4)
+  await call("POST", `${prod}/flags`, {
+    key: "winter-theme",
+    type: "boolean",
+    enabled: true,
+    description: "Seasonal theme — extended through February",
+    defaultVariant: "off",
+    variants: { on: { value: true }, off: { value: false } },
+    fallthrough: { variant: "on" },
+    tags: ["seasonal", "extended"],
+    lifecycle: { expiry: { kind: "datetime", at: daysAgo(30) } },
+  });
+  await call("POST", `${prod}/publish`, { message: "Extend winter-theme through February" });
+  await call("POST", `${prod}/rollback`, {
+    version: "v3",
+    message: "Extension copy regressed the layout — back to v3",
+  });
+
+  // Snapshot DELETION: remove the superseded v2 payload. The audit keeps an
+  // `action: "delete"` entry (the fact stays; the payload is gone), and its diff
+  // dialog degrades gracefully. v1 stays deletable in the UI — open a snapshot
+  // that is neither active (v3) nor latest (v4) to see the Delete button.
+  await call("DELETE", `${prod}/snapshots/v2`);
+
   // Backdate legacy-promo's timestamps via the draft so it reads as STALE. (upsertFlag
   // always stamps updatedAt=now, so a freshly-created flag is never idle; the draft
   // PUT path preserves whatever createdAt/updatedAt we provide.)
@@ -503,7 +541,10 @@ export async function seed(base: string = DEFAULT_BASE): Promise<void> {
   console.log("    old-banner (archived), winter-theme.");
   console.log("  Segments: eu-beta (inSegment), internal-staff (notInSegment).");
   console.log("  Prerequisite: new-checkout → kill-switch.");
-  console.log("  Snapshots: v1, v2 · Audit: publish v1, publish v2, rollback → v1.");
+  console.log("  Snapshots: v1, v3 (active), v4 (latest) — v2 was DELETED (see the audit entry;");
+  console.log("    its diff dialog explains the payload is gone). v1 is deletable — open it to");
+  console.log("    try the Delete button (active/latest are protected).");
+  console.log("  Audit: publish v1→v4, rollback → v1, rollback → v3, delete v2 (append-only).");
   console.log("  Projects: default, billing · Environments: production, staging (both seeded).");
   console.log("  Test targeting: try attrs seats/plan/email/accountAgeDays/appVersion/signupAt.");
   console.log("");
