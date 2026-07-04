@@ -433,7 +433,8 @@
     "build:react": "vite build --config vite.react.config.ts && tsc -p tsconfig.react.json",
     "docs:api": "typedoc",
     "typecheck:examples": "tsc -p examples/tsconfig.json",
-    "release": "changelogen --release --push"
+    "release": "changelogen --release --push",
+    "examples:react-embed": "bun scripts/example.ts react-embed"
   },
   "dependencies": {
     "ohash": "^2.0.11",
