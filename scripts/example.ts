@@ -91,6 +91,13 @@ const EXAMPLES: Record<string, ExampleConfig> = {
     preferredPort: 3000,
     note: "control-plane hooks — log + publish-message gate + signed webhook + test-gate",
   },
+  "react-embed": {
+    dir: "examples/react-embed",
+    kind: "server",
+    run: ["bun", "run", "start"],
+    preferredPort: 5189,
+    note: "embedded <FlagsDashboard/> in a host app (vite) — boots + seeds a panel on :3700",
+  },
 };
 
 const name = process.argv[2];
