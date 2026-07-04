@@ -1,15 +1,26 @@
 /**
- * Redis storage adapter built on the [`redis`](https://github.com/redis/node-redis)
+ * Redis storage adapters built on the [`redis`](https://github.com/redis/node-redis)
  * package (node-redis v4/v5), an optional peer dependency. You can either pass a
  * pre-connected `client` or a `url` to connect lazily on first use. An optional
  * `prefix` is prepended (with a `:` separator) to every key so multiple
  * deployments can share a Redis instance without collisions; the prefix is
  * stripped from keys returned by {@link RedisFlagsStorage.getKeys}.
  *
+ * Two variants over the same plumbing, differing only in the value encoding:
+ *
+ * - {@link createRedisStorage} — values are plain **strings** containing JSON
+ *   (`SET`/`GET`). Works on any Redis; the default choice.
+ * - {@link createRedisJSONStorage} — values are native **RedisJSON** documents
+ *   (`JSON.SET`/`JSON.GET`), so the stored data is queryable with JSONPath and
+ *   indexable with RediSearch. Requires the JSON module (Redis 8 / Redis Stack).
+ *   Do NOT point both variants at the same keys — the types are incompatible
+ *   (`WRONGTYPE`).
+ *
  * `getKeys` uses a non-blocking `SCAN` cursor (never the blocking `KEYS`
  * command). `watch` is implemented with Redis keyspace notifications; it
  * requires the server to be configured with `notify-keyspace-events` covering
- * generic + string + expiry events (e.g. `KEA`).
+ * generic + string + expiry events (e.g. `KEA` — whose `A` class also covers the
+ * module events that RedisJSON writes emit, e.g. `json.set`).
  *
  * @module
  */
@@ -53,6 +64,11 @@ interface RedisLike {
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<unknown>;
   del(key: string): Promise<unknown>;
+  /** RedisJSON module commands (bundled in node-redis; the SERVER needs the module). */
+  json?: {
+    get(key: string): Promise<unknown>;
+    set(key: string, path: string, value: unknown): Promise<unknown>;
+  };
   scanIterator(options?: { MATCH?: string; COUNT?: number }): AsyncIterable<string | string[]>;
   duplicate(): RedisLike;
   pSubscribe(
@@ -60,6 +76,44 @@ interface RedisLike {
     listener: (message: string, channel: string) => void,
   ): Promise<unknown>;
   disconnect(): Promise<unknown>;
+}
+
+/** How a variant reads/writes values (the only place the two adapters differ). */
+interface RedisValueCodec {
+  get(c: RedisLike, key: string): Promise<unknown>;
+  set(c: RedisLike, key: string, value: unknown): Promise<void>;
+}
+
+/** Plain strings containing JSON — works on any Redis. */
+const stringCodec: RedisValueCodec = {
+  async get(c, key) {
+    const raw = await c.get(key);
+    return raw === null ? null : (JSON.parse(raw) as unknown);
+  },
+  async set(c, key, value) {
+    await c.set(key, JSON.stringify(value));
+  },
+};
+
+/** Native RedisJSON documents — requires the JSON module on the server. */
+const jsonCodec: RedisValueCodec = {
+  async get(c, key) {
+    const value = await requireJson(c).get(key);
+    return value ?? null;
+  },
+  async set(c, key, value) {
+    await requireJson(c).set(key, "$", value);
+  },
+};
+
+function requireJson(c: RedisLike): NonNullable<RedisLike["json"]> {
+  if (!c.json) {
+    throw new Error(
+      "createRedisJSONStorage: the client exposes no `json` commands — use node-redis " +
+        "(the `redis` package) v4+, and a server with the RedisJSON module (Redis 8 / Redis Stack).",
+    );
+  }
+  return c.json;
 }
 
 /**
@@ -82,6 +136,41 @@ interface RedisLike {
  * ```
  */
 export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStorage {
+  return buildRedisStorage(options, stringCodec);
+}
+
+/**
+ * Create a Redis-backed {@link RedisFlagsStorage} that stores values as native
+ * **RedisJSON** documents (`JSON.SET`/`JSON.GET`) instead of strings — making
+ * the stored snapshots/drafts queryable with JSONPath (`JSON.GET key $.flags`)
+ * and indexable with RediSearch, while the flags system behaves identically.
+ *
+ * Requires the JSON module on the server (built into Redis 8; Redis Stack; or
+ * `redisjson` loaded). Same options and semantics as {@link createRedisStorage},
+ * including lazy connection, `SCAN`-based `getKeys`, and keyspace-notification
+ * `watch`. **Do not point it at keys written by `createRedisStorage`** (or vice
+ * versa) — the underlying types differ and Redis answers `WRONGTYPE`.
+ *
+ * @example
+ * ```ts
+ * import { createRedisJSONStorage } from "@xtandard/flags/storage/redis";
+ *
+ * const storage = createRedisJSONStorage({
+ *   url: process.env.REDIS_URL ?? "redis://localhost:6379",
+ *   prefix: "myapp:flags",
+ * });
+ * // Then, in redis-cli: JSON.GET myapp:flags:flags/default/production/snapshots/v1 $.flags
+ * ```
+ */
+export function createRedisJSONStorage(options: RedisStorageOptions): RedisFlagsStorage {
+  return buildRedisStorage(options, jsonCodec);
+}
+
+/** Shared implementation — connection, prefixing, SCAN, watch, close. */
+function buildRedisStorage(
+  options: RedisStorageOptions,
+  codec: RedisValueCodec,
+): RedisFlagsStorage {
   const { url, prefix } = options;
   const fullPrefix = prefix ? `${prefix}:` : "";
   const ownsClient = !options.client;
@@ -140,13 +229,12 @@ export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStor
   return {
     async getItem<T>(key: string): Promise<T | null> {
       const c = await getClient();
-      const raw = await c.get(toRedisKey(key));
-      return raw === null ? null : (JSON.parse(raw) as T);
+      return ((await codec.get(c, toRedisKey(key))) as T | null) ?? null;
     },
 
     async setItem<T>(key: string, value: T): Promise<void> {
       const c = await getClient();
-      await c.set(toRedisKey(key), JSON.stringify(value));
+      await codec.set(c, toRedisKey(key), value);
     },
 
     async removeItem(key: string): Promise<void> {

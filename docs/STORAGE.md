@@ -148,6 +148,30 @@ notify-keyspace-events KEA
 
 Without this, `watch` calls will silently receive no events and the provider falls back to polling only.
 
+**Values are plain strings containing JSON — by design.** Every value (snapshot, draft, audit log) is read/written as a whole document, so `SET`/`GET` is the natural, atomic mapping. If you want the stored data to be **queryable** inside Redis, use the JSON variant below.
+
+#### `createRedisJSONStorage` — native RedisJSON documents
+
+Same options, plumbing (lazy connect, `SCAN`, keyspace-notification `watch`, `close`), and behavior — but values are stored with `JSON.SET`/`JSON.GET` as native JSON documents, so snapshots/drafts are queryable with JSONPath and indexable with RediSearch:
+
+```ts
+import { createRedisJSONStorage } from "@xtandard/flags/storage/redis";
+
+const storage = createRedisJSONStorage({ url: process.env.REDIS_URL, prefix: "myapp:flags" });
+```
+
+```
+# then, in redis-cli — query a published snapshot directly:
+JSON.GET myapp:flags:flags/default/production/snapshots/v1 $.flags.new-checkout.enabled
+# → [true]
+```
+
+**Requirements & caveats:**
+
+- The **server** needs the JSON module: built into **Redis 8**, or Redis Stack / `redisjson` loaded. (The client side is free — node-redis bundles the `json.*` commands.)
+- **Never point both variants at the same keys** — a string value and a RedisJSON value are different Redis types; reading one with the other fails with `WRONGTYPE`. Migrating an existing deployment means a fresh prefix (or re-publishing).
+- `watch` works the same; `KEA` covers the module events RedisJSON writes emit (e.g. `json.set`).
+
 ---
 
 ### Unstorage — `@xtandard/flags/storage/unstorage`
@@ -496,18 +520,19 @@ snapshots loaded once into memory; prefer Redis/libSQL for the write-heavy
 
 ## Choosing a backend
 
-| Backend        | Adapter                 | Runtime    | Best for                                              |
-| -------------- | ----------------------- | ---------- | ----------------------------------------------------- |
-| Memory         | `storage/memory`        | any        | tests, single-process experiments                     |
-| File           | `storage/file`          | any        | local dev, GitOps drafts in VCS                       |
-| Redis          | `storage/redis`         | any        | multi-node, push-based refresh (`watch`)              |
-| Postgres       | `storage/postgres`      | any        | you already run Postgres; transactional source        |
-| Drizzle        | `storage/drizzle`       | any        | you use Drizzle — table in your migrations, your pool |
-| MongoDB        | `storage/mongodb`       | any        | you already run Mongo                                 |
-| SQLite         | `storage/sqlite`        | **Bun**    | single-node persistence, zero deps                    |
-| libSQL / Turso | `storage/libsql`        | any / edge | edge-replicated runtime, serverless SQLite            |
-| Cloudflare KV  | `storage/cloudflare-kv` | Workers    | runtime snapshots inside Cloudflare Workers           |
-| Anything else  | `storage/unstorage`     | any        | 20+ drivers (Upstash, Vercel KV, S3/R2, Netlify, …)   |
+| Backend        | Adapter                                    | Runtime    | Best for                                                                               |
+| -------------- | ------------------------------------------ | ---------- | -------------------------------------------------------------------------------------- |
+| Memory         | `storage/memory`                           | any        | tests, single-process experiments                                                      |
+| File           | `storage/file`                             | any        | local dev, GitOps drafts in VCS                                                        |
+| Redis          | `storage/redis`                            | any        | multi-node, push-based refresh (`watch`)                                               |
+| Redis (JSON)   | `storage/redis` (`createRedisJSONStorage`) | any        | same, plus JSONPath/RediSearch-queryable data (needs the JSON module: Redis 8 / Stack) |
+| Postgres       | `storage/postgres`                         | any        | you already run Postgres; transactional source                                         |
+| Drizzle        | `storage/drizzle`                          | any        | you use Drizzle — table in your migrations, your pool                                  |
+| MongoDB        | `storage/mongodb`                          | any        | you already run Mongo                                                                  |
+| SQLite         | `storage/sqlite`                           | **Bun**    | single-node persistence, zero deps                                                     |
+| libSQL / Turso | `storage/libsql`                           | any / edge | edge-replicated runtime, serverless SQLite                                             |
+| Cloudflare KV  | `storage/cloudflare-kv`                    | Workers    | runtime snapshots inside Cloudflare Workers                                            |
+| Anything else  | `storage/unstorage`                        | any        | 20+ drivers (Upstash, Vercel KV, S3/R2, Netlify, …)                                    |
 
 A common production split is a **durable, transactional source** (Postgres/Redis)
 plus a **fast, close-to-the-app runtime** (Redis/libSQL/KV). See the
