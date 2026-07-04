@@ -10,7 +10,7 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { AuthProvider } from "../auth/contract.ts";
 import type { AuthorizationProvider } from "../authorization/contract.ts";
-import { createFlagsCore, type FlagsCore } from "../core.ts";
+import { createFlagsCore, type FlagsCore, type RetentionOptions } from "../core.ts";
 import type { FlagsHooksInput, HookErrorReporter } from "../hooks/contract.ts";
 import type { EvaluationErrorReporter, EvaluationListener } from "../evaluation-sink.ts";
 import type { FlagsStorage } from "../storage/contract.ts";
@@ -56,6 +56,12 @@ export interface FlagsPanelOptions {
   hooks?: FlagsHooksInput;
   /** Reporter for errors thrown by `after` hooks. Default: `console.warn`. */
   onHookError?: HookErrorReporter;
+  /**
+   * Snapshot/audit retention policy, applied after each publish. Ignored when a
+   * prebuilt `core` is supplied — configure it on that core instead. See
+   * {@link ../core.RetentionOptions}.
+   */
+  retention?: RetentionOptions;
   /**
    * Fire-and-forget observer invoked per **OFREP** evaluation served by this
    * panel (off the response path). For usage/exposure pipelines. See
@@ -152,6 +158,7 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
       readonly,
       hooks: options.hooks,
       onHookError: options.onHookError,
+      retention: options.retention,
     });
 
   const apiCtx: ApiContext = {

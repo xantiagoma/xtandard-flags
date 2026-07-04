@@ -5,6 +5,7 @@ import {
   listSnapshots,
   getSnapshot,
   rollback,
+  deleteSnapshot,
   importDraft,
   schemaUrl,
   type SnapshotDetail,
@@ -68,8 +69,10 @@ function SnapshotDetailDialog({
   environmentKey,
   version,
   isActive,
+  isLatest,
   readonly,
   onRollback,
+  onDelete,
 }: {
   open: boolean;
   onClose: () => void;
@@ -77,8 +80,11 @@ function SnapshotDetailDialog({
   environmentKey: string;
   version: string | null;
   isActive: boolean;
+  /** The newest version — protected from deletion (its number would be reused). */
+  isLatest: boolean;
   readonly: boolean;
   onRollback: (version: string, msg?: string) => void;
+  onDelete: (version: string) => void;
 }) {
   const query = useQuery({
     queryKey: ["snapshot", projectKey, environmentKey, version],
@@ -86,6 +92,7 @@ function SnapshotDetailDialog({
     enabled: open && version !== null,
   });
   const [confirmRollback, setConfirmRollback] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [rollbackMsg, setRollbackMsg] = useState("");
 
   if (!open || !version) return null;
@@ -96,6 +103,7 @@ function SnapshotDetailDialog({
       onOpenChange={(isOpen) => {
         if (!isOpen) {
           setConfirmRollback(false);
+          setConfirmDelete(false);
           setRollbackMsg("");
           onClose();
         }
@@ -124,7 +132,7 @@ function SnapshotDetailDialog({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-border px-5 py-3 shrink-0">
-            {query.data && !confirmRollback && (
+            {query.data && !confirmRollback && !confirmDelete && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -135,9 +143,19 @@ function SnapshotDetailDialog({
                 Download JSON
               </Button>
             )}
-            {!isActive && !readonly && !confirmRollback && (
+            {!isActive && !readonly && !confirmRollback && !confirmDelete && (
               <Button variant="danger" size="sm" onClick={() => setConfirmRollback(true)}>
                 Roll back to this version
+              </Button>
+            )}
+            {!isActive && !isLatest && !readonly && !confirmRollback && !confirmDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setConfirmDelete(true)}
+              >
+                Delete
               </Button>
             )}
             {confirmRollback && (
@@ -156,6 +174,19 @@ function SnapshotDetailDialog({
                   Confirm rollback
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setConfirmRollback(false)}>
+                  Cancel
+                </Button>
+              </>
+            )}
+            {confirmDelete && (
+              <>
+                <span className="text-[12px] text-muted-foreground">
+                  Permanently delete this snapshot? It can no longer be rolled back to.
+                </span>
+                <Button variant="danger" size="sm" onClick={() => onDelete(version)}>
+                  Confirm delete
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>
                   Cancel
                 </Button>
               </>
@@ -248,10 +279,26 @@ export function SnapshotsView({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (version: string) => deleteSnapshot(projectKey, environmentKey, version),
+    onSuccess: (_data, version) => {
+      qc.invalidateQueries({ queryKey: ["snapshots", projectKey, environmentKey] });
+      qc.invalidateQueries({ queryKey: ["audit", projectKey, environmentKey] });
+      toast.add("success", `Deleted snapshot ${version}`);
+      onBack();
+    },
+    onError: (err: unknown) => {
+      if (err instanceof FlagsApiError) toast.add("error", err.body.error);
+      else toast.add("error", "Delete failed");
+    },
+  });
+
   const data = query.data;
   const versions = data?.versions ?? [];
   const active = data?.active ?? null;
   const selectedIsActive = selectedVersion != null && selectedVersion === active;
+  // versions are newest-first; the newest is protected from deletion.
+  const selectedIsLatest = selectedVersion != null && selectedVersion === versions[0]?.version;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -372,8 +419,10 @@ export function SnapshotsView({
         environmentKey={environmentKey}
         version={selectedVersion ?? null}
         isActive={selectedIsActive}
+        isLatest={selectedIsLatest}
         readonly={readonly}
         onRollback={(version, message) => rollbackMutation.mutate({ version, message })}
+        onDelete={(version) => deleteMutation.mutate(version)}
       />
     </div>
   );

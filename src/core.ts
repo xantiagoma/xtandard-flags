@@ -28,12 +28,14 @@ import type {
   EnvironmentMeta,
   EvaluationContext,
   Flag,
+  FlagDuration,
   FlagType,
   FlagValue,
   ProjectMeta,
   Segment,
   Snapshot,
 } from "./schema.ts";
+import { durationMs } from "./lifecycle.ts";
 import type { EvaluationReason, FlagErrorCode } from "./schema.ts";
 import type { ComparatorRegistry } from "./comparators.ts";
 import { withComparators } from "./comparators.ts";
@@ -118,6 +120,50 @@ export interface FlagsCoreOptions {
    * already-committed mutation.
    */
   onHookError?: HookErrorReporter;
+  /**
+   * Retention policy, applied after each successful publish. Snapshot pruning
+   * never removes the **active** or **latest** version; audit pruning trims the
+   * per-environment audit log. Removed payloads are surfaced to `after` hooks
+   * (`snapshot.deleted` with `pruned: true`, `audit.pruned`) so they can be
+   * offloaded before they're gone. See {@link RetentionOptions}.
+   */
+  retention?: RetentionOptions;
+}
+
+/**
+ * One retention rule set. When both fields are set, an item is **kept if either
+ * rule keeps it** (union of keeps — the same semantics as backup tools): pruned
+ * only when it is outside the `keepLast` most recent AND older than `maxAge`.
+ */
+export interface RetentionRule {
+  /** Keep at most the N most recent items. */
+  keepLast?: number;
+  /** Keep items newer than this age (relative to prune time). */
+  maxAge?: FlagDuration;
+}
+
+/** Retention policy for {@link FlagsCoreOptions.retention}. */
+export interface RetentionOptions {
+  /** Prune old snapshot payloads (the active + latest versions are always kept). */
+  snapshots?: RetentionRule;
+  /** Prune old audit entries. */
+  audit?: RetentionRule;
+}
+
+/**
+ * Thrown by {@link FlagsCore.deleteSnapshot} when the target is protected: the
+ * **active** version (the runtime serves it) or the **latest** version (deleting
+ * it would let `nextVersion` mint the same version string again).
+ */
+export class SnapshotProtectedError extends Error {
+  constructor(version: string, reason: "active" | "latest") {
+    super(
+      reason === "active"
+        ? `Cannot delete snapshot "${version}": it is the active version.`
+        : `Cannot delete snapshot "${version}": it is the latest version (deleting it would reuse its version number).`,
+    );
+    this.name = "SnapshotProtectedError";
+  }
 }
 
 /** A snapshot version with its publish metadata, for history views. */
@@ -167,13 +213,17 @@ export class NotFoundError extends Error {
 /** The admin core surface. */
 export interface FlagsCore {
   readonly options: Required<
-    Omit<FlagsCoreOptions, "runtimeStorage" | "comparators" | "matchers" | "hooks" | "onHookError">
+    Omit<
+      FlagsCoreOptions,
+      "runtimeStorage" | "comparators" | "matchers" | "hooks" | "onHookError" | "retention"
+    >
   > & {
     runtimeStorage: FlagsStorage;
     comparators?: ComparatorRegistry;
     matchers?: MatcherRegistry;
     /** Normalized hooks (always an array). */
     hooks: FlagsHooks[];
+    retention?: RetentionOptions;
   };
 
   // Projects
@@ -248,6 +298,21 @@ export interface FlagsCore {
     by?: Actor | null;
     message?: string;
   }): Promise<Snapshot>;
+  /**
+   * Delete a snapshot's payload from **both** source and runtime storage.
+   * Guarded: the **active** and the **latest** versions throw
+   * {@link SnapshotProtectedError} (protecting the runtime, and preventing
+   * `nextVersion` from reusing a deleted version number). Appends an
+   * `action: "delete"` audit entry — the payload is removed, the fact remains.
+   * Vetoable via a `before` hook (`snapshot.delete`); the `after` event
+   * (`snapshot.deleted`) carries the full snapshot for offloading.
+   */
+  deleteSnapshot(input: {
+    version: string;
+    projectKey?: string;
+    environmentKey?: string;
+    by?: Actor | null;
+  }): Promise<void>;
   listSnapshots(projectKey?: string, environmentKey?: string): Promise<string[]>;
   listSnapshotSummaries(projectKey?: string, environmentKey?: string): Promise<SnapshotSummary[]>;
   getSnapshot(
@@ -365,6 +430,77 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
     return { projectKey, environmentKey, flags: {} };
   }
 
+  /**
+   * Apply the retention policy (runs after each successful publish). Union of
+   * keeps: an item survives if ANY configured rule keeps it. Snapshot pruning
+   * never touches the latest or active version. Removed payloads are surfaced
+   * to `after` hooks (`snapshot.deleted` / `audit.pruned`) for offloading.
+   */
+  async function applyRetention(p: string, e: string): Promise<void> {
+    const retention = options.retention;
+    if (!retention) return;
+    const now = Date.now();
+
+    const snapRule = retention.snapshots;
+    if (snapRule && (snapRule.keepLast !== undefined || snapRule.maxAge)) {
+      const [versions, active] = await Promise.all([
+        source.listVersions(p, e), // newest first
+        source.getActiveVersion(p, e),
+      ]);
+      const maxAgeMs = durationMs(snapRule.maxAge);
+      const cutoff = maxAgeMs === null ? null : now - maxAgeMs;
+      for (const [i, version] of versions.entries()) {
+        if (i === 0 || version === active) continue; // invariants: latest + active always kept
+        if (snapRule.keepLast !== undefined && i < snapRule.keepLast) continue; // kept by count
+        const snap = await source.getSnapshot(p, e, version);
+        if (!snap) continue;
+        if (cutoff !== null && Date.parse(snap.createdAt) >= cutoff) continue; // kept by age
+        await Promise.all([
+          source.deleteSnapshot(p, e, version),
+          runtime.deleteSnapshot(p, e, version),
+        ]);
+        if (after) {
+          await after({
+            type: "snapshot.deleted",
+            projectKey: p,
+            environmentKey: e,
+            version,
+            snapshot: snap,
+            pruned: true,
+            actor: null,
+            at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    const auditRule = retention.audit;
+    if (auditRule && (auditRule.keepLast !== undefined || auditRule.maxAge)) {
+      const newestFirst = await source.listAudit(p, e);
+      const maxAgeMs = durationMs(auditRule.maxAge);
+      const cutoff = maxAgeMs === null ? null : now - maxAgeMs;
+      const removed: AuditEntry[] = [];
+      const keptNewestFirst = newestFirst.filter((entry, i) => {
+        if (auditRule.keepLast !== undefined && i < auditRule.keepLast) return true;
+        if (cutoff !== null && Date.parse(entry.at) >= cutoff) return true;
+        removed.push(entry);
+        return false;
+      });
+      if (removed.length > 0) {
+        await source.replaceAudit(p, e, [...keptNewestFirst].reverse()); // stored oldest-first
+        if (after) {
+          await after({
+            type: "audit.pruned",
+            projectKey: p,
+            environmentKey: e,
+            entries: removed.reverse(), // oldest-first, as documented
+            at: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+
   async function loadSegments(
     projectKey: string,
     environmentKey: string,
@@ -402,6 +538,7 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
       comparators,
       matchers,
       hooks,
+      retention: options.retention,
     },
 
     async listProjects() {
@@ -785,6 +922,13 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
           at: snapshot.createdAt,
         });
       }
+      // Retention pruning runs after the publish has fully committed — a
+      // pruning failure must never fail the (already successful) publish.
+      try {
+        await applyRetention(p, e);
+      } catch (err) {
+        console.warn(`[@xtandard/flags] retention pruning for ${p}/${e} failed:`, err);
+      }
       return snapshot;
     },
 
@@ -834,6 +978,53 @@ export function createFlagsCore(options: FlagsCoreOptions): FlagsCore {
         });
       }
       return target;
+    },
+
+    async deleteSnapshot(input) {
+      guard("delete snapshots");
+      const p = pk(input.projectKey);
+      const e = ek(input.environmentKey);
+      const target = await source.getSnapshot(p, e, input.version);
+      if (!target) throw new NotFoundError(`snapshot "${input.version}" not found`);
+      const [active, versions] = await Promise.all([
+        source.getActiveVersion(p, e),
+        source.listVersions(p, e), // newest first
+      ]);
+      if (input.version === active) throw new SnapshotProtectedError(input.version, "active");
+      if (input.version === versions[0]) throw new SnapshotProtectedError(input.version, "latest");
+      if (before) {
+        await before({
+          type: "snapshot.delete",
+          projectKey: p,
+          environmentKey: e,
+          version: input.version,
+          actor: input.by ?? null,
+        });
+      }
+      await Promise.all([
+        source.deleteSnapshot(p, e, input.version),
+        runtime.deleteSnapshot(p, e, input.version),
+      ]);
+      const at = new Date().toISOString();
+      // The payload is removed; the fact of the deletion stays on the record.
+      await source.appendAudit(p, e, {
+        version: input.version,
+        action: "delete",
+        at,
+        by: input.by ?? null,
+      });
+      if (after) {
+        await after({
+          type: "snapshot.deleted",
+          projectKey: p,
+          environmentKey: e,
+          version: input.version,
+          snapshot: target,
+          pruned: false,
+          actor: input.by ?? null,
+          at,
+        });
+      }
     },
 
     listSnapshots(projectKey, environmentKey) {

@@ -183,7 +183,7 @@ export type {
 } from "./evaluation-sink.ts";
 
 // Admin core + server handler
-export { createFlagsCore } from "./core.ts";
+export { createFlagsCore, SnapshotProtectedError } from "./core.ts";
 export type {
   DraftDiff,
   DraftDiffEntry,
@@ -191,6 +191,8 @@ export type {
   FlagEvaluationResult,
   FlagsCore,
   FlagsCoreOptions,
+  RetentionOptions,
+  RetentionRule,
   SnapshotSummary,
 } from "./core.ts";
 export { createFetchHandler } from "./server/create-fetch-handler.ts";

@@ -611,6 +611,17 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
           summary: "Get a snapshot by version",
           responses: { "200": jsonRes("Snapshot", ref("Snapshot")), "404": errorRes("Not found") },
         },
+        delete: {
+          tags: ["snapshots"],
+          summary: "Delete a snapshot (never the active or latest version)",
+          description:
+            'Removes the snapshot payload from source and runtime storage and appends an `action: "delete"` audit entry. The active and latest versions are protected (409).',
+          responses: {
+            "204": { description: "Deleted" },
+            "404": errorRes("Not found"),
+            "409": errorRes("Protected (active or latest version)"),
+          },
+        },
       },
       [`${envPath}/active`]: {
         parameters: [PROJECT, ENV],

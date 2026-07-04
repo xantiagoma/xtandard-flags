@@ -83,16 +83,32 @@ createFetchHandler({
 `AfterEvent` (the _committed_ result). Both are discriminated unions keyed on
 `type`. Every event carries `projectKey` + `environmentKey`.
 
-| Mutation       | `before` type    | `after` type       | Notable payload                                           |
-| -------------- | ---------------- | ------------------ | --------------------------------------------------------- |
-| Upsert flag    | `flag.upsert`    | `flag.upserted`    | `flag` (input → stamped)                                  |
-| Delete flag    | `flag.delete`    | `flag.deleted`     | `flagKey`                                                 |
-| Archive flag   | `flag.archive`   | `flag.archived`    | `flag`                                                    |
-| Restore flag   | `flag.restore`   | `flag.restored`    | `flag`                                                    |
-| Upsert segment | `segment.upsert` | `segment.upserted` | `segment`                                                 |
-| Delete segment | `segment.delete` | `segment.deleted`  | `segmentKey`                                              |
-| Publish        | `publish`        | `published`        | `draft` (before) / `snapshot` (after), `actor`, `message` |
-| Rollback       | `rollback`       | `rolledback`       | `toVersion`/`version`, `fromVersion`, `actor`             |
+| Mutation        | `before` type     | `after` type       | Notable payload                                           |
+| --------------- | ----------------- | ------------------ | --------------------------------------------------------- |
+| Upsert flag     | `flag.upsert`     | `flag.upserted`    | `flag` (input → stamped)                                  |
+| Delete flag     | `flag.delete`     | `flag.deleted`     | `flagKey`                                                 |
+| Archive flag    | `flag.archive`    | `flag.archived`    | `flag`                                                    |
+| Restore flag    | `flag.restore`    | `flag.restored`    | `flag`                                                    |
+| Upsert segment  | `segment.upsert`  | `segment.upserted` | `segment`                                                 |
+| Delete segment  | `segment.delete`  | `segment.deleted`  | `segmentKey`                                              |
+| Publish         | `publish`         | `published`        | `draft` (before) / `snapshot` (after), `actor`, `message` |
+| Rollback        | `rollback`        | `rolledback`       | `toVersion`/`version`, `fromVersion`, `actor`             |
+| Delete snapshot | `snapshot.delete` | `snapshot.deleted` | the **full `snapshot`** + `pruned` (retention vs manual)  |
+| Prune audit     | —                 | `audit.pruned`     | the removed **`entries`** (oldest-first)                  |
+
+The two deletion events are the **offload seam**: they carry the full payload
+being removed (the snapshot / the audit entries), so an `after` hook is the last
+chance to archive it (S3, warehouse, SIEM) before it's gone from storage.
+Retention pruning (`pruned: true`, `audit.pruned`) is operator policy and is
+**not vetoable** — only a manual `snapshot.delete` passes through `before`.
+
+```ts
+// Offload pruned history to object storage before it disappears.
+after(e) {
+  if (e.type === "snapshot.deleted") await archive.put(`snapshots/${e.version}.json`, e.snapshot);
+  if (e.type === "audit.pruned") await archive.append("audit.ndjson", e.entries);
+}
+```
 
 Hooks fire on the **admin plane only** — never on the evaluation hot path (the
 memory-first, zero-dep evaluator stays pure and fast, see

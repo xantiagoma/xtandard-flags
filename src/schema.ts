@@ -422,10 +422,10 @@ export interface EnvironmentMeta {
   createdAt?: string;
 }
 
-/** A single entry in the publish/rollback/update audit log. */
+/** A single entry in the publish/rollback/update/delete audit log. */
 export interface AuditEntry {
   version: string;
-  action: "publish" | "rollback" | "update";
+  action: "publish" | "rollback" | "update" | "delete";
   at: string;
   by?: Actor | null;
   /** For rollback: the version that became active. */
