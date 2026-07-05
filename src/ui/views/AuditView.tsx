@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { portalContainerRef } from "../lib/portal-container.ts";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { getSnapshot, listAudit } from "../api.ts";
@@ -115,7 +116,7 @@ function AuditDiffDialog({
 
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-      <Dialog.Portal>
+      <Dialog.Portal container={portalContainerRef()}>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border border-border bg-card shadow-2xl outline-none">
           <div className="border-b border-border px-5 py-4">

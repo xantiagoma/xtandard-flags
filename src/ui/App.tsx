@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { portalContainerRef } from "./lib/portal-container.ts";
 import { Router, Switch, Route, useLocation, useSearchParams, type BaseLocationHook } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -81,7 +82,7 @@ function PublishDialog({
         if (!isOpen) onClose();
       }}
     >
-      <Dialog.Portal>
+      <Dialog.Portal container={portalContainerRef()}>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
         <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border border-border bg-card shadow-2xl outline-none">
           <div className="border-b border-border px-5 py-4">
@@ -549,7 +550,7 @@ function AppShell({
 
       {/* ── Discard-changes confirmation ─────────────────────────────────── */}
       <Dialog.Root open={discardOpen} onOpenChange={(o) => !o && setDiscardOpen(false)}>
-        <Dialog.Portal>
+        <Dialog.Portal container={portalContainerRef()}>
           <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
           <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card shadow-2xl outline-none">
             <div className="border-b border-border px-5 py-4">
