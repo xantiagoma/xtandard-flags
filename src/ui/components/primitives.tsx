@@ -1,4 +1,5 @@
 import * as React from "react";
+import { portalContainerRef } from "../lib/portal-container.ts";
 import { Switch } from "@base-ui-components/react/switch";
 import { Select } from "@base-ui-components/react/select";
 import { Combobox } from "@base-ui-components/react/combobox";
@@ -141,7 +142,7 @@ export function Dropdown({
           <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
         </Select.Icon>
       </Select.Trigger>
-      <Select.Portal>
+      <Select.Portal container={portalContainerRef()}>
         <Select.Positioner
           sideOffset={6}
           className="z-50 outline-none"
@@ -267,7 +268,7 @@ export function CreatableCombobox({
         </span>
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </Combobox.Trigger>
-      <Combobox.Portal>
+      <Combobox.Portal container={portalContainerRef()}>
         <Combobox.Positioner sideOffset={6} className="z-50 outline-none">
           <Combobox.Popup
             className={cn(
