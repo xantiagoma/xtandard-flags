@@ -1,6 +1,15 @@
 # Changelog
 
 
+## v0.1.8
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.7...v0.1.8)
+
+### 🩹 Fixes
+
+- **react:** Scope the embed stylesheet so it can't leak into the host app. `@xtandard/flags/react/styles.css` was a full, unscoped Tailwind v4 build — its preflight resets (`*`, `button`, `h1`, `a`, tables) and generic utilities (`.flex`, `.border`, …) restyled the entire host page, not just `<FlagsDashboard/>`. Every rule is now scoped under the embed's `.xtandard-flags` wrapper (preflight and utilities included), with the design tokens re-homed onto the wrapper and a build guardrail that fails if any rule escapes the scope. Base UI portals (Select/Combobox popups, Dialogs) now render inside the wrapper too, so they stay styled under the scoped stylesheet. The standalone SPA bundle (`dist/ui`) is unchanged.
+
+
 ## v0.1.7
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.6...v0.1.7)
