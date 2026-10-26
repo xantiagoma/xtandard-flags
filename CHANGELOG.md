@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.9
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.8...v0.1.9)
+
+### 🚀 Enhancements
+
+- **elysia:** Elysia 2 support via @xtandard/flags/elysia2 ([b5405ef](https://github.com/xantiagoma/xtandard-flags/commit/b5405ef))
+
+### ❤️ Contributors
+
+- Santiago Montoya <xantiagoma@gmail.com>
+
 ## v0.1.8
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.7...v0.1.8)
