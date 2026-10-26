@@ -37,8 +37,9 @@ which triggers the publish workflow below.
 
 ## Prerequisites (one-time)
 
-- An npm **automation token** with publish rights to the `@xtandard` scope, stored
-  as the **`NPM_TOKEN`** GitHub Actions secret.
+- npm **trusted publishing** (OIDC) for this repo + workflow — no token to store or
+  rotate. Set it up once (npm >= 11.10, logged in as a package owner):
+  `npx npm@latest trust github @xtandard/flags --repo xantiagoma/xtandard-flags --file release.yml --allow-publish`
 - The `@xtandard` scope must exist on npm (the package publishes with `--access public`).
 
 ---
@@ -52,12 +53,14 @@ separate and triggered by pushing a version tag (`v*`):
 1. `bun install --frozen-lockfile`
 2. `bun run build` (lib + UI + react)
 3. `bunx publint` (package-correctness check)
-4. `npm publish --provenance --access public` (auth via `NPM_TOKEN`)
+4. `npm publish --provenance --access public` (auth via OIDC trusted publishing)
 5. Create a **GitHub Release** for the tag (`gh release create … --generate-notes`),
    so it appears on the repo's [Releases](https://github.com/xantiagoma/xtandard-flags/releases) page.
 
 **First release:** `git tag v0.1.0 && git push origin v0.1.0`.
 **Ongoing releases:** `bun run release`.
+**Publish failed for a tag?** Re-run it without a new version:
+`gh workflow run release.yml -f tag=vX.Y.Z`.
 
 npm provenance links the published package to the specific GitHub Actions run that
 built it (`id-token: write` in the workflow), so consumers can verify the build chain.
