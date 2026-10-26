@@ -23,28 +23,16 @@
  */
 
 import { Elysia, t } from "elysia";
-import { createFetchHandler, type FlagsPanelOptions } from "../server/create-fetch-handler.ts";
+import {
+  createPass,
+  flagsPanel,
+  type ElysiaFlagsHandler,
+  type FlagsElysiaOptions,
+  type FlagsPanelOptions,
+} from "./elysia-shared.ts";
 
-/** A web-standard fetch handler with the admin `core` + `openapi()` attached. */
-export type ElysiaFlagsHandler = ((request: Request) => Promise<Response>) & {
-  core: ReturnType<typeof createFetchHandler>["core"];
-  openapi: ReturnType<typeof createFetchHandler>["openapi"];
-};
-
-/** Create a panel handler suitable for `Elysia.mount(path, handler)`. */
-export function flagsPanel(options: FlagsPanelOptions): ElysiaFlagsHandler {
-  const handler = createFetchHandler(options);
-  const fn = ((request: Request) => handler.fetch(request)) as ElysiaFlagsHandler;
-  fn.core = handler.core;
-  fn.openapi = handler.openapi;
-  return fn;
-}
-
-/** Options for {@link flagsElysia}. */
-export interface FlagsElysiaOptions extends FlagsPanelOptions {
-  /** Mount prefix; also used as the panel basePath. Default `"/flags"`. */
-  prefix?: string;
-}
+export { flagsPanel };
+export type { ElysiaFlagsHandler, FlagsElysiaOptions, FlagsPanelOptions };
 
 const envParams = t.Object({ projectKey: t.String(), environmentKey: t.String() });
 const flagParams = t.Object({
@@ -59,26 +47,11 @@ const flagParams = t.Object({
  * Routes are declared for the typed surface; every handler delegates to the
  * shared fetch pipeline (auth, authorization, validation, error mapping reused).
  * A catch-all also serves the bundled UI.
+ *
+ * Elysia 1.x only — for Elysia 2 import from `@xtandard/flags/elysia2`.
  */
 export function flagsElysia(options: FlagsElysiaOptions) {
-  const prefix = options.prefix ?? "/flags";
-  const handler = createFetchHandler({ ...options, basePath: options.basePath ?? prefix });
-
-  // Elysia parses the body for declared routes, draining the stream; rebuild the
-  // Request from the parsed body before delegating (mirrors the Express adapter).
-  const pass = (ctx: { request: Request; body?: unknown }): Promise<Response> => {
-    const r = ctx.request;
-    if (ctx.body != null && (r.method === "POST" || r.method === "PUT")) {
-      return handler.fetch(
-        new Request(r.url, {
-          method: r.method,
-          headers: r.headers,
-          body: JSON.stringify(ctx.body),
-        }),
-      );
-    }
-    return handler.fetch(r);
-  };
+  const { prefix, pass } = createPass(options);
 
   const env = "/api/projects/:projectKey/environments/:environmentKey";
 
@@ -162,5 +135,3 @@ export function flagsElysia(options: FlagsElysiaOptions) {
     })
     .all("/*", pass); // bundled UI assets + SPA fallback
 }
-
-export type { FlagsPanelOptions };

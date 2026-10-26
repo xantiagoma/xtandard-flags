@@ -359,6 +359,16 @@
         "default": "./dist/entry-elysia.cjs"
       }
     },
+    "./elysia2": {
+      "import": {
+        "types": "./dist/types-elysia2/entry-elysia2.d.ts",
+        "default": "./dist/entry-elysia2.mjs"
+      },
+      "require": {
+        "types": "./dist/types-elysia2/entry-elysia2.d.ts",
+        "default": "./dist/entry-elysia2.cjs"
+      }
+    },
     "./hono": {
       "import": {
         "types": "./dist/entry-hono.d.mts",
@@ -403,14 +413,16 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun run build:lib && bun run build:ui && bun run build:react",
+    "build": "bun run build:lib && bun run build:elysia2-types && bun run build:ui && bun run build:react",
     "build:lib": "vp pack",
+    "build:elysia2-types": "tsc -p tsconfig.elysia2.build.json && bun scripts/fix-elysia2-types.ts",
     "build:ui": "vite build --config vite.ui.config.ts",
     "dev:ui": "vite --config vite.ui.config.ts",
     "demo": "bun scripts/demo.ts",
     "seed:demo": "bun scripts/seed-demo.ts",
     "examples:flags-sdk": "bun scripts/example.ts flags-sdk",
     "examples:elysia": "bun scripts/example.ts elysia",
+    "examples:elysia2": "bun scripts/example.ts elysia2",
     "examples:hono": "bun scripts/example.ts hono",
     "examples:express": "bun scripts/example.ts express",
     "examples:storage-drivers": "bun scripts/example.ts storage-drivers",
@@ -426,13 +438,13 @@
     "lint": "vp lint",
     "format": "vp fmt",
     "format:check": "vp fmt --check",
-    "typecheck": "tsc --noEmit",
-    "check": "vp lint && vp fmt --check && tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.elysia2.json",
+    "check": "vp lint && vp fmt --check && bun run typecheck",
     "prepare": "husky || true",
     "test:bun": "bun test ./test/*.bun.test.ts",
     "build:react": "vite build --config vite.react.config.ts && bun scripts/scope-embed-css.ts && tsc -p tsconfig.react.json",
     "docs:api": "typedoc",
-    "typecheck:examples": "tsc -p examples/tsconfig.json",
+    "typecheck:examples": "tsc -p examples/tsconfig.json && tsc -p examples/elysia2/tsconfig.json",
     "release": "changelogen --release --push",
     "examples:react-embed": "bun scripts/example.ts react-embed"
   },
@@ -449,6 +461,7 @@
     "@codemirror/state": "^6.7.0",
     "@codemirror/view": "^6.43.4",
     "@electric-sql/pglite": "^0.2.0",
+    "@elysia/eden": "2.0.0-rc.0",
     "@elysiajs/eden": "^1.4",
     "@git-diff-view/file": "^0.1.6",
     "@git-diff-view/react": "^0.1.6",
@@ -468,6 +481,8 @@
     "clsx": "^2.1",
     "drizzle-orm": "^0.45.2",
     "elysia": "^1.4",
+    "elysia-v2": "npm:elysia@2.0.0-rc.0",
+    "exact-mirror": "^1.2.6",
     "express": "^5.0.0",
     "get-port-please": "^3.2.0",
     "hono": "^4.6.0",
@@ -485,6 +500,7 @@
     "tailwind-merge": "^3.6",
     "tailwindcss": "^4.0.0",
     "type-testing": "^0.2.0",
+    "typebox": "^1.4.3",
     "typedoc": "^0.28.19",
     "typescript": "^5.7.0",
     "unstorage": "^1.13.0",
@@ -495,7 +511,7 @@
     "@libsql/client": "0.15.15",
     "@openfeature/server-sdk": "^1.0.0",
     "drizzle-orm": ">=0.44.0 || >=1.0.0-0",
-    "elysia": "^1.0.0 || ^2.0.0",
+    "elysia": "^1.0.0 || ^2.0.0-0",
     "express": "^4.0.0 || ^5.0.0",
     "hono": "^4.0.0",
     "mongodb": "^5.0.0 || ^6.0.0",

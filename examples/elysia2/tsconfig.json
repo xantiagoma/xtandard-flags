@@ -1,0 +1,17 @@
+{
+  // In-repo typecheck against Elysia 2: `elysia` → the root `elysia-v2` devDep alias
+  // (the repo develops on Elysia 1). When copied out, drop this file.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "elysia": ["../../node_modules/elysia-v2"],
+      "@xtandard/flags": ["../../src/index.ts"],
+      "@xtandard/flags/elysia2": ["../../src/adapters/elysia2.ts"],
+      "@xtandard/flags/openfeature": ["../../src/openfeature.ts"],
+      "@xtandard/flags/storage/*": ["../../src/storage/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": []
+}

@@ -357,6 +357,7 @@ implementations of public contracts. See [docs/STORAGE.md](docs/STORAGE.md).
 | `@xtandard/flags/auth/{none,basic,delegated}`                                                                | auth providers                                                           |
 | `@xtandard/flags/authorization/{none,roles,delegated}`                                                       | authorization providers                                                  |
 | `@xtandard/flags/{elysia,hono,bun,express}`                                                                  | framework adapters                                                       |
+| `@xtandard/flags/elysia2`                                                                                    | Elysia 2 adapter (typed for Elysia 2 + `@elysia/eden`)                   |
 | `@xtandard/flags/react`                                                                                      | embeddable `<FlagsDashboard/>` component (advanced; React peer)          |
 | `@xtandard/flags/testing`                                                                                    | in-memory panel + flag builders                                          |
 
@@ -368,6 +369,7 @@ shows flags driving real behavior (change a flag, publish, watch the app change)
 | Example                                            | Shows                                                                 |
 | -------------------------------------------------- | --------------------------------------------------------------------- |
 | [`elysia/`](examples/elysia)                       | Mount the panel + a route whose response a flag controls.             |
+| [`elysia2/`](examples/elysia2)                     | Elysia 2: typed plugin + per-request flag context via `.wrap()`.      |
 | [`hono/`](examples/hono)                           | Same, on Hono.                                                        |
 | [`express/`](examples/express)                     | Same, on Express.                                                     |
 | [`auth/`](examples/auth)                           | Auth + RBAC flexibility: none/basic/header/cookie/JWT/query.          |

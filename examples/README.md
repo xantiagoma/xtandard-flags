@@ -5,6 +5,7 @@ Each example is a standalone mini-project — copy it out, `bun install`, run.
 | Example                                       | What it shows                                                                         |
 | --------------------------------------------- | ------------------------------------------------------------------------------------- |
 | [`elysia/`](./elysia)                         | Mount the admin panel under `/flags` in an Elysia app (file storage).                 |
+| [`elysia2/`](./elysia2)                       | Elysia 2: typed `flagsElysia` plugin + per-request flag context via `.wrap()`.        |
 | [`hono/`](./hono)                             | Mount the admin panel under `/flags` in a Hono app (file storage).                    |
 | [`express/`](./express)                       | Mount the admin panel under `/flags` in an Express app (file storage).                |
 | [`auth/`](./auth)                             | Auth + authorization flexibility: none/basic/header/cookie/JWT/query + RBAC.          |
@@ -79,7 +80,7 @@ example on first use and launch it on a **free port** (via `get-port-please`, so
 you can run several at once without collisions):
 
 ```bash
-bun run examples:elysia            # or: hono | express | flags-sdk
+bun run examples:elysia            # or: elysia2 | hono | express | flags-sdk
 bun run examples:hooks             # control-plane hooks (log + gate + webhook + test-gate)
 bun run examples:storage-drivers   # script example (no server)
 bun run examples:openfeature-redis # needs Redis + published flags

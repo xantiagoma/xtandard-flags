@@ -30,5 +30,6 @@
   // examples/flags-sdk run typecheck`, not the shared examples project.
   // ofrep-clients are standalone polyglot projects (python/go/plain-ts) with their
   // own toolchains + deps (@openfeature/*) — not part of the monorepo typecheck.
-  "exclude": ["flags-sdk/**", "ofrep-clients/**"]
+  // elysia2 is checked against Elysia 2 via its own elysia2/tsconfig.json.
+  "exclude": ["flags-sdk/**", "ofrep-clients/**", "elysia2/**"]
 }

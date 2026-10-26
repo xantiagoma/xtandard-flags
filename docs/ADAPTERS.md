@@ -298,3 +298,62 @@ app.use(openapi({ references: flags.openapi() as never })).use(flags);
 
 `buildOpenApiDocument({ basePath, title })` is also exported from `@xtandard/flags`
 for generating the spec without a running server.
+
+## Elysia 2 — `@xtandard/flags/elysia2`
+
+Elysia 2 (currently `elysia@rc`) changed two things that matter to the typed
+plugin: routes take `(path, hook, handler)` instead of `(path, handler, hook)`, and
+the `Elysia` class generics changed — so a plugin's `.d.ts` built against one major
+doesn't type-check (or feed Eden) on the other. `@xtandard/flags/elysia2` is the
+same surface — `flagsPanel` and `flagsElysia` — built and typed against Elysia 2:
+
+```ts
+import { Elysia } from "elysia"; // 2.x
+import { flagsElysia } from "@xtandard/flags/elysia2";
+
+const app = new Elysia().use(flagsElysia({ prefix: "/flags", sourceStorage })).listen(3000);
+export type App = typeof app;
+```
+
+```ts
+import { treaty } from "@elysia/eden"; // Elysia 2's Eden (was @elysiajs/eden)
+const client = treaty<App>("localhost:3000");
+await client.flags!.api.projects.get();
+```
+
+| Elysia | Import from               | Eden client      |
+| ------ | ------------------------- | ---------------- |
+| 1.x    | `@xtandard/flags/elysia`  | `@elysiajs/eden` |
+| 2.x    | `@xtandard/flags/elysia2` | `@elysia/eden`   |
+
+`flagsPanel` (the `.mount()` handler) is version-agnostic and works from either
+import; only the typed `flagsElysia` plugin is tied to a major.
+
+### Per-request flag context with `.wrap()`
+
+Elysia 2's `.wrap()` wraps the whole fetch pipeline (mounted handlers included),
+which makes it the place to set OpenFeature's **transaction context** — handlers
+then evaluate flags without passing a context object around:
+
+```ts
+import {
+  AsyncLocalStorageTransactionContextPropagator,
+  OpenFeature,
+} from "@openfeature/server-sdk";
+
+OpenFeature.setTransactionContextPropagator(new AsyncLocalStorageTransactionContextPropagator());
+
+new Elysia()
+  .wrap(
+    (fetch) => (request) =>
+      // setTransactionContext returns void — capture the response via a Promise.
+      new Promise<Response>((resolve, reject) =>
+        OpenFeature.setTransactionContext({ targetingKey: userIdFrom(request) }, () =>
+          Promise.resolve(fetch(request)).then(resolve, reject),
+        ),
+      ),
+  )
+  .get("/", () => client.getBooleanValue("new-dashboard", false)); // no context arg
+```
+
+See [`examples/elysia2`](../examples/elysia2).

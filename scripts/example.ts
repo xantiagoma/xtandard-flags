@@ -46,6 +46,14 @@ const EXAMPLES: Record<string, ExampleConfig> = {
     preferredPort: 3000,
     panelPath: "/flags",
   },
+  elysia2: {
+    dir: "examples/elysia2",
+    kind: "server",
+    run: ["bun", "run", "start"],
+    preferredPort: 3000,
+    panelPath: "/flags",
+    note: "Elysia 2 (RC): typed plugin + per-request OpenFeature transaction context",
+  },
   hono: {
     dir: "examples/hono",
     kind: "server",

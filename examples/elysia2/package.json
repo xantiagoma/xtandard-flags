@@ -1,0 +1,13 @@
+{
+  "name": "example-elysia2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@openfeature/server-sdk": "^1.16.0",
+    "@xtandard/flags": "file:../..",
+    "elysia": "2.0.0-rc.0"
+  }
+}
