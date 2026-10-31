@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.10
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.9...v0.1.10)
+
+### 🩹 Fixes
+
+- **react:** Embedded dashboard resolves to one theme; theme="inherit" follows the host ([de6600e](https://github.com/xantiagoma/xtandard-flags/commit/de6600e))
+
+### 🤖 CI
+
+- **release:** Npm trusted publishing (OIDC) + manual re-publish of a tag ([63f8530](https://github.com/xantiagoma/xtandard-flags/commit/63f8530))
+
+### ❤️ Contributors
+
+- Santiago Montoya ([@xantiagoma](https://github.com/xantiagoma))
+
 ## v0.1.9
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.1.8...v0.1.9)
