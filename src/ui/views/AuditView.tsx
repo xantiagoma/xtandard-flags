@@ -6,6 +6,7 @@ import { getSnapshot, listAudit } from "../api.ts";
 import type { AuditEntry } from "../types.ts";
 import { Button } from "../components/ui-bits.tsx";
 import { cn } from "../lib/utils.ts";
+import { useTheme } from "../lib/theme-context.tsx";
 
 const LazyDiffViewer = React.lazy(() => import("../components/DiffViewer.tsx"));
 
@@ -106,10 +107,7 @@ function AuditDiffDialog({
   // A referenced snapshot may have been deleted or pruned since this entry was written.
   const unavailable = isDeleteEntry || afterQ.isError || (beforeV !== null && beforeQ.isError);
 
-  const theme =
-    typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
-      ? "dark"
-      : "light";
+  const theme = useTheme().resolved;
   const before = beforeV ? snapJson(beforeQ.data as unknown as LooseSnapshot) : snapJson(null);
   const after = snapJson(afterQ.data as unknown as LooseSnapshot);
   const ready = afterQ.data && (beforeV === null || beforeQ.data);

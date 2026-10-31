@@ -28,7 +28,7 @@ import { App } from "./ui/App.tsx";
 import { ToastProvider } from "./ui/components/Toast.tsx";
 import { setApiBase, type FetchLike } from "./ui/api.ts";
 import { setPortalContainerRef } from "./ui/lib/portal-container.ts";
-import { initTheme } from "./ui/theme.ts";
+import { ThemeProvider, type ThemeMode } from "./ui/lib/theme-context.tsx";
 import "./ui/styles.css";
 
 /** Props for {@link FlagsDashboard}. */
@@ -52,8 +52,20 @@ export interface FlagsDashboardProps {
   fetch?: FetchLike;
   /** Bring your own QueryClient; one is created if omitted. */
   queryClient?: QueryClient;
-  /** Control theme handling. `"auto"` (default) initializes the system/light/dark switcher. */
-  theme?: "auto" | "inherit";
+  /**
+   * How the dashboard is themed. Whatever the mode, the whole dashboard (surfaces,
+   * text, borders, dialogs, code/diff viewers) resolves to one theme, applied as
+   * `data-theme` on its own wrapper — the host document is never modified.
+   * - `"auto"` (default) — the dashboard's own system/light/dark switcher
+   *   (persisted in localStorage).
+   * - `"inherit"` — follow the host page live: a `dark`/`light` class or a
+   *   `data-theme` (also `data-mode`/`data-color-scheme`) attribute or inline
+   *   `color-scheme` on `<html>`, then `<body>`; the OS `prefers-color-scheme`
+   *   only when the host sets none. The switcher is hidden — the host owns it.
+   * - `"light"` / `"dark"` — fixed; pass your app's resolved theme to control it
+   *   directly. The switcher is hidden.
+   */
+  theme?: ThemeMode;
   /** Extra className on the dashboard root wrapper. */
   className?: string;
   /**
@@ -106,10 +118,6 @@ export function FlagsDashboard({
   // Set the API base synchronously so child queries (run on mount) use it.
   setApiBase(apiBaseUrl, { credentials, fetch: fetchImpl });
 
-  React.useEffect(() => {
-    if (theme === "auto") initTheme();
-  }, [theme]);
-
   const client = queryClient ?? getClient();
 
   // Point Base UI portals (Select/Combobox popups, Dialogs) at the scoped
@@ -130,24 +138,31 @@ export function FlagsDashboard({
 
   return (
     <QueryClientProvider client={client}>
-      <ToastProvider>
-        <div
-          ref={wrapperRef}
-          className={className ? `xtandard-flags ${className}` : "xtandard-flags"}
-        >
-          <App
-            locationHook={hook}
-            base={base}
-            logoUrl={logoUrl}
-            initialProjectKey={initialProjectKey}
-            initialEnvironmentKey={initialEnvironmentKey}
-          />
-        </div>
-      </ToastProvider>
+      <ThemeProvider mode={theme}>
+        {(resolved) => (
+          <div
+            ref={wrapperRef}
+            data-theme={resolved}
+            className={className ? `xtandard-flags ${className}` : "xtandard-flags"}
+          >
+            {/* Inside the wrapper so the toast region gets the scoped styles + theme. */}
+            <ToastProvider>
+              <App
+                locationHook={hook}
+                base={base}
+                logoUrl={logoUrl}
+                initialProjectKey={initialProjectKey}
+                initialEnvironmentKey={initialEnvironmentKey}
+              />
+            </ToastProvider>
+          </div>
+        )}
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
 
 export { setApiBase } from "./ui/api.ts";
-export { setThemePref, getThemePref, type ThemePref } from "./ui/theme.ts";
+export { setThemePref, getThemePref, type ThemePref, type ResolvedTheme } from "./ui/theme.ts";
+export type { ThemeMode } from "./ui/lib/theme-context.tsx";
 export default FlagsDashboard;

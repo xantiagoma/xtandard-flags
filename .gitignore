@@ -8,6 +8,7 @@ coverage
 # test artifacts
 test-results
 playwright-report
+e2e/.embed-host
 .playwright
 
 # logs / env

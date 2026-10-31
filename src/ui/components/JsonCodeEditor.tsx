@@ -1,12 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
-import {
-  bracketMatching,
-  defaultHighlightStyle,
-  indentOnInput,
-  syntaxHighlighting,
-} from "@codemirror/language";
+import { bracketMatching, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { classHighlighter } from "@lezer/highlight";
 import { Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -50,7 +46,9 @@ export function JsonCodeEditor({
         indentOnInput(),
         bracketMatching(),
         highlightActiveLine(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        // Emit `tok-*` classes and color them from theme tokens (styles.css), so
+        // the editor follows the dashboard's light/dark theme like every surface.
+        syntaxHighlighting(classHighlighter),
         json(),
         placeholder(placeholderText),
         keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -65,7 +63,19 @@ export function JsonCodeEditor({
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
           },
-          ".cm-gutters": { backgroundColor: "transparent", border: "none" },
+          ".cm-gutters": {
+            backgroundColor: "transparent",
+            border: "none",
+            color: "var(--muted-foreground)",
+          },
+          ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--foreground)" },
+          ".cm-activeLine, .cm-activeLineGutter": {
+            backgroundColor: "color-mix(in oklab, var(--muted) 60%, transparent)",
+          },
+          "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
+            backgroundColor: "color-mix(in oklab, var(--accent) 25%, transparent)",
+          },
+          ".cm-placeholder": { color: "var(--muted-foreground)" },
         }),
       ],
     });

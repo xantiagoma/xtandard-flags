@@ -161,8 +161,28 @@ export default function FlagsPage() {
 `react` and `react-dom` are (optional) peer dependencies in this mode; TanStack
 Query and styles are bundled. The component ships as `dist/react.js` + a single
 `dist/react.css`. See [`examples/react-embed`](../examples/react-embed) for a
-working host app (Vite dev proxy → standalone panel). The system/light/dark
-switcher is included; pass `theme="inherit"` to manage the theme yourself.
+working host app (Vite dev proxy → standalone panel).
+
+### Theme
+
+The whole dashboard (surfaces, text, borders, dialogs, toasts, the JSON editor
+and diff viewers) always resolves to **one** theme, applied as `data-theme` on
+the dashboard's own wrapper. The host document is never modified. The `theme`
+prop picks who decides:
+
+| `theme`            | Behavior                                                                                                                                                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"auto"` (default) | The dashboard's own system/light/dark switcher, persisted in `localStorage`.                                                                                                                                                                                            |
+| `"inherit"`        | Follow the host page, live. Reads a `dark`/`light` class, a `data-theme` (or `data-mode`/`data-color-scheme`) attribute, or an inline `color-scheme` on `<html>`, then `<body>`; falls back to the OS `prefers-color-scheme` only when the host sets none. No switcher. |
+| `"light"`/`"dark"` | Fixed. Pass your app's resolved theme to drive it directly. No switcher.                                                                                                                                                                                                |
+
+```tsx
+// Host with class-based dark mode (`<html class="dark">`), e.g. a Tailwind/shadcn app:
+<FlagsDashboard apiBaseUrl="/flags" theme="inherit" />
+
+// Or hand over the theme your app already resolved:
+<FlagsDashboard apiBaseUrl="/flags" theme={resolvedTheme === "dark" ? "dark" : "light"} />
+```
 
 ### Pre-selecting the project/environment
 

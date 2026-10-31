@@ -19,6 +19,8 @@ const SAMPLE = [
   "button,input{font:inherit}",
   "a{color:inherit}",
   ":root{--background:#fff;--foreground:#0a0a0a}",
+  ':root[data-theme="dark"]{--background:#0a0a0a;--foreground:#fafafa}',
+  "body{background-color:var(--background);color:var(--foreground)}",
   ".flex{display:flex}",
   ".border{border-width:1px}",
   ".px-4{padding-inline:1rem}",
@@ -43,6 +45,22 @@ describe("embed CSS scoping", () => {
     // Not left on the document root.
     expect(out).not.toMatch(/(^|})[:]root\{/);
     expect(out).not.toMatch(/(^|})html\{/);
+  });
+
+  it("re-homes the dark tokens onto the wrapper's own data-theme", async () => {
+    const out = await scopeCss(SAMPLE);
+    // The embed sets data-theme on the wrapper itself, so the dark block must
+    // qualify the wrapper — a descendant selector would never match.
+    expect(out).toContain(`${SCOPE}[data-theme="dark"]{--background:#0a0a0a`);
+    expect(out).not.toContain(`${SCOPE} :root[data-theme="dark"]`);
+  });
+
+  it("gives the wrapper the page surface (background + text color) from body", async () => {
+    const out = await scopeCss(SAMPLE);
+    // Without this the wrapper's text inherits the host's color over the
+    // dashboard's own surfaces (e.g. light host text on a light card).
+    expect(out).toContain(`${SCOPE}{background-color:var(--background);color:var(--foreground)}`);
+    expect(out).not.toContain(`${SCOPE} body`);
   });
 
   it("leaves @keyframes steps untouched", async () => {

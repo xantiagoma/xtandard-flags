@@ -5,6 +5,8 @@ const PORT = 3310;
 /**
  * Browser e2e for the bundled admin UI. Boots the standalone server (memory
  * storage, no auth) after building the UI bundle, then drives the real SPA.
+ * Also builds the React embed + a tiny host app (e2e/embed-host) for the embed
+ * theme checks, served via request interception on the same origin.
  *
  *   bun run test:e2e
  */
@@ -20,7 +22,7 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: `bun run build:ui && PORT=${PORT} AUTH_MODE=none SOURCE_STORAGE_DRIVER=memory RUNTIME_STORAGE_DRIVER=memory bun run apps/standalone/src/index.ts`,
+    command: `bun run build:ui && bun run build:react && bun build e2e/embed-host/main.tsx --outdir e2e/.embed-host && PORT=${PORT} AUTH_MODE=none SOURCE_STORAGE_DRIVER=memory RUNTIME_STORAGE_DRIVER=memory bun run apps/standalone/src/index.ts`,
     url: `http://localhost:${PORT}/healthcheck`,
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,

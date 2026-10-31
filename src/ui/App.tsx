@@ -25,6 +25,7 @@ import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
 import { cn } from "./lib/utils.ts";
 import { canLeave } from "./lib/nav-guard.ts";
+import { useTheme } from "./lib/theme-context.tsx";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { TextInput, CreatableCombobox } from "./components/primitives.tsx";
 
@@ -70,10 +71,7 @@ function PublishDialog({
   const [message, setMessage] = useState("");
   const [tab, setTab] = useState<"summary" | "split">("summary");
   const entries = diff?.entries ?? [];
-  const theme =
-    typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
-      ? "dark"
-      : "light";
+  const theme = useTheme().resolved;
 
   return (
     <Dialog.Root
@@ -283,6 +281,8 @@ function AppShell({
   // Branding: explicit props win, then server /config, then defaults.
   const brandTitle = config?.title || "@xtandard/flags";
   const brandLogoUrl = logoUrl ?? config?.logoUrl;
+  // Hidden when the embedding host owns the theme (`theme="inherit"`/fixed).
+  const showThemeToggle = useTheme().showToggle;
 
   const projectsQuery = useQuery({
     queryKey: ["projects"],
@@ -457,7 +457,7 @@ function AppShell({
                 Publish
               </Button>
             )}
-            <ThemeToggle />
+            {showThemeToggle && <ThemeToggle />}
           </div>
         </div>
 

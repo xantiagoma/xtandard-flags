@@ -9,7 +9,8 @@
  *
  * This scopes every rule under the embed's wrapper class (`.xtandard-flags`,
  * see src/react.tsx) so the stylesheet is inert outside the dashboard. The
- * design-token `:root`/`html` blocks are re-homed onto the wrapper itself, and
+ * design-token `:root`/`html` blocks (incl. `:root[data-theme="dark"]`) and the
+ * `body` surface rule are re-homed onto the wrapper itself, and
  * keyframe steps are left untouched. The standalone SPA build (dist/ui) is not
  * processed — it legitimately owns the whole document and keeps a global
  * preflight.
@@ -40,7 +41,15 @@ export async function scopeCss(css: string): Promise<string> {
         if (/^(\d+%|from|to)$/.test(selector.trim())) return selector;
         // Design tokens live on :root/html — re-home them onto the wrapper so
         // the embed's own scope carries them (the host <html> is untouched).
-        if (selector === ":root" || selector === "html" || selector === ":host") return prefix;
+        // `body` carries the page surface (background, text color, font): the
+        // wrapper is the embed's "page", so it gets them too — otherwise its text
+        // inherits the host's color over the dashboard's own surfaces.
+        if (/^(:root|html|:host|body)$/.test(selector)) return prefix;
+        // Compound root selectors — the dark tokens on `:root[data-theme="dark"]` —
+        // become the wrapper with the same qualifier (`.xtandard-flags[data-theme="dark"]`),
+        // matching the `data-theme` the embed sets on its own wrapper.
+        const compound = /^(?::root|html)([[:.].*)$/.exec(selector);
+        if (compound) return `${prefix}${compound[1]}`;
         return prefixedSelector;
       },
     }),
