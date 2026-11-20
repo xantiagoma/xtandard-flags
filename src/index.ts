@@ -1,9 +1,11 @@
 /**
- * `@xtandard/flags` — public surface.
+ * The root entry point: the core contracts and types, the evaluator, the
+ * snapshot model, and the admin/server factories (`createFlagsCore`,
+ * `createFetchHandler`).
  *
- * Re-exports the core contracts, types, evaluator, snapshot model, and the
- * admin/server factories. Storage/auth/authorization/adapter implementations
- * live behind their own subpath exports (e.g. `@xtandard/flags/storage/redis`).
+ * `@xtandard/flags` — public surface. Storage/auth/authorization/adapter
+ * implementations live behind their own subpath exports (e.g.
+ * `@xtandard/flags/storage/redis`).
  *
  * @example
  * ```ts
@@ -21,7 +23,7 @@
  * Bun.serve({ port: 3000, fetch });
  * ```
  *
- * @module
+ * @module flags
  */
 
 // Types & schema

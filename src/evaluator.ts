@@ -16,7 +16,7 @@
  * "Flag missing" (reason `FLAG_NOT_FOUND`) is handled one level up by the
  * provider, which holds the caller's default value.
  *
- * @module
+ * @module evaluator
  */
 
 import { compareViaComparators } from "./comparators.ts";

@@ -8,7 +8,7 @@
  * re-points `active_version`. The runtime provider therefore only ever needs
  * `runtimeStorage`.
  *
- * @module
+ * @module core
  */
 
 import { diff } from "ohash/utils";

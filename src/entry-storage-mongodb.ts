@@ -1,8 +1,11 @@
 /**
- * Subpath entry for `@xtandard/flags/storage/mongodb`. Re-exports the MongoDB
- * adapter so the bundler can map it to its own dist file.
+ * MongoDB storage: `createMongoStorage`, one collection of `{ _id, value }`
+ * documents. Optional peer dependency: `mongodb`.
  *
- * @module
+ * Subpath entry for `@xtandard/flags/storage/mongodb`: re-exports the adapter so
+ * the bundler can map it to its own dist file.
+ *
+ * @module storage/mongodb
  */
 
 export * from "./storage/mongodb.ts";

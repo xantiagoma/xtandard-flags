@@ -1,8 +1,11 @@
 /**
- * Subpath entry for `@xtandard/flags/storage/cloudflare-kv`. Re-exports the
- * Cloudflare Workers KV adapter so the bundler can map it to its own dist file.
+ * Cloudflare Workers KV storage: `createCloudflareKvStorage` over a KV namespace
+ * binding, for runtime snapshots read inside Workers. No dependencies.
  *
- * @module
+ * Subpath entry for `@xtandard/flags/storage/cloudflare-kv`: re-exports the
+ * adapter so the bundler can map it to its own dist file.
+ *
+ * @module storage/cloudflare-kv
  */
 
 export * from "./storage/cloudflare-kv.ts";

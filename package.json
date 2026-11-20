@@ -444,6 +444,9 @@
     "test:bun": "bun test ./test/*.bun.test.ts",
     "build:react": "vite build --config vite.react.config.ts && bun scripts/scope-embed-css.ts && tsc -p tsconfig.react.json",
     "docs:api": "typedoc",
+    "docs:dev": "cd site && bun install && bun run dev",
+    "docs:build": "cd site && bun install && bun run build",
+    "docs:preview": "cd site && bun run preview",
     "typecheck:examples": "tsc -p examples/tsconfig.json && tsc -p examples/elysia2/tsconfig.json",
     "release": "changelogen --release --push",
     "examples:react-embed": "bun scripts/example.ts react-embed"

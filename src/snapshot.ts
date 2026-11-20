@@ -6,7 +6,7 @@
  * `active_version`; rollback flips `active_version` back to an earlier snapshot.
  * The runtime provider reads whole snapshots — never individual flags.
  *
- * @module
+ * @module snapshot
  */
 
 import {
