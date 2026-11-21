@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.2.0...v0.2.1)
+
+Security fix for the standalone server, the CLI and the Docker image: a mistyped `AUTH_MODE` no longer serves an open panel. Library APIs, storage and the HTTP API are unchanged.
+
+### 🩹 Fixes
+
+- **auth:** reject unknown `AUTH_MODE` instead of serving an open panel ([#23](https://github.com/xantiagoma/xtandard-flags/pull/23)). Any value other than `none` or `basic` (a typo, wrong case) used to fall through to `none`, leaving the admin panel and API unauthenticated. The server now exits with `Unknown AUTH_MODE "x" (expected none or basic)` before it listens. An empty or unset `AUTH_MODE` still means `none`, and now prints the same unauthenticated-panel warning as an explicit `none`.
+
+### Migration
+
+None if `AUTH_MODE` is `none`, `basic` or unset. If a deployment fails to start after upgrading, its `AUTH_MODE` was invalid and the panel was open: set it to `basic` (with credentials) or `none` explicitly.
 
 ## v0.2.0
 
