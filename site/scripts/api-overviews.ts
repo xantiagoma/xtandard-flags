@@ -151,11 +151,14 @@ function modulePage(m: Module, reexports: Reexport[]): string {
     "",
   ];
   // A symbol several entry points export is documented once, under the first (astro.config.ts
-  // apiOwners); say which other entry points this one also re-exports from.
+  // apiOwners); say which other entry points this one also re-exports from. Only `export … from`
+  // statements count: an entry point that merely imports another one doesn't re-export it.
   const from = new Set(
-    [...readFileSync(join(repoRoot, m.source), "utf8").matchAll(/\bfrom "\.\/([^"]+)"/g)].map(
-      (x) => `src/${x[1]}`,
-    ),
+    [
+      ...readFileSync(join(repoRoot, m.source), "utf8").matchAll(
+        /^export\s[^;]*?\bfrom\s+"\.\/([^"]+)"/gm,
+      ),
+    ].map((x) => `src/${x[1]}`),
   );
   const others = apiEntries().filter((e) => e.source !== m.source && from.has(e.source));
   if (others.length)
