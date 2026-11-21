@@ -23,7 +23,7 @@ interface AuthProvider {
 }
 ```
 
-`authenticate` returns `null` to signal an unauthenticated request. The server will then call `challenge` (if provided) to build a `Response` that prompts for credentials — for Basic auth this is a `401` with a `WWW-Authenticate` header. If `challenge` is not provided, the server returns a plain `401`.
+`authenticate` returns `null` to signal an unauthenticated request. The server will then call `challenge` (if provided) to build a `Response` that prompts for credentials — for Basic auth this is a `401` with a `WWW-Authenticate` header. If `challenge` is not provided, the server returns a plain `401`. A provider that **throws** (an identity provider down, a database error) is a server error: the request gets a `500`, not a misleading `401`.
 
 ---
 

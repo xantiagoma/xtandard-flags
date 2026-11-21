@@ -27,10 +27,11 @@ The `/config` API endpoint returns the same object for dynamic runtime use.
 
 The panel handler (`createFetchHandler`) dispatches in this order:
 
-1. **JSON API** — paths matching `/api/*` or `/config`.
-2. **Static assets** — paths ending in a file extension that exist under `dist/ui`.
-3. **404** — a path that looks like a static asset (`/assets/main.abc123.js`) but is not found.
-4. **SPA fallback** — everything else (including `/`, `/flags/my-flag`, etc.) returns the injected `index.html`.
+1. **Healthcheck** — `GET /healthcheck` (under the base path) answers `{ "ok": true }`.
+1. **JSON API** — paths matching `/api/*` or `/config`. Any other method than `GET`/`HEAD` outside the API is a `405` with `Allow`.
+1. **Static assets** — paths ending in a file extension that exist under `dist/ui`.
+1. **404** — a path that looks like a static asset (`/assets/main.abc123.js`) but is not found.
+1. **SPA fallback** — everything else (including `/`, `/flags/my-flag`, etc.) returns the injected `index.html`.
 
 This means the SPA can use client-side routing freely — any unknown path falls through to `index.html`.
 

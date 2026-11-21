@@ -26,8 +26,21 @@ Adapters may implement additional interfaces that the core feature-detects at ru
 | Interface                    | Extra method                                                | Used for                                                |
 | ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------------- |
 | `WatchableFlagsStorage`      | `watch(prefix, callback): Promise<() => void>`              | Push-based snapshot refresh in the OpenFeature provider |
-| `TransactionalFlagsStorage`  | `transaction<T>(callback): Promise<T>`                      | Multi-key atomic writes                                 |
 | `CompareAndSwapFlagsStorage` | `compareAndSwap({ key, expected, next }): Promise<boolean>` | Optimistic concurrency                                  |
+| `TransactionalFlagsStorage`  | `transaction<T>(callback): Promise<T>`                      | Deprecated: no adapter implements it (type kept)        |
+
+The drivers come from `@xtandard/kit`, the shared building blocks of the xtandard products. Which
+adapter has which capability:
+
+| Adapter                                    | `watch`         | `compareAndSwap`       |
+| ------------------------------------------ | --------------- | ---------------------- |
+| memory, Redis / RedisJSON                  | ✓               | ✓                      |
+| file                                       | ✓ (`fs.watch`)  | ✓ (within one process) |
+| Postgres, Drizzle, MongoDB, SQLite, libSQL | via `withWatch` | ✓                      |
+| unstorage, Cloudflare KV                   | via `withWatch` | —                      |
+
+`compareAndSwap` compares structurally (object key order is ignored), and values are written as
+canonical JSON; rows written by earlier releases still read, list and swap.
 
 Feature-detection helpers are exported from `@xtandard/flags`:
 
@@ -45,7 +58,7 @@ if (isWatchable(storage)) {
 
 ### Memory — `@xtandard/flags/storage/memory`
 
-Zero dependencies. Values are deep-cloned on every read and write so mutations to returned objects do not affect stored state. Implements `WatchableFlagsStorage` with microtask-scheduled callbacks.
+Zero dependencies. Values are deep-cloned on every read and write so mutations to returned objects do not affect stored state. Implements `WatchableFlagsStorage` with microtask-scheduled callbacks, and `compareAndSwap`.
 
 ```ts
 import { createMemoryStorage } from "@xtandard/flags/storage/memory";
@@ -72,7 +85,9 @@ const seeded = createMemoryStorage({
 
 ### File — `@xtandard/flags/storage/file`
 
-Zero external dependencies (uses `node:fs/promises`). Each key is stored as a pretty-printed `.json` file, mirroring the slash-delimited key layout as a nested directory tree. Implements `WatchableFlagsStorage` via `fs.watch` on the base directory. Each key segment is encoded as a file name that stays distinct on case-insensitive file systems (macOS's and Windows' defaults): an uppercase letter becomes `^` + the lowercase letter (`Acme` → `^acme`), and characters outside `[a-z0-9._~!@,=+-]` become `%XX`. Lowercase keys (`flags/default/production/…`) map to themselves. Files written before the encoding (`flags/MyProject/…`) are still read and listed, and are replaced by their encoded name on the next write. On a case-insensitive file system such a legacy file can still answer for its lowercase twin (`flags/myproject/…`) until it is rewritten, so if your tree has keys with uppercase letters, re-save them once (read and write back each key from `getKeys("flags/")`).
+Zero external dependencies (uses `node:fs/promises`). Each key is stored as a pretty-printed `.json` file, mirroring the slash-delimited key layout as a nested directory tree. Implements `WatchableFlagsStorage` via `fs.watch` on the base directory. Each key segment is encoded as a file name that stays distinct on case-insensitive file systems (macOS's and Windows' defaults): an uppercase letter becomes `^` + the lowercase letter (`Acme` → `^acme`), and characters outside `[a-z0-9._~!@,=+-]` become `%XX`. An empty segment (`a//b`) is a lone `%`, so it stays a distinct key. Lowercase keys (`flags/default/production/…`) map to themselves. Writes go to a temporary file that is renamed into place, so a crash never leaves a half-written value, and `compareAndSwap` is serialized per key within one process (several processes sharing one directory need a database adapter).
+
+Files written before the encoding (`flags/MyProject/…`) are still read and listed (`legacy: "read-through"`, the default), and are replaced by their encoded name on the next write or remove. To convert a whole tree at once, run `migrateFileStorage({ dir })` (exported from this subpath; idempotent, run it with no writer). Pass `legacy: "ignore"` to skip legacy files entirely.
 
 ```ts
 import { createFileStorage } from "@xtandard/flags/storage/file";
@@ -82,9 +97,10 @@ const storage = createFileStorage({ dir: "./data/flags" });
 
 **Options:**
 
-| Option | Type     | Description                        |
-| ------ | -------- | ---------------------------------- |
-| `dir`  | `string` | Base directory. Created on demand. |
+| Option   | Type                                       | Description                                                 |
+| -------- | ------------------------------------------ | ----------------------------------------------------------- |
+| `dir`    | `string`                                   | Base directory. Created on demand.                          |
+| `legacy` | `"read-through"` \| `"warn"` \| `"ignore"` | Files in the pre-encoding layout. Default `"read-through"`. |
 
 **Key layout on disk:**
 
@@ -315,6 +331,19 @@ ALTER TABLE flags_kv
 
 If two keys already collided, the table holds only one of them (the last write); the
 `ALTER` doesn't bring the other back.
+
+`utf8mb4_bin` is a **PAD SPACE** collation: it ignores trailing spaces, so `"flags/a "` and
+`"flags/a"` are the same primary key. The adapter guards every operation: reads, removes and swaps
+match keys byte-exactly, and a write whose key differs from a stored one only by trailing spaces
+throws `KeyCollisionError` (exported from `@xtandard/flags/storage/drizzle`) instead of overwriting
+it. New tables can opt into a NO PAD collation with `mysqlFlagsTable("flags_kv", { keyCollation:
+"utf8mb4_0900_bin" })` (MySQL 8.0+; `"utf8mb4_nopad_bin"` on MariaDB). Existing tables can migrate
+in place:
+
+```sql
+ALTER TABLE flags_kv
+  MODIFY `key` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+```
 
 **2. Build the storage** over your existing `db`:
 

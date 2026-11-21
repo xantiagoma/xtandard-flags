@@ -46,6 +46,7 @@ PORT=4000 \
 | `RUNTIME_FILE_DIR`       | `"./data/runtime"`         | Directory for file-backed runtime storage.                                              |
 | `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` (default, also when empty) or `basic`; others fail startup. |
 | `AUTH_USERNAME`          | `"admin"`                  | Username for `basic` auth mode.                                                         |
+| `AUTH_ROLE`              | `"admin"`                  | Role of the `basic` auth user: `admin`, `editor` or `viewer`.                           |
 | `AUTH_PASSWORD_HASH`     | `""`                       | scrypt hash of the admin password (preferred). See [Auth](AUTH.md).                     |
 | `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                                         |
 | `READONLY`               | `false`                    | Set to `1` or `true` to block all mutating operations.                                  |
@@ -55,6 +56,9 @@ PORT=4000 \
 | `AUDIT_KEEP_LAST`        | unset (keep all)           | Retention: keep at most the N most recent audit entries.                                |
 | `AUDIT_MAX_AGE`          | unset (keep all)           | Retention: keep audit entries newer than this (`<n><s\|m\|h\|d>`).                      |
 | `UI_DIR`                 | resolved from module path  | Override the bundled UI directory (e.g. in custom Docker images).                       |
+
+An unknown `*_STORAGE_DRIVER` fails startup (earlier releases fell back to `file`), and an empty
+variable counts as unset, so `TITLE=` in a `.env` file keeps the default.
 
 When both a `*_KEEP_LAST` and a `*_MAX_AGE` are set, an item is kept if **either**
 rule keeps it (union). The **active** and **latest** snapshots are always kept.
