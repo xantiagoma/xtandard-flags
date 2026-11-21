@@ -18,16 +18,11 @@ async function freshDir(): Promise<string> {
   return dir;
 }
 
-// The kit suite runs with `legacy: "ignore"`: in read-through mode the raw legacy name `a%25` aliases
-// the encoded file of key `a%` (a kit bug, reported). The read-through tests below cover the legacy layout.
-runStorageContractTests(
-  "file",
-  async () => createFileStorage({ dir: await freshDir(), legacy: "ignore" }),
-  {
-    t: { describe, test, expect },
-    capabilities: { compareAndSwap: true, watch: { settleMs: 250 } },
-  },
-);
+// The flags default, `legacy: "read-through"`.
+runStorageContractTests("file", async () => createFileStorage({ dir: await freshDir() }), {
+  t: { describe, test, expect },
+  capabilities: { compareAndSwap: true, watch: { settleMs: 250 } },
+});
 
 describe("createFileStorage specifics", () => {
   let dir: string;

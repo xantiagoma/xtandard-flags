@@ -38,5 +38,9 @@ export type SqliteFlagsStorage = kit.SqliteKvStorage;
  * ```
  */
 export function createSqliteStorage(options: SqliteStorageOptions = {}): SqliteFlagsStorage {
-  return kit.createSqliteStorage({ ...options, table: options.table ?? "xtandard_flags" });
+  return kit.createSqliteStorage({
+    subpath: "@xtandard/flags/storage/sqlite",
+    ...options,
+    table: options.table ?? "xtandard_flags",
+  });
 }

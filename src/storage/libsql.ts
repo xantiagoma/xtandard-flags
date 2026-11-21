@@ -41,5 +41,9 @@ export type LibsqlFlagsStorage = kit.LibsqlKvStorage;
 
 /** Create a libSQL/Turso-backed {@link LibsqlFlagsStorage}. The table is created on first use. */
 export function createLibsqlStorage(options: LibsqlStorageOptions): LibsqlFlagsStorage {
-  return kit.createLibsqlStorage({ ...options, table: options.table ?? "xtandard_flags" });
+  return kit.createLibsqlStorage({
+    subpath: "@xtandard/flags/storage/libsql",
+    ...options,
+    table: options.table ?? "xtandard_flags",
+  });
 }

@@ -27,13 +27,6 @@
  */
 
 import * as kit from "@xtandard/kit/storage/redis";
-import {
-  createRedisKvStorage,
-  jsonCodec,
-  redisConnection,
-  stringCodec,
-  type RedisValueCodec,
-} from "@xtandard/kit/storage/redis/internals";
 
 /** Options for {@link createRedisStorage}: `url` or `client`, `prefix`, `onError`, `onWrite`. */
 export type RedisStorageOptions = kit.RedisStorageOptions;
@@ -44,6 +37,9 @@ export type RedisStorageOptions = kit.RedisStorageOptions;
  * adapter created. A client you passed in is left for you to manage.
  */
 export type RedisFlagsStorage = kit.RedisKvStorage;
+
+/** Named in driver errors (a missing peer, a missing `client`/`url`). */
+const SUBPATH = "@xtandard/flags/storage/redis";
 
 /**
  * Create a Redis-backed {@link RedisFlagsStorage}. Connection is lazy: the client
@@ -65,7 +61,7 @@ export type RedisFlagsStorage = kit.RedisKvStorage;
  * ```
  */
 export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStorage {
-  return buildRedisStorage(options, stringCodec);
+  return kit.createRedisStorage({ subpath: SUBPATH, ...options });
 }
 
 /**
@@ -92,14 +88,5 @@ export function createRedisStorage(options: RedisStorageOptions): RedisFlagsStor
  * ```
  */
 export function createRedisJSONStorage(options: RedisStorageOptions): RedisFlagsStorage {
-  return buildRedisStorage(options, jsonCodec);
-}
-
-/** The kit driver, with errors naming the flags subpath. */
-function buildRedisStorage(
-  options: RedisStorageOptions,
-  codec: RedisValueCodec,
-): RedisFlagsStorage {
-  const connection = redisConnection(options, "@xtandard/flags/storage/redis");
-  return createRedisKvStorage({ ...options, codec, connection });
+  return kit.createRedisJSONStorage({ subpath: SUBPATH, ...options });
 }

@@ -41,5 +41,9 @@ export type PostgresFlagsStorage = kit.PostgresKvStorage;
  * ```
  */
 export function createPostgresStorage(options: PostgresStorageOptions = {}): PostgresFlagsStorage {
-  return kit.createPostgresStorage({ ...options, table: options.table ?? "xtandard_flags" });
+  return kit.createPostgresStorage({
+    subpath: "@xtandard/flags/storage/postgres",
+    ...options,
+    table: options.table ?? "xtandard_flags",
+  });
 }

@@ -59,6 +59,7 @@ export type MongoFlagsStorage = kit.MongoKvStorage;
  */
 export function createMongoStorage(options: MongoStorageOptions): MongoFlagsStorage {
   return kit.createMongoStorage({
+    subpath: "@xtandard/flags/storage/mongodb",
     ...options,
     dbName: options.dbName ?? "xtandard_flags",
     collectionName: options.collectionName ?? "flags_kv",

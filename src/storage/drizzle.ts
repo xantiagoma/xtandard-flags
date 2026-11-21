@@ -27,10 +27,25 @@
  * @module
  */
 
+import * as kit from "@xtandard/kit/storage/drizzle";
+
 export {
-  createDrizzleStorage,
   KeyCollisionError,
-  type DrizzleKvStorage as DrizzleFlagsStorage,
   type DrizzleKvTable,
   type DrizzleStorageOptions,
 } from "@xtandard/kit/storage/drizzle";
+
+/**
+ * A compare-and-swap capable {@link FlagsStorage} over a Drizzle table. For push
+ * change-notifications, compose it with `withWatch` + a change source (e.g.
+ * `pgListenNotify`).
+ */
+export type DrizzleFlagsStorage = kit.DrizzleKvStorage;
+
+/**
+ * Create a Drizzle-backed {@link DrizzleFlagsStorage}. No DDL, no connection
+ * ownership; the dialect is read from `db`.
+ */
+export function createDrizzleStorage(options: kit.DrizzleStorageOptions): DrizzleFlagsStorage {
+  return kit.createDrizzleStorage({ subpath: "@xtandard/flags/storage/drizzle", ...options });
+}
