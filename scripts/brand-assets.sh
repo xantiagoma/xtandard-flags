@@ -30,5 +30,5 @@ rsvg-convert -w 1280 -h 640 social.svg -o social.png
 if command -v oxipng >/dev/null 2>&1; then oxipng -q -o max apple-touch-icon.png social.png; fi
 
 # The admin SPA serves its favicon set and inlines the symbol (src/ui/components/BrandMark.tsx).
-cp favicon.svg favicon.ico apple-touch-icon.png symbol.svg ../../src/ui/public/
+cp favicon.svg favicon.ico apple-touch-icon.png symbol.svg symbol-light.svg ../../src/ui/public/
 echo "brand kit rebuilt"
