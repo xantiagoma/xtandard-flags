@@ -1,66 +1,16 @@
 // The site's information architecture: which repository Markdown becomes which page, and the
-// sidebar tree. scripts/sync.ts reads it to write src/content/docs/, and astro.config.ts reads it
-// to build the sidebar, so a page and its sidebar entry cannot drift.
+// sidebar tree (see `defineSiteManifest` in @xtandard/kit/site). scripts/sync.ts and
+// astro.config.ts both read it, so a page and its sidebar entry cannot drift.
 //
 // The Markdown in the repository (README.md, docs/*.md) stays the single source of truth: it is
-// what GitHub and npm render. A page is one of:
-//   - a whole repository file (`src`);
-//   - some H2 sections of one (`src` + `sections`, optionally `intro` for the text above the first
-//     H2) — how the long guides are split into several pages. Every H2 of a split file must land
-//     on exactly one page, so a new section cannot silently disappear from the site;
-//   - a page written for the site only (`site`, relative to site/content/).
-// Plain Node APIs only: Astro loads this file through Vite.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+// what GitHub and npm render. A page is a whole repository file (`src`), some H2 sections of one
+// (`src` + `sections`, optionally `intro`; every H2 of a split file must land on exactly one
+// page), or a page written for the site only (`site`, relative to site/content/).
 import { fileURLToPath } from "node:url";
-
-export const repoRoot = fileURLToPath(new URL("../", import.meta.url));
-export const repoSlug = "xantiagoma/xtandard-flags";
-export const repoUrl = `https://github.com/${repoSlug}`;
-export const npmUrl = "https://www.npmjs.com/package/@xtandard/flags";
-export const packageName = "@xtandard/flags";
-export const branch = "main";
-/**
- * Where the site is served: the project site of xantiagoma.github.io, under the account's custom
- * domain. pages.yml passes what actions/configure-pages reports (SITE_ORIGIN, SITE_BASE), so a
- * domain change needs no code change. configure-pages reports the custom domain as `http://`
- * (Pages serves it over https), which would put http URLs in og:url, og:image and the sitemap, so
- * the origin is upgraded to https.
- */
-export const siteOrigin = (process.env.SITE_ORIGIN || "https://me.xantiagoma.com").replace(
-  /^http:\/\//,
-  "https://",
-);
-export const siteBase = (process.env.SITE_BASE || "/xtandard-flags").replace(/\/+$/, "");
-
-export type Page = {
-  /** Route without the base and without slashes; "" is the home page. */
-  slug: string;
-  /** Sidebar label; the page title when absent. */
-  label?: string;
-  /** Repository file the page is built from. */
-  src?: string;
-  /** Only these H2 sections of `src` (by heading text, in file order). */
-  sections?: string[];
-  /** With `sections`: also the H1 and the text above the first H2. */
-  intro?: boolean;
-  /** Page title when it does not come from the source's H1. */
-  title?: string;
-  /** Meta description when the first paragraph of the source does not make a good one. */
-  description?: string;
-  /** Site-only page in site/content/ (.md or .mdx). */
-  site?: string;
-  /** Contributor-only material: a banner says so and search skips it. */
-  internal?: boolean;
-};
-export type Link = { label: string; link: string };
-export type Group = { label: string; collapsed?: boolean; items: Item[] };
-export type Item = Page | Link | Group;
-
-export const home: Page = { slug: "", site: "index.mdx" };
+import { defineSiteManifest, type SiteItem, type SitePage } from "@xtandard/kit/site";
 
 /** The architecture decision records, docs/ADR/NNNN-*.md, in number order. */
-const adrs: Page[] = [
+const adrs: SitePage[] = [
   ["0001-single-package-subpath-exports", "0001 · Single package, subpath exports"],
   ["0002-memory-first-runtime-evaluation", "0002 · Memory-first runtime evaluation"],
   ["0003-bundled-spa-ui", "0003 · Bundled SPA UI"],
@@ -79,7 +29,7 @@ const adrs: Page[] = [
   description: `Architecture decision record ${label!.replace(" · ", ": ")}: its context, the decision and its consequences.`,
 }));
 
-export const sidebar: Item[] = [
+const sidebar: SiteItem[] = [
   {
     label: "Start here",
     items: [
@@ -347,59 +297,16 @@ export const sidebar: Item[] = [
       { slug: "project/brand", src: "docs/BRAND.md", label: "Brand" },
       { label: "Architecture decisions", collapsed: true, items: adrs },
       { slug: "project/releases", src: "docs/RELEASES.md", label: "Releases", internal: true },
-      { label: "npm", link: npmUrl },
+      { label: "npm", link: "https://www.npmjs.com/package/@xtandard/flags" },
     ],
   },
 ];
 
-/** A public entry point: its API reference module, import specifier and source file. */
-export type ApiEntry = {
-  /** TypeDoc module name (its `@module` tag) and route under /api/: the subpath, "flags" for the root. */
-  name: string;
-  importPath: string;
-  /** Repository-relative source file. */
-  source: string;
-};
-
-/**
- * Every public entry point, in package.json `exports` order. Skips the stylesheet, the bundled UI
- * assets (`./ui/*`) and `./package.json`. A subpath maps to `src/entry-<subpath with dashes>.ts`
- * when that file exists (`./storage/redis`), otherwise to `src/<subpath>.ts(x)` (`./core`, `./react`).
- */
-export function apiEntries(): ApiEntry[] {
-  const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")) as {
-    exports: Record<string, unknown>;
-  };
-  return Object.keys(pkg.exports)
-    .filter((key) => key !== "./package.json" && !key.includes("*") && !key.endsWith(".css"))
-    .map((key) => {
-      const sub = key.replace(/^\.\/?/, "");
-      const candidates =
-        sub === ""
-          ? ["src/index.ts"]
-          : [`src/entry-${sub.replaceAll("/", "-")}.ts`, `src/${sub}.ts`, `src/${sub}.tsx`];
-      const source = candidates.find((f) => existsSync(join(repoRoot, f)));
-      if (!source) throw new Error(`manifest.ts: no source file for the "${key}" export`);
-      return {
-        name: sub === "" ? "flags" : sub,
-        importPath: sub === "" ? packageName : `${packageName}/${sub}`,
-        source,
-      };
-    });
-}
-
-export const isPage = (i: Item): i is Page => "slug" in i;
-export const isGroup = (i: Item): i is Group => "items" in i;
-
-/** Every page, the home page first. */
-export function pages(): Page[] {
-  const out: Page[] = [home];
-  const walk = (items: Item[]) => {
-    for (const i of items) {
-      if (isPage(i)) out.push(i);
-      else if (isGroup(i)) walk(i.items);
-    }
-  };
-  walk(sidebar);
-  return out;
-}
+export const manifest = defineSiteManifest({
+  repoRoot: fileURLToPath(new URL("../", import.meta.url)),
+  repoSlug: "xantiagoma/xtandard-flags",
+  packageName: "@xtandard/flags",
+  rootModule: "flags",
+  base: "/xtandard-flags",
+  sidebar,
+});

@@ -1,21 +1,22 @@
 {
   "name": "xtandard-flags-site",
   "private": true,
-  "description": "The documentation website (GitHub Pages): Astro Starlight over the repository's Markdown, plus a TypeDoc API reference. Dev tooling only; not part of the published package.",
+  "description": "The documentation website (GitHub Pages): Astro Starlight over the repository's Markdown, plus a TypeDoc API reference, built with @xtandard/kit/site. Dev tooling only; not part of the published package.",
   "license": "MIT",
   "type": "module",
   "scripts": {
     "sync": "bun scripts/sync.ts",
-    "dev": "bun run sync && bun --bun astro dev --port 4322",
+    "dev": "bun run sync && bun --bun astro dev",
     "build": "bun run sync && bun --bun astro build",
-    "preview": "bun --bun astro preview --port 4322",
+    "preview": "bun --bun astro preview",
     "check": "bun --bun astro check"
   },
   "devDependencies": {
+    "@astrojs/markdown-remark": "^7.3.0",
     "@astrojs/starlight": "0.43.1",
+    "@xtandard/kit": "file:/Users/santi/Projects/xtandard-kit-wt-pilot/pack/xtandard-kit-0.1.0.tgz",
     "astro": "7.4.13",
     "astro-mermaid": "2.2.0",
-    "github-slugger": "2.0.0",
     "mermaid": "11.17.2",
     "starlight-links-validator": "0.27.0",
     "starlight-typedoc": "0.23.2",
