@@ -9,6 +9,8 @@
  * @module
  */
 
+import { issuesFrom, jsonValueSchema } from "@xtandard/kit/util";
+import type { ValidationIssue, ValidationResult as KitValidationResult } from "@xtandard/kit/util";
 import * as v from "valibot";
 import { leafConditions } from "./schema.ts";
 import type { ConditionNode, Draft, Flag, FlagType, Segment, Serve } from "./schema.ts";
@@ -36,17 +38,6 @@ const conditionOperatorSchema = v.picklist([
   "matches",
   "notMatches",
 ]);
-
-const jsonValueSchema: v.GenericSchema<unknown> = v.lazy(() =>
-  v.union([
-    v.string(),
-    v.number(),
-    v.boolean(),
-    v.null(),
-    v.array(jsonValueSchema),
-    v.record(v.string(), jsonValueSchema),
-  ]),
-);
 
 const conditionSchema = v.object({
   // `inSegment`/`matches` conditions carry no attribute; the non-empty check is
@@ -170,16 +161,10 @@ export const flagSchema = v.object({
 });
 
 /** A single validation problem with a dotted path into the offending data. */
-export interface ValidationError {
-  path: string;
-  message: string;
-}
+export type ValidationError = ValidationIssue;
 
 /** Result of {@link validateFlag} / {@link validateDraft}. */
-export interface ValidationResult {
-  valid: boolean;
-  errors: ValidationError[];
-}
+export type ValidationResult = KitValidationResult;
 
 function valueMatchesType(value: unknown, type: FlagType): boolean {
   switch (type) {
@@ -285,10 +270,7 @@ export function validateFlag(input: unknown, basePath = "flag"): ValidationResul
   if (!parsed.success) {
     return {
       valid: false,
-      errors: parsed.issues.map((issue) => ({
-        path: `${basePath}.${(issue.path ?? []).map((p) => String(p.key)).join(".")}`,
-        message: issue.message,
-      })),
+      errors: issuesFrom(parsed.issues, basePath),
     };
   }
 
@@ -493,10 +475,7 @@ export function validateSegment(input: unknown, basePath = "segment"): Validatio
   if (!parsed.success) {
     return {
       valid: false,
-      errors: parsed.issues.map((issue) => ({
-        path: `${basePath}.${(issue.path ?? []).map((p) => String(p.key)).join(".")}`,
-        message: issue.message,
-      })),
+      errors: issuesFrom(parsed.issues, basePath),
     };
   }
   const segment = parsed.output as Segment;
