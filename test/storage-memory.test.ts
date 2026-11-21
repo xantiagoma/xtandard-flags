@@ -1,38 +1,22 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { createMemoryStorage } from "../src/storage/memory.ts";
-import type { StorageChangeEvent } from "../src/storage/contract.ts";
+import { isCompareAndSwap, isWatchable } from "../src/storage/contract.ts";
 import { runStorageContractTests } from "./storage-contract.ts";
 
-runStorageContractTests("memory", () => createMemoryStorage());
+runStorageContractTests("memory", () => createMemoryStorage(), {
+  t: { describe, test, expect },
+  capabilities: { compareAndSwap: true, watch: { settleMs: 5 } },
+});
 
-describe("createMemoryStorage watch", () => {
-  test("notifies on update and remove under the prefix", async () => {
+describe("memory storage extras", () => {
+  it("implements watch and compare-and-swap", () => {
     const storage = createMemoryStorage();
-    const events: StorageChangeEvent[] = [];
-    const unwatch = await storage.watch("flags/p/", (e) => events.push(e));
-
-    await storage.setItem("flags/p/e/k", { v: 1 });
-    await storage.removeItem("flags/p/e/k");
-    await storage.setItem("flags/other/k", { v: 9 }); // outside prefix, ignored
-
-    // watch callbacks fire on the next microtask.
-    await new Promise((r) => queueMicrotask(() => r(undefined)));
-
-    expect(events).toEqual([
-      { type: "update", key: "flags/p/e/k" },
-      { type: "remove", key: "flags/p/e/k" },
-    ]);
-
-    unwatch();
+    expect(isWatchable(storage)).toBe(true);
+    expect(isCompareAndSwap(storage)).toBe(true);
   });
 
-  test("unwatch stops further notifications", async () => {
-    const storage = createMemoryStorage();
-    const events: StorageChangeEvent[] = [];
-    const unwatch = await storage.watch("flags/", (e) => events.push(e));
-    unwatch();
-    await storage.setItem("flags/p/e/k", { v: 1 });
-    await new Promise((r) => queueMicrotask(() => r(undefined)));
-    expect(events).toEqual([]);
+  it("seeds initial data", async () => {
+    const storage = createMemoryStorage({ initial: { "flags/p/e/active_version": "v1" } });
+    expect(await storage.getItem("flags/p/e/active_version")).toBe("v1");
   });
 });

@@ -1,80 +1,42 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
-import { createRedisStorage, type RedisFlagsStorage } from "../src/storage/redis.ts";
+import { asRedisClient, fakeRedis } from "@xtandard/kit/storage/testing";
+import {
+  createRedisJSONStorage,
+  createRedisStorage,
+  type RedisFlagsStorage,
+} from "../src/storage/redis.ts";
+import { isCompareAndSwap, isWatchable } from "../src/storage/contract.ts";
 import { runStorageContractTests } from "./storage-contract.ts";
 
 const REDIS_URL = process.env.REDIS_URL;
 
 /**
- * Integration suite — runs only when `REDIS_URL` is set, so CI without a Redis
- * server simply skips it. Uses a unique key prefix per run so it never collides
- * with real data and cleans up after itself.
+ * Live conformance suite — runs only when `REDIS_URL` is set, so CI without a
+ * Redis server simply skips it. Every `makeStorage` call gets a unique key
+ * prefix (with glob characters, so `SCAN MATCH` and `PSUBSCRIBE` must escape it)
+ * and everything is cleaned up and closed in `afterAll`.
  */
-// The shared contract, each test in its own namespace. The namespace has glob characters too, so
-// `getKeys`' SCAN MATCH must escape the configured prefix as well as the requested one.
-describe.skipIf(!REDIS_URL)("createRedisStorage — contract (live)", () => {
+describe.skipIf(!REDIS_URL)("redis storage (live conformance)", () => {
+  const runId = `xtandard-flags-test:${Date.now()}`;
+  let counter = 0;
   const opened: RedisFlagsStorage[] = [];
-  let n = 0;
-  afterAll(async () => {
-    for (const s of opened) {
-      for (const key of await s.getKeys("")) await s.removeItem(key);
-      await s.close();
-    }
-  });
-  runStorageContractTests("redis", () => {
-    const s = createRedisStorage({ url: REDIS_URL, prefix: `xf-test:${Date.now()}:[${n++}]*?` });
-    opened.push(s);
-    return s;
-  });
-});
 
-describe.skipIf(!REDIS_URL)("createRedisStorage (live)", () => {
-  const prefix = `xtandard-flags-test:${Date.now()}`;
-  let storage: RedisFlagsStorage;
+  runStorageContractTests(
+    "redis",
+    () => {
+      const storage = createRedisStorage({ url: REDIS_URL, prefix: `${runId}:[${counter++}]*?` });
+      opened.push(storage);
+      return storage;
+    },
+    {
+      t: { describe, test, expect },
+      capabilities: { compareAndSwap: true, watch: { settleMs: 150 } },
+      timeout: 30_000,
+    },
+  );
 
-  beforeAll(() => {
-    storage = createRedisStorage({ url: REDIS_URL, prefix });
-  });
-
-  afterAll(async () => {
-    for (const key of await storage.getKeys("")) await storage.removeItem(key);
-    await storage.close();
-  });
-
-  test("returns null for a missing key", async () => {
-    expect(await storage.getItem("flags/p/e/missing")).toBeNull();
-  });
-
-  test("round-trips an object value", async () => {
-    const value = { enabled: true, rollout: 42, nested: { x: 1 } };
-    await storage.setItem("flags/p/e/snapshots/v1", value);
-    expect(await storage.getItem("flags/p/e/snapshots/v1")).toEqual(value);
-  });
-
-  test("removeItem deletes a key", async () => {
-    await storage.setItem("flags/p/e/k", { v: 1 });
-    await storage.removeItem("flags/p/e/k");
-    expect(await storage.getItem("flags/p/e/k")).toBeNull();
-  });
-
-  test("getKeys lists matching keys with the prefix stripped", async () => {
-    await storage.setItem("flags/p/e/a", { v: 1 });
-    await storage.setItem("flags/p/e/b", { v: 2 });
-    const keys = await storage.getKeys("flags/p/e/");
-    expect(keys).toContain("flags/p/e/a");
-    expect(keys).toContain("flags/p/e/b");
-    for (const k of keys) expect(k.startsWith(prefix)).toBe(false);
-  });
-
-  test("getKeys isolates by prefix", async () => {
-    await storage.setItem("flags/iso1/e/a", { v: 1 });
-    await storage.setItem("flags/iso2/e/b", { v: 2 });
-    expect(await storage.getKeys("flags/iso1/")).toEqual(["flags/iso1/e/a"]);
-    expect(await storage.getKeys("flags/iso2/")).toEqual(["flags/iso2/e/b"]);
-  });
-
-  test("watch delivers update and remove events (keyspace notifications)", async () => {
-    // Keyspace notifications are off by default (e.g. the CI redis service); enable
-    // them so this works regardless of the server's startup config.
+  beforeAll(async () => {
+    // Keyspace notifications are off by default (e.g. the CI redis service).
     const { createClient } = (await import("redis")) as unknown as {
       createClient: (opts: Record<string, unknown>) => {
         connect(): Promise<unknown>;
@@ -86,66 +48,41 @@ describe.skipIf(!REDIS_URL)("createRedisStorage (live)", () => {
     await cfg.connect();
     await cfg.configSet("notify-keyspace-events", "KEA");
     await cfg.quit();
+  });
 
-    const events: { type: string; key: string }[] = [];
-    const off = await storage.watch("flags/watch/", (e) => events.push(e));
-    await storage.setItem("flags/watch/e/k", { v: 1 });
-    await storage.removeItem("flags/watch/e/k");
-    // Give pub/sub a moment to deliver.
-    await new Promise((r) => setTimeout(r, 500));
-    off();
-    expect(events.some((e) => e.type === "update" && e.key === "flags/watch/e/k")).toBe(true);
-    expect(events.some((e) => e.type === "remove" && e.key === "flags/watch/e/k")).toBe(true);
+  afterAll(async () => {
+    for (const storage of opened) {
+      for (const key of await storage.getKeys("")) await storage.removeItem(key);
+      await storage.close();
+    }
   });
 });
 
-describe.skipIf(!REDIS_URL)("createRedisStorage — borrowed client", () => {
-  test("close() is a no-op for a client the adapter did not create", async () => {
-    const { createClient } = (await import("redis")) as unknown as {
-      createClient: (opts: Record<string, unknown>) => {
-        connect(): Promise<unknown>;
-        isOpen: boolean;
-        quit(): Promise<unknown>;
-      };
-    };
-    const client = createClient({ url: REDIS_URL });
-    await client.connect();
-    const storage = createRedisStorage({
-      client: client as never,
-      prefix: `borrowed:${Date.now()}`,
-    });
-    await storage.setItem("flags/b/k", { v: 1 });
-    expect(await storage.getItem("flags/b/k")).toEqual({ v: 1 });
-    // close() must NOT disconnect a borrowed client.
-    await storage.close();
-    expect(client.isOpen).toBe(true);
-    // clean up the client ourselves.
-    await client.quit();
-  });
+/** Conformance on both codecs against the kit's fake client, no server needed. */
+for (const [name, create] of [
+  ["redis (fake client)", createRedisStorage],
+  ["redisJSON (fake client)", createRedisJSONStorage],
+] as const) {
+  runStorageContractTests(
+    name,
+    () => create({ client: asRedisClient(fakeRedis()), prefix: "ns" }),
+    {
+      t: { describe, test, expect },
+      capabilities: { compareAndSwap: true, watch: { settleMs: 5 } },
+    },
+  );
+}
 
-  test("onError handler is observable (attaches without throwing)", () => {
-    const errors: unknown[] = [];
-    const storage = createRedisStorage({
-      url: "redis://localhost:6399",
-      onError: (e) => errors.push(e),
-    });
-    expect(typeof storage.close).toBe("function");
-  });
-});
-
-/**
- * Type/shape checks that need no live server: a created adapter exposes the
- * full {@link RedisFlagsStorage} surface (the contract methods plus `close`).
- */
 describe("createRedisStorage shape", () => {
-  test("exposes the FlagsStorage + watch + close surface without connecting", () => {
+  test("exposes the FlagsStorage + watch + compareAndSwap + close surface without connecting", () => {
     const storage = createRedisStorage({ url: "redis://localhost:6379", prefix: "x" });
     expect(typeof storage.getItem).toBe("function");
     expect(typeof storage.setItem).toBe("function");
     expect(typeof storage.removeItem).toBe("function");
     expect(typeof storage.getKeys).toBe("function");
-    expect(typeof storage.watch).toBe("function");
     expect(typeof storage.close).toBe("function");
+    expect(isWatchable(storage)).toBe(true);
+    expect(isCompareAndSwap(storage)).toBe(true);
   });
 
   test("close() before any connection is a safe no-op", async () => {
@@ -153,31 +90,11 @@ describe("createRedisStorage shape", () => {
     await expect(storage.close()).resolves.toBeUndefined();
   });
 
-  test("getKeys handles scanIterator yielding batched arrays (node-redis v5)", async () => {
-    // A fake client whose scanIterator yields an array of keys in one step, with
-    // the namespace prefix attached, to exercise the array-batch branch.
-    const fake = {
-      isOpen: true,
-      on() {},
-      async connect() {},
-      async quit() {},
-      async get() {
-        return null;
-      },
-      async set() {},
-      async del() {},
-      // eslint-disable-next-line require-yield
-      async *scanIterator() {
-        yield ["x:flags/a", "x:flags/b"];
-      },
-      duplicate() {
-        return fake;
-      },
-      async pSubscribe() {},
-      async disconnect() {},
-    };
-    const storage = createRedisStorage({ client: fake as never, prefix: "x" });
-    const keys = await storage.getKeys("flags/");
-    expect(keys.sort()).toEqual(["flags/a", "flags/b"]);
+  test("the prefix is joined with `:` and stripped from getKeys", async () => {
+    const fake = fakeRedis();
+    const storage = createRedisStorage({ client: asRedisClient(fake), prefix: "myapp:flags" });
+    await storage.setItem("flags/p/e/active_version", "v1");
+    expect(await asRedisClient(fake).get("myapp:flags:flags/p/e/active_version")).toBe('"v1"');
+    expect(await storage.getKeys("flags/")).toEqual(["flags/p/e/active_version"]);
   });
 });

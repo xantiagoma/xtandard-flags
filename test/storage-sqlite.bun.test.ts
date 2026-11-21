@@ -2,74 +2,57 @@
  * Bun-native test for the SQLite adapter (`bun:sqlite` is unavailable under Node,
  * so this runs via `bun test`, not vitest — it is excluded from the vitest glob).
  *
- *   bun test test/storage-sqlite.bun-test.ts
+ *   bun test test/storage-sqlite.bun.test.ts
  */
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, test } from "bun:test";
 import { createSqliteStorage, type SqliteFlagsStorage } from "../src/storage/sqlite.ts";
+import { runStorageContractTests } from "./storage-contract.ts";
 
-let storage: SqliteFlagsStorage;
-
-beforeEach(() => {
-  storage = createSqliteStorage({ table: "kv" }); // in-memory
-});
+const open: SqliteFlagsStorage[] = [];
 afterEach(() => {
-  storage.close();
+  for (const s of open.splice(0)) s.close();
 });
 
-describe("sqlite storage", () => {
-  test("round-trips objects and returns null for missing keys", async () => {
-    expect(await storage.getItem("nope")).toBeNull();
-    await storage.setItem("flags/p/e/snapshots/v1", { schemaVersion: 1, flags: { a: 1 } });
-    expect(await storage.getItem("flags/p/e/snapshots/v1")).toEqual({
-      schemaVersion: 1,
-      flags: { a: 1 },
-    });
-  });
+let database = new Database(":memory:");
+runStorageContractTests(
+  "sqlite (bun:sqlite)",
+  () => {
+    database = new Database(":memory:");
+    return createSqliteStorage({ database });
+  },
+  {
+    t: { describe, test, expect },
+    capabilities: { compareAndSwap: true, watch: false },
+    seedLegacy: async (storage, key, raw) => {
+      await storage.getKeys(""); // run the DDL
+      database.query("INSERT INTO xtandard_flags (key, value) VALUES (?, ?)").run(key, raw);
+    },
+  },
+);
 
-  test("setItem overwrites", async () => {
-    await storage.setItem("k", "one");
-    await storage.setItem("k", "two");
-    expect(await storage.getItem("k")).toBe("two");
-  });
-
-  test("removeItem deletes", async () => {
-    await storage.setItem("k", 1);
-    await storage.removeItem("k");
-    expect(await storage.getItem("k")).toBeNull();
-  });
-
-  test("getKeys filters by prefix", async () => {
-    await storage.setItem("flags/a/x", 1);
-    await storage.setItem("flags/a/y", 2);
-    await storage.setItem("flags/b/z", 3);
-    const keys = (await storage.getKeys("flags/a/")).sort();
-    expect(keys).toEqual(["flags/a/x", "flags/a/y"]);
-  });
-
-  test("getKeys is case-sensitive and matches % and _ literally", async () => {
-    await storage.setItem("flags/Acme/e/k", 1);
-    await storage.setItem("flags/acme/e/k", 2);
-    await storage.setItem("flags/a_b/e/k", 3);
-    await storage.setItem("flags/aXb/e/k", 4);
-    expect(await storage.getItem("flags/Acme/e/k")).toBe(1);
-    expect(await storage.getItem("flags/acme/e/k")).toBe(2);
-    expect(await storage.getKeys("flags/Acme/")).toEqual(["flags/Acme/e/k"]);
-    expect(await storage.getKeys("flags/a_b/")).toEqual(["flags/a_b/e/k"]);
-  });
-
-  test("rejects unsafe table names", () => {
-    expect(() => createSqliteStorage({ table: "bad; drop table" })).toThrow();
+describe("sqlite storage (flags defaults)", () => {
+  test('the table defaults to "xtandard_flags" (rows from earlier releases read back)', async () => {
+    const db = new Database(":memory:");
+    db.run("CREATE TABLE xtandard_flags (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+    db.query("INSERT INTO xtandard_flags VALUES (?, ?)").run(
+      "flags/acme/metadata",
+      JSON.stringify({ name: "Acme", key: "acme" }),
+    );
+    const storage = createSqliteStorage({ database: db });
+    expect(await storage.getItem("flags/acme/metadata")).toEqual({ key: "acme", name: "Acme" });
+    db.close();
   });
 
   test("persists across instances sharing a file", async () => {
-    const { tmpdir } = await import("node:os");
-    const { join } = await import("node:path");
     const path = join(tmpdir(), `flags-sqlite-${Date.now()}.db`);
-    const a = createSqliteStorage({ path, table: "kv" });
-    await a.setItem("k", { v: 42 });
+    const a = createSqliteStorage({ path });
+    await a.setItem("flags/acme/k", { v: 1 });
     a.close();
-    const b = createSqliteStorage({ path, table: "kv" });
-    expect(await b.getItem("k")).toEqual({ v: 42 });
-    b.close();
+    const b = createSqliteStorage({ path });
+    open.push(b);
+    expect(await b.getItem("flags/acme/k")).toEqual({ v: 1 });
   });
 });

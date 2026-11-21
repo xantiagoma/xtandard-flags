@@ -2,8 +2,8 @@
  * Tests the libSQL/Turso adapter's logic against a **real SQL engine** without
  * needing Turso credentials or the `@libsql/client` package: a tiny fake client
  * implementing {@link LibsqlClientLike} backed by `bun:sqlite` runs the exact SQL
- * the adapter emits (CREATE / INSERT … ON CONFLICT / SELECT / DELETE / LIKE
- * ESCAPE). It uses `bun:sqlite`, so it runs via `bun test`, not vitest.
+ * the adapter emits (CREATE / INSERT … ON CONFLICT / SELECT / DELETE / GLOB /
+ * UPDATE … RETURNING). It uses `bun:sqlite`, so it runs via `bun test`, not vitest.
  *
  *   bun test test/storage-libsql.bun.test.ts
  */
@@ -14,6 +14,7 @@ import {
   type LibsqlClientLike,
   type LibsqlFlagsStorage,
 } from "../src/storage/libsql.ts";
+import { runStorageContractTests } from "./storage-contract.ts";
 
 /** A `@libsql/client`-shaped client backed by an in-memory `bun:sqlite` database. */
 function fakeLibsqlClient(): LibsqlClientLike {
@@ -24,12 +25,9 @@ function fakeLibsqlClient(): LibsqlClientLike {
         db.run(stmt);
         return { rows: [] };
       }
+      // `all` also returns the rows of `UPDATE … RETURNING` (the compare-and-swap).
       const { sql, args } = stmt;
-      if (/^\s*select/i.test(sql)) {
-        return { rows: db.query(sql).all(...(args as never[])) as Array<Record<string, unknown>> };
-      }
-      db.query(sql).run(...(args as never[]));
-      return { rows: [] };
+      return { rows: db.query(sql).all(...(args as never[])) as Array<Record<string, unknown>> };
     },
     close() {
       db.close();
@@ -38,71 +36,42 @@ function fakeLibsqlClient(): LibsqlClientLike {
 }
 
 const open: LibsqlFlagsStorage[] = [];
-const make = (): LibsqlFlagsStorage => {
-  const storage = createLibsqlStorage({ client: fakeLibsqlClient() });
-  open.push(storage);
-  return storage;
-};
-
 afterEach(() => {
   for (const s of open.splice(0)) s.close();
 });
 
-describe("libsql storage (bun:sqlite-backed fake client)", () => {
-  test("returns null for a missing key", async () => {
-    expect(await make().getItem("flags/p/e/missing")).toBeNull();
+let client = fakeLibsqlClient();
+runStorageContractTests(
+  "libsql (bun:sqlite-backed fake client)",
+  () => {
+    client = fakeLibsqlClient();
+    const storage = createLibsqlStorage({ client });
+    open.push(storage);
+    return storage;
+  },
+  {
+    t: { describe, test, expect },
+    capabilities: { compareAndSwap: true, watch: false },
+    seedLegacy: async (storage, key, raw) => {
+      await storage.getKeys(""); // run the DDL
+      await client.execute({
+        sql: "INSERT INTO xtandard_flags (key, value) VALUES (?, ?)",
+        args: [key, raw],
+      });
+    },
+  },
+);
+
+describe("libsql storage (flags defaults)", () => {
+  test('the table defaults to "xtandard_flags"', async () => {
+    const c = fakeLibsqlClient();
+    const storage = createLibsqlStorage({ client: c });
+    await storage.setItem("flags/acme/k", { v: 1 });
+    const { rows } = await c.execute({ sql: "SELECT key FROM xtandard_flags", args: [] });
+    expect(Array.from(rows)).toEqual([{ key: "flags/acme/k" }]);
   });
 
-  test("round-trips an object value", async () => {
-    const storage = make();
-    const value = { enabled: true, rollout: 42, tags: ["a", "b"], nested: { x: 1 } };
-    await storage.setItem("flags/p/e/snapshots/v1", value);
-    expect(await storage.getItem("flags/p/e/snapshots/v1")).toEqual(value);
-  });
-
-  test("overwrites an existing key (ON CONFLICT)", async () => {
-    const storage = make();
-    await storage.setItem("flags/p/e/k", { v: 1 });
-    await storage.setItem("flags/p/e/k", { v: 2 });
-    expect(await storage.getItem("flags/p/e/k")).toEqual({ v: 2 });
-  });
-
-  test("removeItem deletes a key; missing is a no-op", async () => {
-    const storage = make();
-    await storage.setItem("flags/p/e/k", { v: 1 });
-    await storage.removeItem("flags/p/e/k");
-    expect(await storage.getItem("flags/p/e/k")).toBeNull();
-    await storage.removeItem("flags/p/e/nope");
-  });
-
-  test("getKeys lists + isolates by prefix (LIKE ESCAPE)", async () => {
-    const storage = make();
-    await storage.setItem("flags/p1/e/a", 1);
-    await storage.setItem("flags/p1/e/b", 2);
-    await storage.setItem("flags/p2/e/c", 3);
-    expect((await storage.getKeys("flags/p1/")).sort()).toEqual(["flags/p1/e/a", "flags/p1/e/b"]);
-    expect(await storage.getKeys("flags/p2/")).toEqual(["flags/p2/e/c"]);
-    expect(await storage.getKeys("flags/none/")).toEqual([]);
-  });
-
-  test("getKeys is case-sensitive and matches % and _ literally", async () => {
-    const storage = make();
-    await storage.setItem("flags/Acme/e/k", 1);
-    await storage.setItem("flags/acme/e/k", 2);
-    await storage.setItem("flags/a_b/e/k", 3);
-    await storage.setItem("flags/aXb/e/k", 4);
-    expect(await storage.getItem("flags/Acme/e/k")).toBe(1);
-    expect(await storage.getItem("flags/acme/e/k")).toBe(2);
-    expect(await storage.getKeys("flags/Acme/")).toEqual(["flags/Acme/e/k"]);
-    expect(await storage.getKeys("flags/a_b/")).toEqual(["flags/a_b/e/k"]);
-  });
-
-  test("rejects unsafe table names", () => {
-    expect(() => createLibsqlStorage({ client: fakeLibsqlClient(), table: "bad; drop" })).toThrow();
-  });
-
-  test("requires a client or url", () => {
-    const storage = createLibsqlStorage({});
-    expect(storage.getItem("k")).rejects.toThrow(/client.*or.*url/i);
+  test("requires a client or url", async () => {
+    await expect(createLibsqlStorage({}).getItem("k")).rejects.toThrow(/client.*url/);
   });
 });
