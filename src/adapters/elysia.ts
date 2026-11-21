@@ -73,7 +73,7 @@ function flagsElysiaRoutes(options: FlagsElysiaOptions) {
 
   const env = "/api/projects/:projectKey/environments/:environmentKey";
 
-  return new Elysia({ prefix, name: "xtandard-flags" })
+  return new Elysia({ prefix, name: "xtandard-flags", seed: prefix })
     .get("/config", pass)
     .get("/api/openapi.json", pass)
     .get("/api/projects", pass)

@@ -6,12 +6,14 @@
  * @module
  */
 
+import { createPass as kitCreatePass, type PassContext } from "@xtandard/kit/adapters/elysia";
 import { createFetchHandler, type FlagsPanelOptions } from "../server/create-fetch-handler.ts";
 
 /** A web-standard fetch handler with the admin `core` + `openapi()` attached. */
 export type ElysiaFlagsHandler = ((request: Request) => Promise<Response>) & {
   core: ReturnType<typeof createFetchHandler>["core"];
   openapi: ReturnType<typeof createFetchHandler>["openapi"];
+  close: ReturnType<typeof createFetchHandler>["close"];
 };
 
 /** Create a panel handler suitable for `Elysia.mount(path, handler)`. */
@@ -20,6 +22,7 @@ export function flagsPanel(options: FlagsPanelOptions): ElysiaFlagsHandler {
   const fn = ((request: Request) => handler.fetch(request)) as ElysiaFlagsHandler;
   fn.core = handler.core;
   fn.openapi = handler.openapi;
+  fn.close = handler.close;
   return fn;
 }
 
@@ -36,25 +39,12 @@ export interface FlagsElysiaOptions extends FlagsPanelOptions {
  */
 export function createPass(options: FlagsElysiaOptions): {
   prefix: string;
-  pass: (ctx: { request: Request; body?: unknown }) => Promise<Response>;
+  pass: (ctx: PassContext) => Promise<Response>;
 } {
   const prefix = options.prefix ?? "/flags";
   const handler = createFetchHandler({ ...options, basePath: options.basePath ?? prefix });
 
-  const pass = (ctx: { request: Request; body?: unknown }): Promise<Response> => {
-    const r = ctx.request;
-    if (ctx.body != null && (r.method === "POST" || r.method === "PUT")) {
-      return handler.fetch(
-        new Request(r.url, {
-          method: r.method,
-          headers: r.headers,
-          body: JSON.stringify(ctx.body),
-        }),
-      );
-    }
-    return handler.fetch(r);
-  };
-
+  const { pass } = kitCreatePass({ prefix, fetch: handler.fetch, name: "xtandard-flags" });
   return { prefix, pass };
 }
 

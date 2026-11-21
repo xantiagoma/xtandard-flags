@@ -11,17 +11,25 @@
  */
 
 import { Hono } from "hono";
-import { createFetchHandler, type FlagsPanelOptions } from "../server/create-fetch-handler.ts";
+import { mountPanel } from "@xtandard/kit/adapters/hono";
+import {
+  createFetchHandler,
+  type CreateFetchHandlerResult,
+  type FlagsPanelOptions,
+} from "../server/create-fetch-handler.ts";
 
 /** Create a Hono sub-app serving the panel. The admin `core` is attached. */
 export function flagsPanel(options: FlagsPanelOptions): Hono & {
-  core: ReturnType<typeof createFetchHandler>["core"];
-  openapi: ReturnType<typeof createFetchHandler>["openapi"];
+  core: CreateFetchHandlerResult["core"];
+  openapi: CreateFetchHandlerResult["openapi"];
+  close: CreateFetchHandlerResult["close"];
 } {
   const handler = createFetchHandler(options);
-  const app = new Hono();
-  app.all("*", (c) => handler.fetch(c.req.raw));
-  return Object.assign(app, { core: handler.core, openapi: handler.openapi });
+  return Object.assign(mountPanel(new Hono(), handler.fetch), {
+    core: handler.core,
+    openapi: handler.openapi,
+    close: handler.close,
+  });
 }
 
 export type { FlagsPanelOptions };
