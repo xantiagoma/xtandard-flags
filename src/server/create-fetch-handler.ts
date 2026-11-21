@@ -6,26 +6,36 @@
  * @module
  */
 
-import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import {
+  createPanelHandler,
+  requireOneOf,
+  resolveUiDir,
+  type CorsOptions,
+  type PanelTask,
+} from "@xtandard/kit/server";
 import type { AuthProvider } from "../auth/contract.ts";
 import type { AuthorizationProvider } from "../authorization/contract.ts";
 import { createFlagsCore, type FlagsCore, type RetentionOptions } from "../core.ts";
 import type { FlagsHooksInput, HookErrorReporter } from "../hooks/contract.ts";
 import type { EvaluationErrorReporter, EvaluationListener } from "../evaluation-sink.ts";
 import type { FlagsStorage } from "../storage/contract.ts";
-import { applyCorsHeaders, preflightResponse, type FlagsCorsOptions } from "./cors.ts";
-import { normalizeBasePath, stripBasePath } from "./base-path.ts";
-import { renderIndexHtml } from "./render-index-html.ts";
 import { buildOpenApiDocument } from "./openapi.ts";
 import { handleApiRequest, type ApiContext } from "./routes.ts";
 import { createSseManager } from "./sse.ts";
-import { looksLikeAsset, serveStaticAsset } from "./static-assets.ts";
+
+/**
+ * CORS for a cross-origin embed (`@xtandard/kit/server`): `origin` (a string,
+ * list or predicate), `credentials`, `headers`, `methods` and `maxAge`.
+ */
+export type FlagsCorsOptions = CorsOptions;
 
 /** Options for the panel handler (shared by every framework adapter). */
 export interface FlagsPanelOptions {
-  /** Canonical storage: drafts, snapshot history, audit. */
-  sourceStorage: FlagsStorage;
+  /**
+   * Canonical storage: drafts, snapshot history, audit. Required unless a
+   * prebuilt `core` is given.
+   */
+  sourceStorage?: FlagsStorage;
   /** Published-snapshot store read by runtimes. Defaults to `sourceStorage`. */
   runtimeStorage?: FlagsStorage;
   /** Mount prefix, e.g. `"/flags"`. Default `""` (root). */
@@ -74,7 +84,7 @@ export interface FlagsPanelOptions {
   /**
    * Enable CORS on the handler itself — answers `OPTIONS` preflights and attaches
    * `Access-Control-*` headers to every response, so a **cross-origin** embed
-   * works regardless of the host framework. See {@link ./cors.FlagsCorsOptions}.
+   * works regardless of the host framework. See {@link FlagsCorsOptions}.
    */
   cors?: FlagsCorsOptions;
   /**
@@ -96,33 +106,13 @@ export interface CreateFetchHandlerResult {
    * Merge it into your host app's docs — e.g. Elysia `@elysiajs/openapi` `references`.
    */
   openapi(): Record<string, unknown>;
+  /** Stop background work (the OFREP SSE poller and its open streams). Idempotent. */
+  close(): Promise<void>;
 }
 
 // Anonymous defaults keep embedded usage zero-config; harden via auth/authorization.
 const defaultAuth: AuthProvider = { authenticate: async () => ({ id: "anonymous" }) };
 const defaultAuthorization: AuthorizationProvider = { authorize: async () => true };
-
-/**
- * Locate the built admin SPA (`dist/ui`). When this module runs compiled (the
- * normal npm-consumer case) it lives in `dist/` and the bundle is the sibling
- * `./ui`. When it runs from TypeScript source (examples / dev against a
- * `file:`-linked checkout, where the runtime executes `src/server/*.ts`
- * directly), the bundle is instead at `<repo>/dist/ui` — i.e. `../../dist/ui`
- * relative to `src/server/`. Try the candidates and return the first that
- * exists, falling back to the compiled-layout path so the "build the UI" hint
- * still fires when nothing is built yet.
- */
-function defaultUiDir(): string {
-  try {
-    const candidates = [
-      new URL("./ui", import.meta.url), // compiled: dist/<chunk>.mjs → dist/ui
-      new URL("../../dist/ui", import.meta.url), // source: src/server/*.ts → <repo>/dist/ui
-    ].map((u) => fileURLToPath(u));
-    return candidates.find((p) => existsSync(p)) ?? candidates[0]!;
-  } catch {
-    return "./ui";
-  }
-}
 
 /**
  * Build the panel fetch handler.
@@ -143,15 +133,17 @@ function defaultUiDir(): string {
  * ```
  */
 export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandlerResult {
-  const basePath = normalizeBasePath(options.basePath);
   const readonly = options.readonly ?? false;
   const title = options.title ?? "@xtandard/flags";
-  const uiDir = options.uiDir ?? defaultUiDir();
+
+  // Either a prebuilt `core` (its own source of truth for storage) or a
+  // `sourceStorage` to build one from is required.
+  requireOneOf("createFetchHandler", options, ["sourceStorage", "core"]);
 
   const core =
     options.core ??
     createFlagsCore({
-      sourceStorage: options.sourceStorage,
+      sourceStorage: options.sourceStorage!,
       runtimeStorage: options.runtimeStorage,
       defaultProjectKey: options.defaultProjectKey,
       defaultEnvironmentKey: options.defaultEnvironmentKey,
@@ -161,7 +153,28 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
       retention: options.retention,
     });
 
-  const apiCtx: ApiContext = {
+  const sse = options.streaming ? createSseManager({ core }) : undefined;
+  const tasks: PanelTask[] = sse ? [{ stop: () => sse.close() }] : [];
+
+  let apiCtx: ApiContext | undefined;
+  const panel = createPanelHandler({
+    basePath: options.basePath,
+    title,
+    readonly,
+    globalName: "__FLAGS_CONFIG__",
+    uiDir: options.uiDir ?? resolveUiDir(import.meta.url),
+    ...(options.logoUrl !== undefined ? { logoUrl: options.logoUrl } : {}),
+    ...(options.cors ? { cors: options.cors } : {}),
+    bootstrap: () => ({
+      defaultProjectKey: core.options.defaultProjectKey,
+      defaultEnvironmentKey: core.options.defaultEnvironmentKey,
+    }),
+    api: (request, path) => handleApiRequest(request, path, apiCtx!),
+    tasks,
+  });
+  const { basePath } = panel;
+
+  apiCtx = {
     core,
     auth: options.auth ?? defaultAuth,
     authorization: options.authorization ?? defaultAuthorization,
@@ -169,7 +182,7 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
     readonly,
     basePath,
     logoUrl: options.logoUrl,
-    sse: options.streaming ? createSseManager({ core }) : undefined,
+    sse,
     onEvaluation: options.onEvaluation,
     onEvaluationError:
       options.onEvaluationError ??
@@ -177,52 +190,10 @@ export function createFetchHandler(options: FlagsPanelOptions): CreateFetchHandl
         console.warn(`[@xtandard/flags] onEvaluation for "${event.flagKey}" threw:`, error)),
   };
 
-  const cors = options.cors;
-
-  async function fetch(request: Request): Promise<Response> {
-    // CORS preflight: answer OPTIONS directly so it works for any path,
-    // independent of the host framework wrapping this handler.
-    if (cors && request.method === "OPTIONS") return preflightResponse(request, cors);
-    const response = await respond(request);
-    return cors ? applyCorsHeaders(request, response, cors) : response;
-  }
-
-  async function respond(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    const path = stripBasePath(url.pathname, basePath);
-
-    // 1. JSON API + bootstrap config.
-    const api = await handleApiRequest(request, path, apiCtx);
-    if (api) return api;
-
-    // 2. Only GET/HEAD reach the static UI.
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return new Response("Method Not Allowed", { status: 405 });
-    }
-
-    // 3. Static asset.
-    const asset = await serveStaticAsset(uiDir, path);
-    if (asset) return asset;
-
-    // 4. A path that looks like a file but was not found → 404 (don't mask with the SPA).
-    if (path !== "/" && looksLikeAsset(path)) {
-      return new Response("Not Found", { status: 404 });
-    }
-
-    // 5. SPA fallback.
-    const html = await renderIndexHtml(uiDir, {
-      title,
-      basePath,
-      readonly,
-      defaultProjectKey: core.options.defaultProjectKey,
-      defaultEnvironmentKey: core.options.defaultEnvironmentKey,
-      logoUrl: options.logoUrl,
-    });
-    return new Response(html, {
-      status: 200,
-      headers: { "content-type": "text/html; charset=utf-8" },
-    });
-  }
-
-  return { fetch, core, openapi: () => buildOpenApiDocument({ basePath, title }) };
+  return {
+    fetch: panel.fetch,
+    core,
+    openapi: () => buildOpenApiDocument({ basePath, title }),
+    close: panel.close,
+  };
 }

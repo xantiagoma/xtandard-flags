@@ -337,7 +337,7 @@ describe("routes — authentication & authorization", () => {
     expect(cfg.principal).toBeNull();
   });
 
-  test("auth that throws is treated as unauthenticated (401 without challenge)", async () => {
+  test("auth that throws is a server error (500), not a misleading 401", async () => {
     const { fetch } = panel({
       auth: {
         authenticate: async () => {
@@ -346,8 +346,8 @@ describe("routes — authentication & authorization", () => {
       },
     });
     const res = await fetch(req("GET", "/api/projects"));
-    expect(res.status).toBe(401);
-    expect((await res.json()).error).toBe("Unauthorized");
+    expect(res.status).toBe(500);
+    expect((await res.json()).error).toBe("boom");
   });
 
   test("authorization denial for a specific action → 403 with action", async () => {
@@ -399,5 +399,78 @@ describe("routes — method handling", () => {
     const { fetch } = panel();
     const res = await fetch(req("POST", "/some/non-api/path", undefined, {}));
     expect(res.status).toBe(405);
+  });
+});
+
+describe("routes — kit plumbing (@xtandard/kit/server)", () => {
+  test("a malformed % escape in a path is a 404, not a 500", async () => {
+    const { fetch } = panel();
+    const res = await fetch(req("GET", `${BASE}/flags/%E0%A4%A`));
+    expect(res.status).toBe(404);
+  });
+
+  test("a key-shaped path parameter with a trailing space never reaches storage", async () => {
+    // On MySQL's PAD SPACE collation "v1 " would act on "v1": deleting the active snapshot
+    // through `…/snapshots/v1%20` must not get past the "active snapshot is protected" check.
+    const { fetch, core } = panel();
+    await fetch(req("POST", `${BASE}/flags`, themeFlag()));
+    await fetch(req("POST", `${BASE}/publish`, { message: "m" }));
+    const res = await fetch(req("DELETE", `${BASE}/snapshots/v1%20`));
+    expect(res.status).toBe(404);
+    expect(await core.getActiveVersion("default", "production")).toBe("v1");
+    for (const path of [
+      `${BASE}/flags/theme%20`,
+      `/api/projects/default%20/environments/production/flags`,
+      `/api/projects/default/environments/production%20/flags`,
+      `/api/projects/a%2Fb/environments`,
+    ]) {
+      expect((await fetch(req("GET", path))).status, path).toBe(404);
+    }
+    for (const path of [
+      `/ofrep/v1/evaluate/flags/theme%20`,
+      `/ofrep/v1/evaluate/flags?projectKey=default%20`,
+      `/ofrep/v1/evaluate/flags/theme?environmentKey=production%20`,
+    ]) {
+      expect((await fetch(req("POST", path, { context: {} }))).status, path).toBe(404);
+    }
+  });
+
+  test("project keys with characters other than the strict key set still resolve", async () => {
+    const { fetch } = panel();
+    await fetch(req("POST", "/api/projects", { key: "My Project" }));
+    const res = await fetch(req("GET", "/api/projects/My%20Project/environments"));
+    expect(res.status).toBe(200);
+  });
+
+  test("the panel answers /healthcheck", async () => {
+    const { fetch } = panel();
+    const res = await fetch(req("GET", "/healthcheck"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+
+  test("a non-GET outside the API is 405 with Allow", async () => {
+    const { fetch } = panel();
+    const res = await fetch(req("POST", "/some/page"));
+    expect(res.status).toBe(405);
+    expect(res.headers.get("allow")).toContain("GET");
+  });
+
+  test("the title is escaped in the served HTML", async () => {
+    const { fetch } = panel({ title: "</title><script>alert(1)</script>", uiDir: "/nonexistent" });
+    const html = await (await fetch(req("GET", "/"))).text();
+    expect(html).not.toContain("<script>alert(1)</script>");
+  });
+
+  test("createFetchHandler requires sourceStorage or a prebuilt core", () => {
+    expect(() => createFetchHandler({} as never)).toThrow(
+      /sourceStorage.*core|core.*sourceStorage/,
+    );
+  });
+
+  test("close() stops the OFREP stream poller and is idempotent", async () => {
+    const handler = panel({ streaming: true });
+    await handler.close();
+    await handler.close();
   });
 });
