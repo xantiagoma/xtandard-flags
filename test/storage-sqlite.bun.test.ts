@@ -46,6 +46,17 @@ describe("sqlite storage", () => {
     expect(keys).toEqual(["flags/a/x", "flags/a/y"]);
   });
 
+  test("getKeys is case-sensitive and matches % and _ literally", async () => {
+    await storage.setItem("flags/Acme/e/k", 1);
+    await storage.setItem("flags/acme/e/k", 2);
+    await storage.setItem("flags/a_b/e/k", 3);
+    await storage.setItem("flags/aXb/e/k", 4);
+    expect(await storage.getItem("flags/Acme/e/k")).toBe(1);
+    expect(await storage.getItem("flags/acme/e/k")).toBe(2);
+    expect(await storage.getKeys("flags/Acme/")).toEqual(["flags/Acme/e/k"]);
+    expect(await storage.getKeys("flags/a_b/")).toEqual(["flags/a_b/e/k"]);
+  });
+
   test("rejects unsafe table names", () => {
     expect(() => createSqliteStorage({ table: "bad; drop table" })).toThrow();
   });

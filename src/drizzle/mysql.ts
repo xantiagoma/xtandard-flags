@@ -2,8 +2,14 @@
  * `@xtandard/flags/drizzle/mysql` — MySQL Drizzle table factory for the flags KV
  * store. Schema-only (imports just `drizzle-orm/mysql-core`).
  *
- * Base columns: `key varchar PRIMARY KEY` (length configurable), `value json
- * NOT NULL`. `extraColumns`/`extraIndexes` mirror `drizzle-audit`.
+ * Base columns: `key varchar PRIMARY KEY` (length configurable, `utf8mb4_bin`),
+ * `value json NOT NULL`. `extraColumns`/`extraIndexes` mirror `drizzle-audit`.
+ *
+ * The key uses the **`utf8mb4_bin`** collation: MySQL's default
+ * (`utf8mb4_0900_ai_ci`) is case- and accent-insensitive, which would make keys
+ * like `flags/Acme/…` and `flags/acme/…` the same row. Tables created before
+ * this need `ALTER TABLE <name> MODIFY \`key\` varchar(512) CHARACTER SET utf8mb4
+ * COLLATE utf8mb4_bin NOT NULL` (see docs/STORAGE.md).
  *
  * @example
  * ```ts
@@ -16,9 +22,9 @@
 
 import type { BuildColumns } from "drizzle-orm";
 import {
+  customType,
   json,
   mysqlTable,
-  varchar,
   type MySqlColumnBuilderBase,
   type MySqlTableExtraConfigValue,
 } from "drizzle-orm/mysql-core";
@@ -28,6 +34,12 @@ export type { DrizzleKvTable } from "./table.ts";
 
 /** The `self` passed to an {@link MysqlFlagsTableOptions.extraIndexes} callback. */
 type MysqlFlagsColumns = BuildColumns<string, Record<string, MySqlColumnBuilderBase>, "mysql">;
+
+/** A case- and accent-sensitive (`utf8mb4_bin`) `varchar(length)`. */
+const binVarchar = (name: string, length: number) =>
+  customType<{ data: string }>({
+    dataType: () => `varchar(${length}) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`,
+  })(name);
 
 /** Options for {@link mysqlFlagsTable}. */
 export interface MysqlFlagsTableOptions {
@@ -43,12 +55,12 @@ export interface MysqlFlagsTableOptions {
 }
 
 /**
- * Build the MySQL `mysqlTable` for the flags KV store: `key varchar PRIMARY KEY`,
- * `value json NOT NULL`.
+ * Build the MySQL `mysqlTable` for the flags KV store: `key varchar PRIMARY KEY`
+ * (`utf8mb4_bin`), `value json NOT NULL`.
  */
 export function mysqlFlagsTable(name: string, opts?: MysqlFlagsTableOptions): DrizzleKvTable {
   const columns = {
-    key: varchar("key", { length: opts?.keyLength ?? 512 }).primaryKey(),
+    key: binVarchar("key", opts?.keyLength ?? 512).primaryKey(),
     value: json("value").notNull(),
     ...opts?.extraColumns?.(),
   };

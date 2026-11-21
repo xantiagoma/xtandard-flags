@@ -72,7 +72,7 @@ const seeded = createMemoryStorage({
 
 ### File — `@xtandard/flags/storage/file`
 
-Zero external dependencies (uses `node:fs/promises`). Each key is stored as a pretty-printed `.json` file, mirroring the slash-delimited key layout as a nested directory tree. Implements `WatchableFlagsStorage` via `fs.watch` on the base directory.
+Zero external dependencies (uses `node:fs/promises`). Each key is stored as a pretty-printed `.json` file, mirroring the slash-delimited key layout as a nested directory tree. Implements `WatchableFlagsStorage` via `fs.watch` on the base directory. Each key segment is encoded as a file name that stays distinct on case-insensitive file systems (macOS's and Windows' defaults): an uppercase letter becomes `^` + the lowercase letter (`Acme` → `^acme`), and characters outside `[a-z0-9._~!@,=+-]` become `%XX`. Lowercase keys (`flags/default/production/…`) map to themselves. Files written before the encoding (`flags/MyProject/…`) are still read and listed, and are replaced by their encoded name on the next write. On a case-insensitive file system such a legacy file can still answer for its lowercase twin (`flags/myproject/…`) until it is rewritten, so if your tree has keys with uppercase letters, re-save them once (read and write back each key from `getKeys("flags/")`).
 
 ```ts
 import { createFileStorage } from "@xtandard/flags/storage/file";
@@ -176,7 +176,7 @@ JSON.GET myapp:flags:flags/default/production/snapshots/v1 $.flags.new-checkout.
 
 ### Unstorage — `@xtandard/flags/storage/unstorage`
 
-Wraps any [unstorage](https://unstorage.unjs.io) `Storage` instance. You choose and configure the unstorage driver; this adapter normalises its API to `FlagsStorage`. No built-in `watch` — wrap it with [`withWatch`](#change-notifications-withwatch) if you have a change source, or use the Redis/file adapter for out-of-the-box push notifications.
+Wraps any [unstorage](https://unstorage.unjs.io) `Storage` instance. You choose and configure the unstorage driver; this adapter normalises its API to `FlagsStorage`. No built-in `watch` — wrap it with [`withWatch`](#change-notifications-withwatch) if you have a change source, or use the Redis/file adapter for out-of-the-box push notifications. unstorage normalizes keys lossily (it cuts at `?` and treats `\` and `:` as separators), so the adapter escapes `%`, `?`, `\` and `:` before handing keys over and reverses it when listing: keys round-trip exactly. File-system unstorage drivers inherit their file system's case sensitivity; prefer the file adapter, which encodes case.
 
 ```ts
 import { createUnstorageStorage } from "@xtandard/flags/storage/unstorage";
@@ -301,6 +301,20 @@ export const flagsKv = pgFlagsTable("flags_kv");
 
 Each factory takes optional `extraColumns()` / `extraIndexes(table)` (mirroring
 `drizzle-audit`), plus `schema` (pg) / `keyLength` (mysql).
+
+On MySQL the `key` column is `varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`:
+MySQL's default collation (`utf8mb4_0900_ai_ci`) is case- and accent-insensitive, so keys
+like `flags/Acme/…` and `flags/acme/…` would be the same row. **Tables created before
+this** (with the default collation) need a one-off migration (adjust the length if you
+set `keyLength`):
+
+```sql
+ALTER TABLE flags_kv
+  MODIFY `key` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL;
+```
+
+If two keys already collided, the table holds only one of them (the last write); the
+`ALTER` doesn't bring the other back.
 
 **2. Build the storage** over your existing `db`:
 

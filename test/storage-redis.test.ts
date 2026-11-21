@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { createRedisStorage, type RedisFlagsStorage } from "../src/storage/redis.ts";
+import { runStorageContractTests } from "./storage-contract.ts";
 
 const REDIS_URL = process.env.REDIS_URL;
 
@@ -8,6 +9,24 @@ const REDIS_URL = process.env.REDIS_URL;
  * server simply skips it. Uses a unique key prefix per run so it never collides
  * with real data and cleans up after itself.
  */
+// The shared contract, each test in its own namespace. The namespace has glob characters too, so
+// `getKeys`' SCAN MATCH must escape the configured prefix as well as the requested one.
+describe.skipIf(!REDIS_URL)("createRedisStorage — contract (live)", () => {
+  const opened: RedisFlagsStorage[] = [];
+  let n = 0;
+  afterAll(async () => {
+    for (const s of opened) {
+      for (const key of await s.getKeys("")) await s.removeItem(key);
+      await s.close();
+    }
+  });
+  runStorageContractTests("redis", () => {
+    const s = createRedisStorage({ url: REDIS_URL, prefix: `xf-test:${Date.now()}:[${n++}]*?` });
+    opened.push(s);
+    return s;
+  });
+});
+
 describe.skipIf(!REDIS_URL)("createRedisStorage (live)", () => {
   const prefix = `xtandard-flags-test:${Date.now()}`;
   let storage: RedisFlagsStorage;
