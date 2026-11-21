@@ -56,6 +56,11 @@ for (const o of apiOwners)
 
 const typedocPlugin = new URL("./scripts/typedoc-plugin.ts", import.meta.url);
 
+/** The social card (docs/assets/social.png, copied to public/ by scripts/sync.ts), by absolute URL. */
+const socialImage = `${siteOrigin}${siteBase}/social.png`;
+/** The social card's tagline (docs/assets/social.svg), for its alt text. */
+const tagline = "Self-hosted, embeddable, OpenFeature feature flags";
+
 const [apiReference, apiSidebarGroup] = createStarlightTypeDocPlugin();
 const items = toSidebar(sidebar);
 
@@ -71,8 +76,35 @@ export default defineConfig({
       title: "@xtandard/flags",
       description:
         "Self-hosted, embeddable, OpenFeature-compatible feature-flag control plane with pluggable storage and memory-first runtime evaluation.",
-      logo: { src: "../docs/assets/logo-256.png", alt: "@xtandard/flags" },
-      favicon: "/favicon.png",
+      // docs/BRAND.md: the horizontal lockup for each theme, in place of the text title.
+      logo: {
+        dark: "../docs/assets/lockup-horizontal-dark.svg",
+        light: "../docs/assets/lockup-horizontal-light.svg",
+        alt: "@xtandard/flags",
+        replacesTitle: true,
+      },
+      // The favicon set (docs/assets/, copied to public/ by scripts/sync.ts): the SVG, which
+      // modern browsers prefer, plus the ICO and the Apple touch icon.
+      favicon: "/favicon.svg",
+      head: [
+        {
+          tag: "link",
+          attrs: { rel: "icon", href: `${siteBase}/favicon.ico`, sizes: "16x16 32x32 48x48" },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "apple-touch-icon", href: `${siteBase}/apple-touch-icon.png` },
+        },
+        { tag: "meta", attrs: { property: "og:image", content: socialImage } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1280" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "640" } },
+        {
+          tag: "meta",
+          attrs: { property: "og:image:alt", content: `@xtandard/flags — ${tagline}` },
+        },
+        { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
+        { tag: "meta", attrs: { name: "twitter:image", content: socialImage } },
+      ],
       social: [
         { icon: "github", label: "GitHub", href: repoUrl },
         { icon: "npm", label: "npm", href: npmUrl },

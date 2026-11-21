@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/logo-256.png" alt="@xtandard/flags" width="128" height="128" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/lockup-horizontal-dark.png" />
+    <img src="https://raw.githubusercontent.com/xantiagoma/xtandard-flags/main/docs/assets/lockup-horizontal-light.png" alt="xtandard-flags" width="420" />
+  </picture>
 </p>
 
 <h1 align="center">@xtandard/flags</h1>

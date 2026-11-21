@@ -3,3 +3,5 @@
 # Astro's generated types, caches and build output.
 /.astro/
 /dist/
+# Copied from docs/assets/ by scripts/sync.ts.
+/public/

@@ -12,11 +12,14 @@
 //   - a relative link to a file that does not exist fails the build;
 //   - GitHub alerts (`> [!WARNING]`) become Starlight asides.
 //
+// It also copies the brand files the site serves as-is (favicons, the social card) from docs/assets/
+// into public/ (generated, gitignored), so docs/assets/ stays their only copy.
+//
 // Fenced code blocks and inline code spans are never rewritten. Anchors are checked after the
 // build by starlight-links-validator.
 //
 //   bun scripts/sync.ts
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import GithubSlugger from "github-slugger";
 import {
@@ -33,6 +36,9 @@ import {
 const siteDir = join(repoRoot, "site");
 const outDir = join(siteDir, "src/content/docs");
 
+const publicDir = join(siteDir, "public");
+/** docs/assets/ files served at the site root (astro.config.ts `favicon` and `head`). */
+const publicAssets = ["favicon.svg", "favicon.ico", "apple-touch-icon.png", "social.png"];
 const errors: string[] = [];
 const fail = (msg: string) => errors.push(msg);
 
@@ -409,6 +415,14 @@ async function fromSite(p: Page): Promise<string> {
   const left = /@[A-Z_]+@/.exec(text.replace(/```[\s\S]*?```/g, ""));
   if (left) fail(`site/content/${p.site}: unreplaced ${left[0]}`);
   return text;
+}
+
+rmSync(publicDir, { recursive: true, force: true });
+mkdirSync(publicDir, { recursive: true });
+for (const f of publicAssets) {
+  const from = join(repoRoot, "docs/assets", f);
+  if (existsSync(from)) copyFileSync(from, join(publicDir, f));
+  else fail(`docs/assets/${f} does not exist (astro.config.ts serves it)`);
 }
 
 rmSync(outDir, { recursive: true, force: true });
