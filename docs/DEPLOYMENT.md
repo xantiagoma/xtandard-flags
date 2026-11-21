@@ -44,7 +44,7 @@ PORT=4000 \
 | `RUNTIME_PREFIX`         | `"xtandard:flags:runtime"` | Redis key prefix for runtime storage.                                                   |
 | `SOURCE_FILE_DIR`        | `"./data/source"`          | Directory for file-backed source storage.                                               |
 | `RUNTIME_FILE_DIR`       | `"./data/runtime"`         | Directory for file-backed runtime storage.                                              |
-| `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` or `basic`.                                                 |
+| `AUTH_MODE`              | `"none"`                   | Authentication mode: `none` (default, also when empty) or `basic`; others fail startup. |
 | `AUTH_USERNAME`          | `"admin"`                  | Username for `basic` auth mode.                                                         |
 | `AUTH_PASSWORD_HASH`     | `""`                       | scrypt hash of the admin password (preferred). See [Auth](AUTH.md).                     |
 | `AUTH_PASSWORD`          | `""`                       | Plaintext password for `basic` auth (dev only).                                         |
