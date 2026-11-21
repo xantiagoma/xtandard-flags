@@ -13,22 +13,26 @@ social card follows `xtandard-image`'s kit. The flag is what makes it this proje
 
 ## Files
 
-| File                                                                                      | What it is                                                               | Use it for                                                                                       |
-| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `logo.svg`                                                                                | App icon: the mark on a near-black rounded square with faint orbit lines | The master for every square raster                                                               |
-| `logo.png` (1024), `logo-256.png`, `logo-128.png`                                         | App icon rasters                                                         | The docs site's home page, avatars, the repository picture                                       |
-| `symbol.svg`, `symbol.png` (256 high)                                                     | The mark with brackets, transparent                                      | Inline UI (the admin panel header), places that draw their own surface                           |
-| `lockup-horizontal-dark.svg` / `.png` (2×)                                                | Mark + wordmark, `xtandard-` in near-white                               | Headers on dark backgrounds (README in GitHub dark mode, the docs site in dark mode)             |
-| `lockup-horizontal-light.svg` / `.png` (2×)                                               | Mark + wordmark, `xtandard-` in ink, deeper lime                         | Headers on light backgrounds (README in light mode, the docs site in light mode)                 |
-| `lockup-stacked-{dark,light}.svg` / `.png` (2×)                                           | Mark left, `xtandard-` over `flags`                                      | Square-ish slots: slides, sidebars                                                               |
-| `monochrome-white.svg`, `monochrome-black.svg`                                            | One-colour horizontal lockup                                             | Photos and busy backgrounds (white); print (black)                                               |
-| `favicon.svg`, `favicon.ico` (16/32/48), `favicon.png` (32), `apple-touch-icon.png` (180) | The icon without orbit lines and shadow, which do not survive 16 px      | Browser tabs: the admin panel and the docs site                                                  |
-| `social.svg`, `social.png` (1280×640)                                                     | Social card: icon, wordmark, tagline, `bun add` line                     | GitHub social preview (Settings → Social preview, uploaded by hand), `og:image` of the docs site |
+| File                                                   | What it is                                                               | Use it for                                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `logo.svg`                                             | App icon: the mark on a near-black rounded square with faint orbit lines | The docs site's home page, avatars, the repository picture                                       |
+| `symbol.svg`                                           | The mark with brackets, transparent                                      | Inline UI (the admin panel header), places that draw their own surface                           |
+| `lockup-horizontal-dark.svg`                           | Mark + wordmark, `xtandard-` in near-white                               | Headers on dark backgrounds (README in GitHub dark mode, the docs site in dark mode)             |
+| `lockup-horizontal-light.svg`                          | Mark + wordmark, `xtandard-` in ink, deeper lime                         | Headers on light backgrounds (README in light mode, the docs site in light mode)                 |
+| `lockup-stacked-{dark,light}.svg`                      | Mark left, `xtandard-` over `flags`                                      | Square-ish slots: slides, sidebars                                                               |
+| `monochrome-white.svg`, `monochrome-black.svg`         | One-colour horizontal lockup                                             | Photos and busy backgrounds (white); print (black)                                               |
+| `favicon.svg`                                          | The icon without orbit lines and shadow, which do not survive 16 px      | Browser tabs: the admin panel and the docs site                                                  |
+| `favicon.ico` (16/32/48), `apple-touch-icon.png` (180) | Raster fallbacks of `favicon.svg`                                        | `<head>` only: browsers without SVG favicons, iOS home-screen icons                              |
+| `social.svg`, `social.png` (1280×640)                  | Social card: icon, wordmark, tagline, `bun add` line                     | GitHub social preview (Settings → Social preview, uploaded by hand), `og:image` of the docs site |
+
+Everything a page shows (README, docs site, admin panel) is an SVG. The only rasters are the ones a
+format requires and no page displays as an icon: `favicon.ico` and `apple-touch-icon.png` (`<head>`
+fallbacks) and `social.png` (`og:image` must be raster).
 
 Rebuild after editing:
 
 ```sh
-sh scripts/brand-assets.sh   # SVG masters, PNG / ICO, the admin panel's copies
+sh scripts/brand-assets.sh   # SVG masters, the ICO / PNG fallbacks, the admin panel's copies
 ```
 
 It needs `hb-view` (HarfBuzz), `rsvg-convert` (librsvg) and `magick` (ImageMagick 7), and uses
@@ -40,10 +44,10 @@ the shell script rasterizes and copies `favicon.svg`, `favicon.ico`, `apple-touc
 
 ### Where each file goes
 
-- **README header**: a `<picture>` choosing `lockup-horizontal-dark.png` / `lockup-horizontal-light.png`
+- **README header**: a `<picture>` choosing `lockup-horizontal-dark.svg` / `lockup-horizontal-light.svg`
   with `prefers-color-scheme`, by absolute `raw.githubusercontent.com` URL (the README ships to npm,
   which does not ship `docs/`).
-- **Docs site**: the horizontal lockups as the Starlight logo (light/dark), `logo.png` on the home
+- **Docs site**: the horizontal lockups as the Starlight logo (light/dark), `logo.svg` on the home
   page, `favicon.svg` + `favicon.ico` + `apple-touch-icon.png`, and `social.png` as `og:image`
   (`site/scripts/sync.ts` copies them into the site's `public/`).
 - **Admin panel** (standalone and the React embed): `symbol.svg` inlined in the header next to the
