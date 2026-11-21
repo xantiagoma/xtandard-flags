@@ -7,6 +7,7 @@ import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "no
 import { join } from "node:path";
 import type { StarlightPlugin } from "@astrojs/starlight/types";
 import { apiEntries, packageName, repoRoot, repoUrl, siteBase } from "../manifest.ts";
+import { reexportsFile, type Reexport } from "./typedoc-plugin.ts";
 
 const kinds = [
   ["functions", "Functions"],
@@ -132,7 +133,7 @@ const firstSentence = (s: string) => {
   return m ? m[1]! : flat;
 };
 
-function modulePage(m: Module): string {
+function modulePage(m: Module, reexports: Reexport[]): string {
   const out = [
     "---",
     `title: ${yaml(m.importPath)}`,
@@ -170,6 +171,22 @@ function modulePage(m: Module): string {
     out.push(`## ${label}`, "", "| Name | Summary |", "| --- | --- |");
     for (const x of list)
       out.push(`| [\`${x.name}\`](${x.route}) | ${x.summary.replaceAll("|", "\\|")} |`);
+    out.push("");
+  }
+  // Re-exports of symbols documented on another module page the sentence above doesn't name
+  // (e.g. the Elysia 2 adapter's `flagsPanel`, shared with and documented under the Elysia 1 one).
+  const covered = new Set(others.map((e) => e.name));
+  const listed = reexports
+    .filter((r) => r.module === m.name && !covered.has(r.owner))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (listed.length) {
+    out.push("## Re-exports", "", "| Name | Documented on |", "| --- | --- |");
+    for (const r of listed) {
+      const owner = apiEntries().find((e) => e.name === r.owner)?.importPath ?? r.owner;
+      const route = `${siteBase}/api/${r.owner}/${r.kind}/${r.target}/`.toLowerCase();
+      const label = r.name === r.target ? `\`${r.name}\`` : `\`${r.name}\` (\`${r.target}\`)`;
+      out.push(`| [${label}](${route}) | [\`${owner}\`](${siteBase}/api/${r.owner}/) |`);
+    }
     out.push("");
   }
   return out.join("\n");
@@ -214,7 +231,11 @@ export function apiOverviews(): StarlightPlugin {
           return;
         }
         const modules = collect(apiDir);
-        for (const m of modules) writeFileSync(join(apiDir, m.name, "index.md"), modulePage(m));
+        const reexports: Reexport[] = existsSync(reexportsFile)
+          ? JSON.parse(readFileSync(reexportsFile, "utf8"))
+          : [];
+        for (const m of modules)
+          writeFileSync(join(apiDir, m.name, "index.md"), modulePage(m, reexports));
         writeFileSync(join(apiDir, "index.md"), indexPage(modules));
         // The generator's own root listing links to module pages it never emits; index.md replaces it.
         rmSync(join(apiDir, "README.md"), { force: true });

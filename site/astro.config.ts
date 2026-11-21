@@ -3,6 +3,7 @@
 // and Mermaid diagrams. site/manifest.ts holds the information architecture. `bun run build`
 // writes dist/ here; pages.yml publishes it.
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
 import mermaid from "astro-mermaid";
 import { defineConfig } from "astro/config";
@@ -53,6 +54,8 @@ const entrySources = apiEntries().map((e) => e.source);
 for (const o of apiOwners)
   if (!entrySources.includes(o)) throw new Error(`astro.config.ts: ${o} is not an entry point`);
 
+const typedocPlugin = new URL("./scripts/typedoc-plugin.ts", import.meta.url);
+
 const [apiReference, apiSidebarGroup] = createStarlightTypeDocPlugin();
 const items = toSidebar(sidebar);
 
@@ -87,13 +90,16 @@ export default defineConfig({
             ...apiOwners,
             ...entrySources.filter((f) => !apiOwners.includes(f)).sort(),
           ].map((f) => join(repoRoot, f)),
-          // The root tsconfig.json leaves out the Elysia 2 adapter (tsconfig.elysia2.json checks
-          // it against Elysia 2); this one covers every entry point, src/ only.
+          // Solution-style: one program for every entry point under src/ (against Elysia 1) and
+          // one for the Elysia 2 adapter with `elysia` resolved to Elysia 2 (as
+          // tsconfig.elysia2.json checks it), so /api/elysia2/ shows Elysia 2's types.
           tsconfig: "./typedoc.tsconfig.json",
           output: "api",
           sidebar: { label: "API reference", collapsed: true },
           typeDoc: {
-            plugin: ["typedoc-plugin-missing-exports"],
+            // scripts/typedoc-plugin.ts: named return types as written, and the re-export list
+            // scripts/api-overviews.ts puts on each module page.
+            plugin: ["typedoc-plugin-missing-exports", fileURLToPath(typedocPlugin)],
             // @ts-expect-error -- typedoc-plugin-missing-exports options
             placeInternalsInOwningModule: true,
             excludePrivate: true,

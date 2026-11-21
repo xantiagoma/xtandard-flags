@@ -50,7 +50,25 @@ const flagParams = t.Object({
  *
  * Elysia 1.x only — for Elysia 2 import from `@xtandard/flags/elysia2`.
  */
-export function flagsElysia(options: FlagsElysiaOptions) {
+export function flagsElysia(options: FlagsElysiaOptions): FlagsElysiaPlugin {
+  return flagsElysiaRoutes(options);
+}
+
+/**
+ * What {@link flagsElysia} returns: an Elysia 1.x plugin (`new Elysia({ prefix, name:
+ * "xtandard-flags" })`) that declares every admin route — method, path, `params` and `body`
+ * schemas — under `prefix`, plus a catch-all for the bundled UI. `.use()` it on your app and
+ * `treaty<typeof app>()` sees the routes. Named so the reference doesn't spell out the inferred
+ * Elysia generics; it is exactly the inferred plugin type, so Eden typing is unchanged.
+ */
+export type FlagsElysiaPlugin = ReturnType<typeof flagsElysiaRoutes>;
+
+/**
+ * The route declarations behind {@link flagsElysia}; their inferred type is {@link FlagsElysiaPlugin}.
+ *
+ * @internal
+ */
+function flagsElysiaRoutes(options: FlagsElysiaOptions) {
   const { prefix, pass } = createPass(options);
 
   const env = "/api/projects/:projectKey/environments/:environmentKey";
