@@ -170,11 +170,18 @@ await write(
   `${header(1024, 1024, "xtandard-flags")}<defs>${iconDefs}${limeGradient("lime")}</defs>\n${icon({ orbit: false, shadow: false })}\n</svg>`,
 );
 
-// symbol.svg — transparent symbol, cropped to its bounds
-await write(
-  "symbol.svg",
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${SYM.x} ${f(SYM.y)} ${SYM.w} ${f(SYM.h)}" width="${SYM.w}" height="${f(SYM.h)}" role="img" aria-label="xtandard-flags">\n<title>xtandard-flags</title>\n<defs>${limeGradient("lime")}</defs>\n${symbolBody({ pole: "#9AA1A8" })}\n</svg>`,
-);
+// symbol.svg / symbol-light.svg — the transparent symbol, cropped to its bounds: the standalone mark
+// on pages (docs hero, admin header). symbol.svg is for dark surfaces; symbol-light.svg uses the
+// deeper "on light" limes, as the light lockups do.
+for (const [name, light] of [
+  ["symbol.svg", false],
+  ["symbol-light.svg", true],
+] as const) {
+  await write(
+    name,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${SYM.x} ${f(SYM.y)} ${SYM.w} ${f(SYM.h)}" width="${SYM.w}" height="${f(SYM.h)}" role="img" aria-label="xtandard-flags">\n<title>xtandard-flags</title>\n<defs>${limeGradient("lime", light)}</defs>\n${symbolBody({ pole: light ? "#8B939C" : "#9AA1A8" })}\n</svg>`,
+  );
+}
 
 // ── lockups ─────────────────────────────────────────────────────────────────
 const PREFIX = outline("xtandard-", 100);
