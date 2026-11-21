@@ -187,21 +187,29 @@ for (const [name, light] of [
 const PREFIX = outline("xtandard-", 100);
 /** Room below the baseline for the `g` of "flags" (Urbanist's descender at 100 units). */
 const DESCENT = 26;
+/**
+ * Urbanist's cap height at 100 units (OS/2 sCapHeight 0.7). The horizontal lockup centres the
+ * symbol on the wordmark's optical centre, half the cap height above the baseline (descenders
+ * ignored); the family uses the same rule in every repository.
+ */
+const CAP_HEIGHT = 70;
 const NAME = outline("flags", 100);
 const wordGradient = (light: boolean) =>
   `<linearGradient id="word" x1="0" y1="-60" x2="0" y2="20" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="${light ? "#84CC16" : LIME_HI}"/><stop offset="1" stop-color="${light ? LIME_TEXT_LIGHT : LIME}"/></linearGradient>`;
 
 function horizontal(mode: "dark" | "light" | "white" | "black"): string {
   const mono = mode === "white" ? "#FFFFFF" : mode === "black" ? "#000000" : undefined;
-  const symH = 150; // mark height in lockup units (the X's base sits on the text baseline)
+  const symH = 150; // mark height in lockup units
   const s = symH / MARK.h;
   const symW = MARK.w * s;
   const gap = 26;
-  const baseline = 4 + (724 - MARK.y) * s;
+  // The symbol's vertical centre on the wordmark's optical centre (the middle of the cap height).
+  const baseline = 4 + symH / 2 + CAP_HEIGHT / 2;
   const prefixFill = mono ?? (mode === "dark" ? PAPER : INK);
   const nameFill = mono ?? "url(#word)";
   const w = symW + gap + PREFIX.width + NAME.width + 4;
-  const h = symH + 8 + DESCENT;
+  // The descender (baseline + DESCENT) stays inside the symbol's height.
+  const h = Math.max(symH + 8, baseline + DESCENT + 4);
   const pole = mode === "light" ? "#8B939C" : "#6B7178";
   const label = mono ? `xtandard-flags (${mode})` : "xtandard-flags";
   return `${header(w, h, label)}<defs>${limeGradient("lime", mode === "light")}${wordGradient(mode === "light")}</defs>
