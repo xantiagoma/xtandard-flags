@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X } from "lucide-react";
-import { TextInput } from "./primitives.tsx";
+import { TextInput } from "@xtandard/kit/ui";
 
 /** Edit a list of free-form tags. Enter or comma adds; backspace on empty removes last. */
 export function TagInput({

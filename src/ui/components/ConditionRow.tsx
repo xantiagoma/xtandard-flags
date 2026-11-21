@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Trash2, X } from "lucide-react";
 import type { Condition } from "../types.ts";
 import { JsonCodeEditor } from "./JsonCodeEditor.tsx";
-import { TextInput, Dropdown } from "./primitives.tsx";
+import { TextInput, Dropdown } from "@xtandard/kit/ui";
 import { TagInput } from "./TagInput.tsx";
 
 /**

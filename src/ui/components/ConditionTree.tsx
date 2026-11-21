@@ -3,8 +3,7 @@ import { Parentheses, Plus, Trash2 } from "lucide-react";
 import type { Condition, ConditionGroup, ConditionNode } from "../types.ts";
 import { isConditionGroup } from "../types.ts";
 import { ConditionRow } from "./ConditionRow.tsx";
-import { Dropdown } from "./primitives.tsx";
-import { Button } from "./ui-bits.tsx";
+import { Dropdown, Button } from "@xtandard/kit/ui";
 
 const newLeaf = (): Condition => ({ attribute: "", operator: "equals", value: "" });
 const newGroup = (): ConditionGroup => ({ any: [newLeaf()] });

@@ -1,67 +1,25 @@
-import type {
-  Flag,
-  FlagsConfig,
-  Segment,
-  SnapshotListResponse,
-  AuditEntry,
-  ApiError,
-} from "./types.ts";
+import type { Flag, FlagsConfig, Segment, SnapshotListResponse, AuditEntry } from "./types.ts";
+import { createApiClient, type ApiClient } from "@xtandard/kit/ui";
 import { FlagsApiError } from "./types.ts";
 
-// Base prepended to every request path. Empty by default so the bundled SPA uses
-// relative URLs (resolved against the injected <base href>). The React component
-// export sets this to the panel's mount URL via setApiBase().
-let apiBase = "";
-// Credentials mode for every request. `same-origin` (default) is right for the
-// bundled SPA and same-origin embeds; a cross-origin embed (panel on another
-// origin) must use `include` so the session cookie is sent. See setApiBase().
-let apiCredentials: RequestCredentials = "same-origin";
-// Optional custom fetch (e.g. to inject a bearer token / extra headers when the
-// panel is protected by a non-cookie scheme). Defaults to the global fetch.
-let apiFetch: FetchLike = (input, init) => fetch(input, init);
+/**
+ * The flags API client (`@xtandard/kit/ui`'s): a base URL (empty by default, so
+ * the bundled SPA uses relative URLs resolved against the injected
+ * `<base href>`), the `credentials` mode and an optional custom `fetch`.
+ * Non-2xx responses throw {@link FlagsApiError}. Each product has its own
+ * client, so two dashboards on one page never share a base URL.
+ */
+const client = createApiClient({ errorClass: FlagsApiError });
 
-/** The subset of `fetch` the client uses (the global `fetch` satisfies it). */
-export type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-
-/** Options for {@link setApiBase}. */
-export interface ApiClientOptions {
-  /** `credentials` mode for requests. Use `"include"` for cross-origin cookie auth. */
-  credentials?: RequestCredentials;
-  /** Custom fetch implementation (bearer tokens, extra headers, instrumentation). */
-  fetch?: FetchLike;
-}
+export type { ApiClientOptions, FetchLike } from "@xtandard/kit/ui";
 
 /** Point the API client at a base URL (used by the `@xtandard/flags/react` export). */
-export function setApiBase(base: string, opts?: ApiClientOptions): void {
-  apiBase = base.replace(/\/$/, "");
-  if (opts?.credentials) apiCredentials = opts.credentials;
-  if (opts?.fetch) apiFetch = opts.fetch;
-}
+export const setApiBase: ApiClient["setApiBase"] = client.setApiBase;
 
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await apiFetch(apiBase ? `${apiBase}/${path}` : path, {
-    credentials: apiCredentials,
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
+/** Attach a Bearer token to every request (the embed's token plumbing; flags has no portal). */
+export const setApiToken: ApiClient["setApiToken"] = client.setApiToken;
 
-  if (!res.ok) {
-    let body: ApiError;
-    try {
-      body = (await res.json()) as ApiError;
-    } catch {
-      body = { status: res.status, error: res.statusText };
-    }
-    throw new FlagsApiError(res.status, body);
-  }
-
-  const text = await res.text();
-  if (!text) return undefined as unknown as T;
-  return JSON.parse(text) as T;
-}
+const req = client.req;
 
 function envBase(projectKey: string, environmentKey: string): string {
   return `api/projects/${encodeURIComponent(projectKey)}/environments/${encodeURIComponent(environmentKey)}`;
@@ -281,8 +239,7 @@ export function importDraft(
 
 /** Absolute URL of the JSON Schema for import documents (for embedding as `$schema`). */
 export function schemaUrl(): string {
-  const path = "api/schema.json";
-  const base = apiBase ? `${apiBase}/${path}` : path;
+  const base = client.apiUrl("api/schema.json");
   try {
     return new URL(base, document.baseURI).href;
   } catch {

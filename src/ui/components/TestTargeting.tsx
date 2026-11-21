@@ -3,9 +3,7 @@ import { Play, Plus, X } from "lucide-react";
 import { evaluate, type EvaluationResult } from "../api.ts";
 import type { Flag } from "../types.ts";
 import { leafConditions } from "../types.ts";
-import { Button, Badge } from "./ui-bits.tsx";
-import { TextInput } from "./primitives.tsx";
-import { cn } from "../lib/utils.ts";
+import { Button, Badge, TextInput, cn } from "@xtandard/kit/ui";
 
 interface Attr {
   id: number;

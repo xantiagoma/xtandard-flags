@@ -1,12 +1,9 @@
 import React, { useMemo, useState } from "react";
-import { portalContainerRef } from "../lib/portal-container.ts";
+import { portalContainerRef, Button, cn, useTheme } from "@xtandard/kit/ui";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog } from "@base-ui-components/react/dialog";
 import { getSnapshot, listAudit } from "../api.ts";
 import type { AuditEntry } from "../types.ts";
-import { Button } from "../components/ui-bits.tsx";
-import { cn } from "../lib/utils.ts";
-import { useTheme } from "../lib/theme-context.tsx";
 
 const LazyDiffViewer = React.lazy(() => import("../components/DiffViewer.tsx"));
 
