@@ -344,6 +344,7 @@ export const sidebar: Item[] = [
         description:
           "What changed in each @xtandard/flags release, generated from conventional commits.",
       },
+      { slug: "project/brand", src: "docs/BRAND.md", label: "Brand" },
       { label: "Architecture decisions", collapsed: true, items: adrs },
       { slug: "project/releases", src: "docs/RELEASES.md", label: "Releases", internal: true },
       { label: "npm", link: npmUrl },

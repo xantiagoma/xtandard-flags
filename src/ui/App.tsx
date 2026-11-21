@@ -18,6 +18,7 @@ import {
 } from "./api.ts";
 import { useToast } from "./components/Toast.tsx";
 import { Button } from "./components/ui-bits.tsx";
+import { BrandMark } from "./components/BrandMark.tsx";
 import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { FlagsView } from "./views/FlagsView.tsx";
 import { SegmentsView } from "./views/SegmentsView.tsx";
@@ -375,8 +376,8 @@ function AppShell({
       {/* ── Top Nav ──────────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          {/* Brand: a configured logoUrl shows as the logo; otherwise the title
-              wordmark. No default icon. */}
+          {/* Brand: a configured logoUrl shows as the logo; otherwise the
+              xtandard-flags symbol next to the title. */}
           <div className="flex items-center gap-2 shrink-0">
             {brandLogoUrl ? (
               <img
@@ -385,7 +386,10 @@ function AppShell({
                 className="h-7 max-w-[320px] object-contain"
               />
             ) : (
-              <span className="text-sm font-semibold tracking-tight">{brandTitle}</span>
+              <>
+                <BrandMark className="h-5 w-auto" />
+                <span className="text-sm font-semibold tracking-tight">{brandTitle}</span>
+              </>
             )}
           </div>
 
