@@ -27,7 +27,7 @@
  * The returned object structurally satisfies the `Provider` interface without the
  * package being installed at runtime.
  *
- * @module
+ * @module openfeature
  */
 
 import type { ComparatorRegistry } from "./comparators.ts";

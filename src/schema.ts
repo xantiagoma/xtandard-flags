@@ -5,7 +5,7 @@
  * import from the request-path evaluator and the OpenFeature provider. Runtime
  * validation (which pulls in `valibot`) lives in {@link ./validation}.
  *
- * @module
+ * @module schema
  */
 
 /** JSON-serializable value, used for `json`-typed flag variants. */

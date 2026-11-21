@@ -3,7 +3,7 @@
  * Spin up an in-memory panel, build flags fluently, and publish snapshots
  * without any external storage.
  *
- * @module
+ * @module testing
  */
 
 import { createFlagsCore, type FlagsCore } from "./core.ts";

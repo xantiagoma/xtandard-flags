@@ -1,0 +1,7 @@
+{
+  // The program the API reference (starlight-typedoc) reads: every entry point under src/,
+  // including the Elysia 2 adapter the root tsconfig.json leaves to tsconfig.elysia2.json.
+  "extends": "../tsconfig.json",
+  "include": ["../src/**/*.ts", "../src/**/*.tsx", "../scripts/vendor.d.ts"],
+  "exclude": ["../dist", "../node_modules"]
+}

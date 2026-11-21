@@ -1,8 +1,12 @@
 /**
- * Subpath entry for `@xtandard/flags/storage/memory`. Re-exports the in-memory
- * storage adapter so the bundler can map it to its own dist file.
+ * In-memory storage: `createMemoryStorage`, with change notifications and no
+ * dependencies. For tests, development and single-process setups; also the
+ * default runtime storage when none is given.
  *
- * @module
+ * Subpath entry for `@xtandard/flags/storage/memory`: re-exports the adapter so
+ * the bundler can map it to its own dist file.
+ *
+ * @module storage/memory
  */
 
 export * from "./storage/memory.ts";
