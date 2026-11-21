@@ -75,8 +75,11 @@ export interface DrizzleStorageOptions {
  */
 export type DrizzleFlagsStorage = FlagsStorage;
 
-/** Escape LIKE wildcards so `getKeys` matches the prefix verbatim (paired with `ESCAPE '\'`). */
-const escapeLike = (literal: string): string => literal.replace(/[\\%_]/g, (c) => `\\${c}`);
+/**
+ * Escape LIKE wildcards so `getKeys` matches the prefix verbatim (paired with `ESCAPE '!'`). Not a
+ * backslash: in MySQL `'\'` is an unterminated string (the backslash escapes the quote).
+ */
+const escapeLike = (literal: string): string => literal.replace(/[!%_]/g, (c) => `!${c}`);
 
 /** Parse a value defensively — Drizzle returns json parsed, but a string is parsed too. */
 const parseValue = <T>(value: unknown): T => {
@@ -133,8 +136,10 @@ export function createDrizzleStorage(options: DrizzleStorageOptions): DrizzleFla
       const rows = (await db
         .select({ key: table.key })
         .from(table)
-        .where(sql`${table.key} like ${pattern} escape '\\'`)) as Array<{ key: unknown }>;
-      return rows.map((row) => String(row.key));
+        .where(sql`${table.key} like ${pattern} escape '!'`)) as Array<{ key: unknown }>;
+      // LIKE is case-insensitive on SQLite and under a case-insensitive MySQL/Postgres collation
+      // (e.g. a table created before the `utf8mb4_bin` key): keep only exact prefix matches.
+      return rows.map((row) => String(row.key)).filter((key) => key.startsWith(prefix));
     },
   };
 }

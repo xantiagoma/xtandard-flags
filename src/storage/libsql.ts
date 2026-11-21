@@ -141,7 +141,8 @@ export function createLibsqlStorage(options: LibsqlStorageOptions): LibsqlFlagsS
         sql: `SELECT key FROM ${table} WHERE key LIKE ? ESCAPE '\\'`,
         args: [`${escapeLike(prefix)}%`],
       });
-      return rows.map((r) => String(r.key));
+      // SQLite's LIKE folds ASCII case: keep only the exact (case-sensitive) prefix matches.
+      return rows.map((r) => String(r.key)).filter((key) => key.startsWith(prefix));
     },
 
     close(): void {

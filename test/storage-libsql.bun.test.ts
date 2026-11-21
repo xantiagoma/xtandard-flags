@@ -85,6 +85,18 @@ describe("libsql storage (bun:sqlite-backed fake client)", () => {
     expect(await storage.getKeys("flags/none/")).toEqual([]);
   });
 
+  test("getKeys is case-sensitive and matches % and _ literally", async () => {
+    const storage = make();
+    await storage.setItem("flags/Acme/e/k", 1);
+    await storage.setItem("flags/acme/e/k", 2);
+    await storage.setItem("flags/a_b/e/k", 3);
+    await storage.setItem("flags/aXb/e/k", 4);
+    expect(await storage.getItem("flags/Acme/e/k")).toBe(1);
+    expect(await storage.getItem("flags/acme/e/k")).toBe(2);
+    expect(await storage.getKeys("flags/Acme/")).toEqual(["flags/Acme/e/k"]);
+    expect(await storage.getKeys("flags/a_b/")).toEqual(["flags/a_b/e/k"]);
+  });
+
   test("rejects unsafe table names", () => {
     expect(() => createLibsqlStorage({ client: fakeLibsqlClient(), table: "bad; drop" })).toThrow();
   });

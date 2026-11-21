@@ -244,7 +244,8 @@ function buildRedisStorage(
 
     async getKeys(prefix: string): Promise<string[]> {
       const c = await getClient();
-      const match = `${toRedisKey(prefix)}*`;
+      // SCAN MATCH is a glob: escape `*`, `?`, `[`, `]` and `\` so the prefix matches literally.
+      const match = `${toRedisKey(prefix).replace(/[*?[\]\\]/g, "\\$&")}*`;
       const out: string[] = [];
       for await (const entry of c.scanIterator({ MATCH: match, COUNT: 100 })) {
         // node-redis v4 yields one key per iteration; v5 may yield batches.
@@ -254,7 +255,7 @@ function buildRedisStorage(
           out.push(fromRedisKey(entry));
         }
       }
-      return out;
+      return out.filter((key) => key.startsWith(prefix));
     },
 
     async watch(

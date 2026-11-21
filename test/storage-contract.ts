@@ -18,7 +18,8 @@ export type MakeStorage = () => Promise<FlagsStorage> | FlagsStorage;
 /**
  * Register a `describe(name, …)` block exercising the full {@link FlagsStorage}
  * contract: object round-trips, null-for-missing, remove semantics, prefix
- * listing, and prefix isolation.
+ * listing and isolation, and keys kept exact: distinct by case and accent, with wildcard,
+ * escape and separator-like characters (`% _ ! * [ ] ? \\`) taken literally.
  */
 export function runStorageContractTests(name: string, makeStorage: MakeStorage): void {
   describe(`FlagsStorage contract: ${name}`, () => {
@@ -76,6 +77,57 @@ export function runStorageContractTests(name: string, makeStorage: MakeStorage):
       await storage.setItem("flags/p2/e/b", { v: 2 });
       expect(await storage.getKeys("flags/p1/")).toEqual(["flags/p1/e/a"]);
       expect(await storage.getKeys("flags/p2/")).toEqual(["flags/p2/e/b"]);
+    });
+
+    test("keys differing only by case or accent are distinct", async () => {
+      const storage = await makeStorage();
+      const keys = ["flags/Acme/e/k", "flags/acme/e/k", "flags/café/e/k", "flags/cafe/e/k"];
+      for (const [i, key] of keys.entries()) await storage.setItem(key, { i });
+      for (const [i, key] of keys.entries()) expect(await storage.getItem(key)).toEqual({ i });
+      expect(await storage.getKeys("flags/Acme/")).toEqual(["flags/Acme/e/k"]);
+      expect(await storage.getKeys("flags/acme/")).toEqual(["flags/acme/e/k"]);
+      expect(await storage.getKeys("flags/café/")).toEqual(["flags/café/e/k"]);
+      await storage.removeItem("flags/Acme/e/k");
+      expect(await storage.getItem("flags/acme/e/k")).toEqual({ i: 1 });
+    });
+
+    test("keys with ?, \\ and : round-trip exactly and stay distinct", async () => {
+      const storage = await makeStorage();
+      // Backends that normalize keys (cut at `?`, `\\` or `:` as a separator) would merge these.
+      const keys = ["flags/a?b/k", "flags/a/k", "flags/a\\b/k", "flags/a/b/k", "flags/a:b/k"];
+      for (const [i, key] of keys.entries()) await storage.setItem(key, { i });
+      for (const [i, key] of keys.entries()) expect(await storage.getItem(key)).toEqual({ i });
+      expect((await storage.getKeys("flags/")).sort()).toEqual([...keys].sort());
+      expect(await storage.getKeys("flags/a?b/")).toEqual(["flags/a?b/k"]);
+      expect(await storage.getKeys("flags/a\\b/")).toEqual(["flags/a\\b/k"]);
+    });
+
+    test("getKeys matches %, _, !, *, [, ], ? and \\ in the prefix literally", async () => {
+      const storage = await makeStorage();
+      const prefix = "flags/a%b_c!d*e[f]g?h\\i:j%25/";
+      await storage.setItem(`${prefix}k`, { v: 1 });
+      // Each would match if that character acted as a LIKE/glob/regex wildcard or escape.
+      for (const other of [
+        "flags/aXXbYc!d*e[f]g?h\\i/k",
+        "flags/a%bZc!d*e[f]g?h\\i/k",
+        "flags/a%b_cd*e[f]g?h\\i/k",
+        "flags/a%b_c!dXXe[f]g?h\\i/k",
+        "flags/a%b_c!d*efgZh\\i/k",
+        "flags/a%b_c!d*e[f]gXhi/k",
+      ])
+        await storage.setItem(other, { v: 2 });
+      expect(await storage.getKeys(prefix)).toEqual([`${prefix}k`]);
+    });
+
+    test("getKeys is a plain string prefix, not a path segment", async () => {
+      const storage = await makeStorage();
+      const keys = ["flags/a/k", "flags/ab/k", "flags/a%y/k", "flags/a:b/k", "flags/a%25/k"];
+      for (const key of keys) await storage.setItem(key, { key });
+      await storage.setItem("flags/b/k", { key: "flags/b/k" });
+      expect((await storage.getKeys("flags/a")).sort()).toEqual([...keys].sort());
+      expect((await storage.getKeys("flags/a%")).sort()).toEqual(["flags/a%25/k", "flags/a%y/k"]);
+      expect(await storage.getKeys("flags/a%25")).toEqual(["flags/a%25/k"]);
+      expect(await storage.getItem("flags/a%25/k")).toEqual({ key: "flags/a%25/k" });
     });
 
     test("getKeys returns an empty array when nothing matches", async () => {
