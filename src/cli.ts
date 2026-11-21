@@ -140,9 +140,12 @@ async function describeStorage(role: "SOURCE" | "RUNTIME"): Promise<string> {
   }
 }
 
+/** `AUTH_MODE`, with an empty value meaning the default `none`. */
+const authModeFromEnv = (): string => process.env.AUTH_MODE || "none";
+
 /** Build the auth + authorization providers from env (mirrors the standalone app). */
 async function buildAuth(): Promise<{ auth: AuthProvider; authorization: AuthorizationProvider }> {
-  const mode = env("AUTH_MODE", "none");
+  const mode = authModeFromEnv();
   if (mode === "basic") {
     const [{ basicAuth }, { rolesAuthorization }] = await Promise.all([
       import("./auth/basic.ts"),
@@ -169,6 +172,7 @@ async function buildAuth(): Promise<{ auth: AuthProvider; authorization: Authori
       authorization: rolesAuthorization({}),
     };
   }
+  if (mode !== "none") throw new Error(`Unknown AUTH_MODE "${mode}" (expected none or basic)`);
   const [{ noAuth }, { noAuthorization }] = await Promise.all([
     import("./auth/none.ts"),
     import("./authorization/none.ts"),
@@ -351,7 +355,7 @@ Environment variables
     LOGO_URL                    Logo image URL.
     READONLY        1|true      Block all mutating operations.
     STREAMING       1|true      Enable the OFREP SSE stream (GET /ofrep/v1/stream).
-    AUTH_MODE       none|basic  Authentication mode (default none).
+    AUTH_MODE       none|basic  Authentication mode (default none; any other value is rejected).
     AUTH_USERNAME   admin       Username for basic auth.
     AUTH_PASSWORD_HASH          scrypt hash (preferred; see docs/AUTH.md).
     AUTH_PASSWORD               Plaintext password (dev only).
@@ -506,7 +510,7 @@ export async function run(argv: string[]): Promise<number> {
         const title = env("TITLE", "@xtandard/flags");
         const logoUrl = env("LOGO_URL") || undefined;
         const readonly = env("READONLY") === "1" || env("READONLY").toLowerCase() === "true";
-        const authMode = env("AUTH_MODE", "none");
+        const authMode = authModeFromEnv();
 
         const { createFetchHandler } = await import("./server/create-fetch-handler.ts");
         const [sourceStorage, runtimeStorage] = await Promise.all([

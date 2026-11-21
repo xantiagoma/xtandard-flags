@@ -68,8 +68,11 @@ async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
   }
 }
 
+/** `AUTH_MODE`, with an empty value meaning the default `none`. */
+const authModeFromEnv = (): string => process.env.AUTH_MODE || "none";
+
 function buildAuth(): AuthProvider {
-  const mode = env("AUTH_MODE", "none");
+  const mode = authModeFromEnv();
   if (mode === "basic") {
     const username = env("AUTH_USERNAME", "admin");
     const passwordHash = env("AUTH_PASSWORD_HASH");
@@ -90,6 +93,7 @@ function buildAuth(): AuthProvider {
       ],
     });
   }
+  if (mode !== "none") throw new Error(`Unknown AUTH_MODE "${mode}" (expected none or basic)`);
   return noAuth();
 }
 
@@ -99,7 +103,9 @@ async function main(): Promise<void> {
   const title = env("TITLE", "@xtandard/flags");
   const logoUrl = env("LOGO_URL") || undefined;
   const readonly = bool("READONLY", false);
-  const authMode = env("AUTH_MODE", "none");
+  const authMode = authModeFromEnv();
+  // Built first so an unknown AUTH_MODE fails startup before anything else runs.
+  const auth = buildAuth();
 
   const [sourceStorage, runtimeStorage] = await Promise.all([
     buildStorage("SOURCE"),
@@ -142,7 +148,7 @@ async function main(): Promise<void> {
     readonly,
     uiDir,
     streaming: bool("STREAMING", false),
-    auth: buildAuth(),
+    auth,
     authorization: authMode === "basic" ? rolesAuthorization({}) : noAuthorization(),
   });
 
