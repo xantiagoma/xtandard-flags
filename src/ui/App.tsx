@@ -1,4 +1,3 @@
-/// <reference path="./assets.d.ts" />
 import React, { useState } from "react";
 import {
   BrandMark,

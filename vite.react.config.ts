@@ -1,25 +1,9 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindcss from "@tailwindcss/vite";
+import { defineEmbedConfig } from "@xtandard/kit/build";
 
-// Library build for the advanced `@xtandard/flags/react` component export.
-// Emits dist/react.js (ESM) + dist/react.css. React is a peer (external);
-// everything else (TanStack Query, styles) is bundled so the component is
-// self-contained. emptyOutDir:false to preserve the library + UI builds.
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
-  build: {
-    outDir: "dist",
-    emptyOutDir: false,
-    cssCodeSplit: false,
-    lib: {
-      entry: "src/react.tsx",
-      formats: ["es"],
-      fileName: () => "react.js",
-    },
-    rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime", "react-dom/client"],
-      output: { assetFileNames: "react.css" },
-    },
-  },
-});
+// Library build for the advanced `@xtandard/flags/react` component export:
+// dist/react.js (ESM) + dist/react.css. React is a peer (external); everything
+// else (TanStack Query, the kit UI, styles) is bundled so the component is
+// self-contained. The emitted dist/react.css is a full Tailwind build;
+// `xtandard-kit scope-embed-css` runs after this build (see the `build:react`
+// script) to scope every rule under `.xtandard-flags`.
+export default defineEmbedConfig({ entry: "src/react.tsx" });
