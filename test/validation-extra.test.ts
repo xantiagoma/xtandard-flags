@@ -84,3 +84,20 @@ describe("assertValidDraft / DraftValidationError", () => {
     expect(err.message).toContain("Draft validation failed");
   });
 });
+
+describe("validation core (@xtandard/kit/util)", () => {
+  test("a JSON variant value with a non-finite number is rejected", () => {
+    const finite = jsonFlag({ variants: { default: { value: { ratio: 1 } } } as never });
+    expect(validateFlag(finite).valid).toBe(true);
+    const r = validateFlag(
+      jsonFlag({ variants: { default: { value: { ratio: Number.POSITIVE_INFINITY } } } as never }),
+    );
+    expect(r.valid).toBe(false);
+  });
+
+  test("a root-level issue carries the base path without a trailing dot", () => {
+    const r = validateFlag(null);
+    expect(r.valid).toBe(false);
+    expect(r.errors.map((e) => e.path)).toContain("flag");
+  });
+});

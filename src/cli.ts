@@ -10,6 +10,21 @@
  */
 
 import {
+  buildAuthFromEnv,
+  describeStorage as kitDescribeStorage,
+  env,
+  isMainModule,
+  isTruthy,
+  parseArgs as kitParseArgs,
+  pkgVersion as kitPkgVersion,
+  serve,
+  storageFromEnv,
+  storageRegistryFrom,
+  type StorageRegistry,
+  type StorageRole,
+} from "@xtandard/kit/cli";
+import { FLAGS_ACTIONS, type FlagsAction } from "./authorization/contract.ts";
+import {
   createFlagsCore,
   type FlagsCore,
   type RetentionOptions,
@@ -18,12 +33,48 @@ import {
 import type { FlagDuration } from "./schema.ts";
 import { validateDraft } from "./validation.ts";
 import type { FlagsStorage } from "./storage/contract.ts";
-import type { AuthProvider } from "./auth/contract.ts";
-import type { AuthorizationProvider } from "./authorization/contract.ts";
 
-type Driver = "redis" | "unstorage" | "file" | "memory" | "postgres" | "mongodb" | "sqlite";
+/** The two storage planes: `SOURCE` (drafts, history, audit) and `RUNTIME` (published snapshots). */
+type Role = "SOURCE" | "RUNTIME";
 
-const env = (key: string, fallback = ""): string => process.env[key] ?? fallback;
+/** The drivers the CLI accepts (an unknown `*_STORAGE_DRIVER` is an error). */
+const DRIVERS = ["memory", "file", "redis", "postgres", "mongodb", "sqlite", "unstorage"] as const;
+
+/**
+ * A role's env settings (`SOURCE_STORAGE_DRIVER`, `SOURCE_PG_TABLE`…) and the
+ * persisted defaults every earlier CLI release used (ADR 0005).
+ */
+const storageRole = (role: Role): StorageRole => {
+  const r = role.toLowerCase();
+  return {
+    name: role,
+    defaults: {
+      prefix: `xtandard:flags:${r}`,
+      pgTable: `xtandard_flags_${r}`,
+      mongoDb: "xtandard_flags",
+      mongoCollection: `flags_${r}`,
+      sqlitePath: `./.flags/${r}.sqlite`,
+      sqliteTable: "xtandard_flags",
+      fileDir: `./.flags/${r}`,
+    },
+  };
+};
+
+/**
+ * The CLI's drivers, over the flags storage wrappers (so their defaults and
+ * error messages apply). Each loads its optional peer only when chosen; `sqlite`
+ * needs the CLI to run under Bun (`bunx xtandard-flags …`), and `unstorage` is
+ * an in-memory instance (for trying the adapter; wire your own driver in code).
+ */
+const STORAGE_DRIVERS = storageRegistryFrom({
+  memory: () => import("./storage/memory.ts"),
+  file: () => import("./storage/file.ts"),
+  redis: () => import("./storage/redis.ts"),
+  postgres: () => import("./storage/postgres.ts"),
+  mongodb: () => import("./storage/mongodb.ts"),
+  sqlite: () => import("./storage/sqlite.ts"),
+  unstorage: () => import("./storage/unstorage.ts"),
+}) as StorageRegistry<FlagsStorage>;
 
 /** Parse a duration env like `"34h"`, `"30d"`, `"90m"`, `"10s"` into a {@link FlagDuration}. */
 function parseDurationEnv(name: string): FlagDuration | undefined {
@@ -65,52 +116,9 @@ function retentionFromEnv(): RetentionOptions | undefined {
   return { snapshots, audit };
 }
 
-async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
-  const driver = (env(`${role}_STORAGE_DRIVER`, "file") as Driver) || "file";
-  const prefix = env(`${role}_PREFIX`, `xtandard:flags:${role.toLowerCase()}`);
-  switch (driver) {
-    case "redis": {
-      const { createRedisStorage } = await import("./storage/redis.ts");
-      return createRedisStorage({ url: env("REDIS_URL", "redis://localhost:6379"), prefix });
-    }
-    case "unstorage": {
-      const { createUnstorageStorage } = await import("./storage/unstorage.ts");
-      const { createStorage } = (await import("unstorage")) as typeof import("unstorage");
-      return createUnstorageStorage({ storage: createStorage() });
-    }
-    case "postgres": {
-      const { createPostgresStorage } = await import("./storage/postgres.ts");
-      return createPostgresStorage({
-        connectionString:
-          env("DATABASE_URL") || env("POSTGRES_URL", "postgres://localhost:5432/postgres"),
-        table: env(`${role}_PG_TABLE`, `xtandard_flags_${role.toLowerCase()}`),
-      });
-    }
-    case "mongodb": {
-      const { createMongoStorage } = await import("./storage/mongodb.ts");
-      return createMongoStorage({
-        url: env("MONGO_URL", "mongodb://localhost:27017"),
-        dbName: env("MONGO_DB", "xtandard_flags"),
-        collectionName: env(`${role}_MONGO_COLLECTION`, `flags_${role.toLowerCase()}`),
-      });
-    }
-    case "sqlite": {
-      // Requires running the CLI under Bun (`bunx xtandard-flags …`).
-      const { createSqliteStorage } = await import("./storage/sqlite.ts");
-      return createSqliteStorage({
-        path: env(`${role}_SQLITE_PATH`, `./.flags/${role.toLowerCase()}.sqlite`),
-      });
-    }
-    case "memory": {
-      const { createMemoryStorage } = await import("./storage/memory.ts");
-      return createMemoryStorage();
-    }
-    case "file":
-    default: {
-      const { createFileStorage } = await import("./storage/file.ts");
-      return createFileStorage({ dir: env(`${role}_FILE_DIR`, `./.flags/${role.toLowerCase()}`) });
-    }
-  }
+/** Build a role's storage from env. An unknown driver is an error (it used to fall back to `file`). */
+async function buildStorage(role: Role): Promise<FlagsStorage> {
+  return storageFromEnv({ role: storageRole(role), drivers: STORAGE_DRIVERS, allowed: DRIVERS });
 }
 
 /**
@@ -119,65 +127,21 @@ async function buildStorage(role: "SOURCE" | "RUNTIME"): Promise<FlagsStorage> {
  * "where did my flags go?" is obvious; connection-string drivers print only the
  * driver name (never the URL, which may carry credentials).
  */
-async function describeStorage(role: "SOURCE" | "RUNTIME"): Promise<string> {
-  const { resolve } = await import("node:path");
-  const driver = (env(`${role}_STORAGE_DRIVER`, "file") as Driver) || "file";
-  const r = role.toLowerCase();
-  switch (driver) {
-    case "file":
-      return `file → ${resolve(env(`${role}_FILE_DIR`, `./.flags/${r}`))}`;
-    case "sqlite":
-      return `sqlite → ${resolve(env(`${role}_SQLITE_PATH`, `./.flags/${r}.sqlite`))}`;
-    case "memory":
-      return "memory (ephemeral — not persisted)";
-    case "redis":
-    case "postgres":
-    case "mongodb":
-    case "unstorage":
-      return driver;
-    default:
-      return driver;
-  }
+async function describeStorage(role: Role): Promise<string> {
+  return kitDescribeStorage(storageRole(role), { allowed: DRIVERS });
 }
 
-/** `AUTH_MODE`, with an empty value meaning the default `none`. */
-const authModeFromEnv = (): string => process.env.AUTH_MODE || "none";
-
-/** Build the auth + authorization providers from env (mirrors the standalone app). */
-async function buildAuth(): Promise<{ auth: AuthProvider; authorization: AuthorizationProvider }> {
-  const mode = authModeFromEnv();
-  if (mode === "basic") {
-    const [{ basicAuth }, { rolesAuthorization }] = await Promise.all([
-      import("./auth/basic.ts"),
-      import("./authorization/roles.ts"),
-    ]);
-    const passwordHash = env("AUTH_PASSWORD_HASH");
-    const password = env("AUTH_PASSWORD");
-    if (!passwordHash && !password) {
-      process.stderr.write(
-        "[xtandard/flags] AUTH_MODE=basic but neither AUTH_PASSWORD_HASH nor AUTH_PASSWORD is set.\n",
-      );
-    }
-    return {
-      auth: basicAuth({
-        users: [
-          {
-            username: env("AUTH_USERNAME", "admin"),
-            passwordHash: passwordHash || undefined,
-            password: password || undefined,
-            roles: ["admin"],
-          },
-        ],
-      }),
-      authorization: rolesAuthorization({}),
-    };
-  }
-  if (mode !== "none") throw new Error(`Unknown AUTH_MODE "${mode}" (expected none or basic)`);
-  const [{ noAuth }, { noAuthorization }] = await Promise.all([
-    import("./auth/none.ts"),
-    import("./authorization/none.ts"),
-  ]);
-  return { auth: noAuth(), authorization: noAuthorization() };
+/**
+ * The auth + authorization providers from env (mirrors the standalone app):
+ * `AUTH_MODE=none` (default) or `basic`; anything else is an error.
+ */
+async function buildAuth() {
+  const { DEFAULT_ROLE_POLICY } = await import("./authorization/roles.ts");
+  return buildAuthFromEnv<FlagsAction>({
+    realm: "xtandard-flags",
+    roles: { policy: DEFAULT_ROLE_POLICY, actions: FLAGS_ACTIONS },
+    name: "xtandard/flags",
+  });
 }
 
 /** Register the optional `sift` query matcher (for `matches`/`notMatches`) if installed. */
@@ -198,86 +162,10 @@ async function registerSiftIfPresent(): Promise<void> {
 type FetchHandler = (request: Request) => Response | Promise<Response>;
 
 /**
- * Serve a web-standard fetch handler under whatever runtime the CLI runs on:
- * `Bun.serve` under `bunx`, a `node:http` bridge under `npx`/Node. Resolves only
- * once the server is listening; the process then stays alive on the open socket.
+ * The CLI's argv parser: `--key value`, `--key=value`, `--flag`, `-h`, `-v`.
+ * `--version` takes a value (`inspect --version v2`); bare, it prints the version.
  */
-async function startServer(port: number, fetch: FetchHandler): Promise<void> {
-  const bun = (globalThis as { Bun?: { serve: (options: unknown) => unknown } }).Bun;
-  if (bun) {
-    bun.serve({ port, fetch });
-    return;
-  }
-  const { createServer } = await import("node:http");
-  const server = createServer((req, res) => {
-    void (async () => {
-      try {
-        const chunks: Buffer[] = [];
-        for await (const c of req) chunks.push(c as Buffer);
-        const method = req.method ?? "GET";
-        const headers = new Headers();
-        for (const [k, v] of Object.entries(req.headers)) {
-          if (v === undefined) continue;
-          headers.set(k, Array.isArray(v) ? v.join(", ") : v);
-        }
-        const host = req.headers.host ?? `localhost:${port}`;
-        const url = `http://${host}${req.url ?? "/"}`;
-        const hasBody = method !== "GET" && method !== "HEAD" && chunks.length > 0;
-        const request = new Request(url, {
-          method,
-          headers,
-          body: hasBody ? Buffer.concat(chunks) : undefined,
-        });
-        const response = await fetch(request);
-        res.statusCode = response.status;
-        response.headers.forEach((value, key) => res.setHeader(key, value));
-        // Stream SSE (text/event-stream) instead of buffering — long-lived body.
-        if (
-          response.body &&
-          (response.headers.get("content-type") ?? "").includes("text/event-stream")
-        ) {
-          const reader = response.body.getReader();
-          let aborted = false;
-          res.on("close", () => {
-            aborted = true;
-            void reader.cancel().catch(() => {});
-          });
-          for (;;) {
-            const { done, value } = await reader.read();
-            if (done || aborted) break;
-            res.write(Buffer.from(value));
-          }
-          res.end();
-          return;
-        }
-        res.end(Buffer.from(await response.arrayBuffer()));
-      } catch (err) {
-        res.statusCode = 500;
-        res.end(`Internal error: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    })();
-  });
-  await new Promise<void>((resolve) => server.listen(port, resolve));
-}
-
-/** Minimal flag/value argv parser: `--key value` and `--flag`. */
-function parseArgs(argv: string[]): { _: string[]; flags: Record<string, string | boolean> } {
-  const _: string[] = [];
-  const flags: Record<string, string | boolean> = {};
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i]!;
-    if (a.startsWith("--")) {
-      const key = a.slice(2);
-      const next = argv[i + 1];
-      if (next === undefined || next.startsWith("--")) flags[key] = true;
-      else {
-        flags[key] = next;
-        i++;
-      }
-    } else _.push(a);
-  }
-  return { _, flags };
-}
+const parseArgs = (argv: string[]) => kitParseArgs(argv, { boolean: ["help"] });
 
 async function makeCore(flags: Record<string, string | boolean>): Promise<FlagsCore> {
   const [sourceStorage, runtimeStorage] = await Promise.all([
@@ -293,19 +181,8 @@ async function makeCore(flags: Record<string, string | boolean>): Promise<FlagsC
   });
 }
 
-/** Read this package's version from the nearest package.json (dist or src). */
-async function pkgVersion(): Promise<string> {
-  try {
-    const { readFile } = await import("node:fs/promises");
-    const { fileURLToPath } = await import("node:url");
-    const pkg = JSON.parse(
-      await readFile(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8"),
-    ) as { version?: string };
-    return pkg.version ?? "unknown";
-  } catch {
-    return "unknown";
-  }
-}
+/** This package's version, from the nearest package.json (dist or src). */
+const pkgVersion = (): Promise<string> => kitPkgVersion(import.meta.url);
 
 function helpText(version: string): string {
   return `xtandard-flags v${version} — self-hosted, OpenFeature-compatible feature-flag control plane
@@ -347,6 +224,8 @@ Environment variables
     MONGO_URL, MONGO_DB, SOURCE_MONGO_COLLECTION, RUNTIME_MONGO_COLLECTION (driver: mongodb)
     SOURCE_FILE_DIR, RUNTIME_FILE_DIR   default ./.flags/{source,runtime} (driver: file)
     SOURCE_SQLITE_PATH, RUNTIME_SQLITE_PATH                               (driver: sqlite, Bun only)
+    SOURCE_SQLITE_TABLE, RUNTIME_SQLITE_TABLE   default xtandard_flags    (driver: sqlite)
+    An unknown driver is an error. An empty variable counts as unset.
 
   Server  (\`serve\` / standalone):
     PORT            3000        Port to listen on (or --port).
@@ -355,8 +234,10 @@ Environment variables
     LOGO_URL                    Logo image URL.
     READONLY        1|true      Block all mutating operations.
     STREAMING       1|true      Enable the OFREP SSE stream (GET /ofrep/v1/stream).
+    UI_DIR                      Directory of the built admin UI (default: the package's dist/ui).
     AUTH_MODE       none|basic  Authentication mode (default none; any other value is rejected).
     AUTH_USERNAME   admin       Username for basic auth.
+    AUTH_ROLE       admin       Role of the basic-auth user (admin | editor | viewer).
     AUTH_PASSWORD_HASH          scrypt hash (preferred; see docs/AUTH.md).
     AUTH_PASSWORD               Plaintext password (dev only).
 
@@ -505,71 +386,51 @@ export async function run(argv: string[]): Promise<number> {
         return 0;
       }
       case "serve": {
-        const port = Number((flags.port as string) || env("PORT", "3000"));
-        const basePath = env("BASE_PATH", "");
-        const title = env("TITLE", "@xtandard/flags");
-        const logoUrl = env("LOGO_URL") || undefined;
-        const readonly = env("READONLY") === "1" || env("READONLY").toLowerCase() === "true";
-        const authMode = authModeFromEnv();
-
         const { createFetchHandler } = await import("./server/create-fetch-handler.ts");
-        const [sourceStorage, runtimeStorage] = await Promise.all([
-          buildStorage("SOURCE"),
-          buildStorage("RUNTIME"),
-        ]);
-        const { auth, authorization } = await buildAuth();
-        await registerSiftIfPresent();
-
-        if (authMode === "none") {
-          process.stderr.write(
-            "[xtandard/flags] AUTH_MODE=none — do NOT expose this publicly without authentication.\n",
-          );
-        }
-
-        const streaming = env("STREAMING") === "1" || env("STREAMING").toLowerCase() === "true";
-        const panel = createFetchHandler({
-          basePath,
-          sourceStorage,
-          runtimeStorage,
-          title,
-          logoUrl,
-          readonly,
-          auth,
-          authorization,
-          streaming,
-          retention: retentionFromEnv(),
-        });
-
-        const normalizedBase =
-          basePath && basePath !== "/"
-            ? basePath.startsWith("/")
-              ? basePath
-              : `/${basePath}`
-            : "";
-
-        const handler: FetchHandler = (request) => {
-          const url = new URL(request.url);
-          if (url.pathname === "/healthcheck" || url.pathname === `${normalizedBase}/healthcheck`) {
-            return new Response(JSON.stringify({ status: "ok", title }), {
-              headers: { "content-type": "application/json" },
+        // `serve` reads PORT, BASE_PATH, TITLE, LOGO_URL and READONLY, warns on
+        // AUTH_MODE=none, prints the banner and owns the process from then on.
+        return await serve({
+          name: "xtandard/flags",
+          ...(typeof flags.port === "string" ? { port: Number(flags.port) } : {}),
+          buildPanel: async ({ basePath, title, logoUrl, readonly }) => {
+            const [sourceStorage, runtimeStorage, { auth, authorization }] = await Promise.all([
+              buildStorage("SOURCE"),
+              buildStorage("RUNTIME"),
+              buildAuth(),
+            ]);
+            await registerSiftIfPresent();
+            const panelTitle = title ?? "@xtandard/flags";
+            const panel = createFetchHandler({
+              basePath,
+              sourceStorage,
+              runtimeStorage,
+              title: panelTitle,
+              ...(logoUrl ? { logoUrl } : {}),
+              // The built SPA; defaults to the package's own `dist/ui`.
+              ...(env("UI_DIR") ? { uiDir: env("UI_DIR") } : {}),
+              readonly,
+              auth,
+              authorization,
+              streaming: isTruthy(env("STREAMING")),
+              retention: retentionFromEnv(),
             });
-          }
-          return panel.fetch(request);
-        };
-
-        const [sourceDesc, runtimeDesc] = await Promise.all([
-          describeStorage("SOURCE"),
-          describeStorage("RUNTIME"),
-        ]);
-        process.stdout.write(`[xtandard/flags] storage source:  ${sourceDesc}\n`);
-        process.stdout.write(`[xtandard/flags] storage runtime: ${runtimeDesc}\n`);
-
-        await startServer(port, handler);
-        process.stdout.write(
-          `[xtandard/flags] listening on http://localhost:${port}${normalizedBase || "/"}\n`,
-        );
-        // The server owns the process now; never resolve so the bin doesn't exit.
-        return await new Promise<number>(() => {});
+            // The standalone healthcheck (Docker HEALTHCHECK): `{ status, title }`
+            // at the root and under the base path, unauthenticated.
+            const health = JSON.stringify({ status: "ok", title: panelTitle });
+            const fetch: FetchHandler = (request) => {
+              const { pathname } = new URL(request.url);
+              if (pathname === "/healthcheck" || pathname === `${basePath}/healthcheck`) {
+                return new Response(health, { headers: { "content-type": "application/json" } });
+              }
+              return panel.fetch(request);
+            };
+            return { fetch, close: panel.close };
+          },
+          banner: async () => [
+            `storage source:  ${await describeStorage("SOURCE")}`,
+            `storage runtime: ${await describeStorage("RUNTIME")}`,
+          ],
+        });
       }
       case "inspect": {
         const core = await makeCore(flags);
@@ -593,3 +454,8 @@ export async function run(argv: string[]): Promise<number> {
     return 1;
   }
 }
+
+// Run only when executed directly (`bun src/cli.ts`), not when imported by the
+// bin shim, the standalone app or a test.
+if (isMainModule({ url: import.meta.url }))
+  void run(process.argv.slice(2)).then((code) => process.exit(code));

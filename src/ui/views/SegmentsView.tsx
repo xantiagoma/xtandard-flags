@@ -9,9 +9,7 @@ import {
   deleteSegment as deleteSegmentApi,
 } from "../api.ts";
 import { FlagsApiError } from "../types.ts";
-import { useToast } from "../components/Toast.tsx";
-import { Button } from "../components/ui-bits.tsx";
-import { TextInput, TextArea } from "../components/primitives.tsx";
+import { useToast, Button, TextInput, TextArea } from "@xtandard/kit/ui";
 import { ConditionTree } from "../components/ConditionTree.tsx";
 
 interface Props {

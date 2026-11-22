@@ -11,13 +11,15 @@
  * @module
  */
 
+import { version } from "../../package.json" with { type: "json" };
+
 /** Options for {@link buildOpenApiDocument}. */
 export interface OpenApiOptions {
   /** Mount prefix used in the `servers` url (e.g. `"/flags"`). */
   basePath?: string;
   /** Document title. */
   title?: string;
-  /** Document version (defaults to the package's API version). */
+  /** Document version (defaults to the package version). */
   version?: string;
 }
 
@@ -372,7 +374,7 @@ export function buildOpenApiDocument(options: OpenApiOptions = {}): Record<strin
     openapi: "3.1.0",
     info: {
       title: options.title ?? "@xtandard/flags Admin API",
-      version: options.version ?? "0.1.0",
+      version: options.version ?? version,
       description:
         "Admin/control-plane API for @xtandard/flags. Applications evaluate flags from memory via the OpenFeature provider; this API manages drafts, snapshots, publish/rollback, and audit.",
     },

@@ -415,7 +415,7 @@
   "scripts": {
     "build": "bun run build:lib && bun run build:elysia2-types && bun run build:ui && bun run build:react",
     "build:lib": "vp pack",
-    "build:elysia2-types": "tsc -p tsconfig.elysia2.build.json && bun scripts/fix-elysia2-types.ts",
+    "build:elysia2-types": "tsc -p tsconfig.elysia2.build.json && xtandard-kit fix-elysia2-types",
     "build:ui": "vite build --config vite.ui.config.ts",
     "dev:ui": "vite --config vite.ui.config.ts",
     "demo": "bun scripts/demo.ts",
@@ -442,7 +442,7 @@
     "check": "vp lint && vp fmt --check && bun run typecheck",
     "prepare": "husky || true",
     "test:bun": "bun test ./test/*.bun.test.ts",
-    "build:react": "vite build --config vite.react.config.ts && bun scripts/scope-embed-css.ts && tsc -p tsconfig.react.json",
+    "build:react": "vite build --config vite.react.config.ts && xtandard-kit scope-embed-css --scope xtandard-flags && tsc -p tsconfig.react.json",
     "docs:api": "typedoc",
     "docs:dev": "cd site && bun install && bun run dev",
     "docs:build": "cd site && bun install && bun run build",
@@ -452,6 +452,7 @@
     "examples:react-embed": "bun scripts/example.ts react-embed"
   },
   "dependencies": {
+    "@xtandard/kit": "^0.1.1",
     "ohash": "^2.0.11",
     "valibot": "^1.0.0",
     "wouter": "^3.10.0"

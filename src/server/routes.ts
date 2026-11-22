@@ -6,22 +6,22 @@
  * @module
  */
 
+import {
+  authenticate,
+  error,
+  HttpError,
+  json,
+  mapError as kitMapError,
+  match as kitMatch,
+  type ErrorMap,
+} from "@xtandard/kit/server";
 import type { AuthProvider, Principal } from "../auth/contract.ts";
 import type {
   AuthorizationProvider,
   FlagsAction,
   FlagsResource,
 } from "../authorization/contract.ts";
-import {
-  FlagValidationError,
-  NotFoundError,
-  ReadonlyError,
-  SegmentValidationError,
-  SnapshotProtectedError,
-  type FlagsCore,
-} from "../core.ts";
-import { DraftValidationError } from "../validation.ts";
-import { HookDeniedError } from "../hooks/contract.ts";
+import type { FlagsCore } from "../core.ts";
 import type { EvaluationErrorReporter, EvaluationListener } from "../evaluation-sink.ts";
 import { emitEvaluation } from "../evaluation-sink.ts";
 import type { FlagEvaluationResult } from "../core.ts";
@@ -78,30 +78,34 @@ function emitOfrepEvaluations(
   }
 }
 
-const json = (data: unknown, status = 200): Response =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
+/** A stored key segment: flag, segment and generated snapshot-version keys all match it. */
+const KEY_SEGMENT = /^[a-zA-Z0-9._-]+$/;
 
-const error = (status: number, message: string, extra?: Record<string, unknown>): Response =>
-  json({ error: message, ...extra }, status);
-
-interface Matched {
-  params: Record<string, string>;
+/**
+ * Whether a path parameter can name a stored key. Flag, segment and snapshot
+ * keys are validated (or generated) on create, so they must match
+ * {@link KEY_SEGMENT}. Project and environment keys are not validated on
+ * create, so only values no storage could keep distinct are refused: empty,
+ * `.`/`..`, a `/`, or leading/trailing whitespace (on MySQL's PAD SPACE
+ * collation `"v1 "` would read and write `"v1"`).
+ */
+function storableParam(name: string, value: string): boolean {
+  if (name === "projectKey" || name === "environmentKey") {
+    return value !== "" && !/^\.+$/.test(value) && !value.includes("/") && value.trim() === value;
+  }
+  return KEY_SEGMENT.test(value) && !/^\.+$/.test(value);
 }
 
-/** Match `pattern` (with `:name` segments) against `path`. */
-function match(pattern: string, path: string): Matched | null {
-  const pp = pattern.split("/").filter(Boolean);
-  const ap = path.split("/").filter(Boolean);
-  if (pp.length !== ap.length) return null;
-  const params: Record<string, string> = {};
-  for (let i = 0; i < pp.length; i++) {
-    const seg = pp[i]!;
-    const val = ap[i]!;
-    if (seg.startsWith(":")) params[seg.slice(1)] = decodeURIComponent(val);
-    else if (seg !== val) return null;
+/**
+ * Match `pattern` (with `:name` segments) against `path` (the kit's `match`: a
+ * malformed `%` escape is no match). A parameter that could never name a
+ * stored key is a 404 before it reaches storage ({@link storableParam}).
+ */
+function match(pattern: string, path: string): { params: Record<string, string> } | null {
+  const params = kitMatch(pattern, path);
+  if (!params) return null;
+  for (const [name, value] of Object.entries(params)) {
+    if (!storableParam(name, value)) throw new HttpError(404, "Not found");
   }
   return { params };
 }
@@ -144,11 +148,13 @@ export async function handleApiRequest(
   }
 
   // --- Authentication ---
-  let principal: Principal | null = null;
+  // A throwing auth provider is a backend failure (IdP down, DB error) —
+  // surfaced as 500, not a misleading 401. `null` means "no valid credentials".
+  let principal: Principal | null;
   try {
-    principal = await ctx.auth.authenticate(request);
-  } catch {
-    principal = null;
+    ({ principal } = await authenticate(request, { auth: ctx.auth }));
+  } catch (err) {
+    return mapError(err);
   }
 
   // Public bootstrap config (whether the client should show a login, etc.).
@@ -631,6 +637,12 @@ export async function handleApiRequest(
       const url = new URL(request.url);
       const projectKey = url.searchParams.get("projectKey") ?? undefined;
       const environmentKey = url.searchParams.get("environmentKey") ?? undefined;
+      if (
+        (projectKey !== undefined && !storableParam("projectKey", projectKey)) ||
+        (environmentKey !== undefined && !storableParam("environmentKey", environmentKey))
+      ) {
+        return error(404, "Not found");
+      }
       const ofrepContext = async (): Promise<Record<string, unknown>> => {
         const parsed = await body<{ context?: Record<string, unknown> }>().catch(
           () => ({}) as { context?: Record<string, unknown> },
@@ -713,39 +725,25 @@ export async function handleApiRequest(
 }
 
 /**
- * A hook denial, detected by `name` rather than `instanceof`: a hook thrown from
- * a separate subpath bundle (e.g. `hooks/test-gate`) carries its own copy of the
- * `HookDeniedError` class, so `instanceof` would miss it and mis-map the denial
- * to 500. Returns the status to respond with, or `null` if not a denial.
+ * The flags error contract (status + `code`). Errors are matched by `name`, so
+ * a class copy from another bundle still maps; `HookDeniedError` (its own
+ * status, `HOOK_DENIED`), `HttpError` and `SyntaxError` (400) are kit built-ins.
  */
-function hookDeniedStatus(err: unknown): number | null {
-  if (err instanceof HookDeniedError) return err.status;
-  if (err instanceof Error && err.name === "HookDeniedError") {
-    const status = (err as { status?: unknown }).status;
-    return typeof status === "number" ? status : 403;
-  }
-  return null;
-}
+const validation = {
+  status: 422,
+  code: "VALIDATION",
+  extra: (err: Error) => ({ errors: (err as Error & { errors?: unknown }).errors }),
+};
+const ERRORS: ErrorMap = {
+  ReadonlyError: { status: 403, code: "READONLY" },
+  NotFoundError: { status: 404 },
+  SnapshotProtectedError: { status: 409, code: "SNAPSHOT_PROTECTED" },
+  FlagValidationError: validation,
+  SegmentValidationError: validation,
+  DraftValidationError: validation,
+};
 
 /** Map domain errors to HTTP responses. */
 function mapError(err: unknown): Response {
-  if (err instanceof ReadonlyError) return error(403, err.message, { code: "READONLY" });
-  const denied = hookDeniedStatus(err);
-  if (denied !== null) return error(denied, (err as Error).message, { code: "HOOK_DENIED" });
-  if (err instanceof NotFoundError) return error(404, err.message);
-  if (err instanceof SnapshotProtectedError) {
-    return error(409, err.message, { code: "SNAPSHOT_PROTECTED" });
-  }
-  if (err instanceof FlagValidationError) {
-    return error(422, err.message, { code: "VALIDATION", errors: err.errors });
-  }
-  if (err instanceof SegmentValidationError) {
-    return error(422, err.message, { code: "VALIDATION", errors: err.errors });
-  }
-  if (err instanceof DraftValidationError) {
-    return error(422, err.message, { code: "VALIDATION", errors: err.errors });
-  }
-  if (err instanceof SyntaxError) return error(400, "Invalid JSON body");
-  const message = err instanceof Error ? err.message : "Internal error";
-  return error(500, message);
+  return kitMapError(err, ERRORS);
 }

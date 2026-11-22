@@ -160,6 +160,17 @@ describe("cli", () => {
     expect(err.join("")).toContain("Error:");
   });
 
+  test("an unknown storage driver is an error, not a silent file store", async () => {
+    process.env.SOURCE_STORAGE_DRIVER = "redsi";
+    expect(await run(["init"])).toBe(1);
+    expect(err.join("")).toMatch(/redsi/);
+  });
+
+  test("an empty driver variable counts as unset (the file default)", async () => {
+    process.env.SOURCE_STORAGE_DRIVER = "";
+    expect(await run(["init"])).toBe(0);
+  });
+
   test("memory driver path works for init", async () => {
     process.env.SOURCE_STORAGE_DRIVER = "memory";
     process.env.RUNTIME_STORAGE_DRIVER = "memory";

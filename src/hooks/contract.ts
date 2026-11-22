@@ -25,6 +25,12 @@
  * @module
  */
 
+import {
+  createHookErrorReporter,
+  type HookErrorReporter as KitHookErrorReporter,
+  type Hooks,
+  type HooksInput,
+} from "@xtandard/kit/hooks";
 import type { Actor, AuditEntry, Draft, Flag, Segment, Snapshot } from "../schema.ts";
 
 /**
@@ -159,97 +165,27 @@ export type BeforeEventType = BeforeEvent["type"];
 export type AfterEventType = AfterEvent["type"];
 
 /**
- * Thrown from a {@link FlagsHooks.before} handler to **deny** a mutation with a
- * clean HTTP status (default `403`). Any thrown error denies the mutation, but
- * a plain `Error` maps to `500` at the API layer (treated as an unexpected
- * bug); throw this to signal a deliberate policy rejection (`403`, or a custom
- * `status` such as `409`/`422`).
- *
- * @example
- * ```ts
- * before(event) {
- *   if (event.type === "publish" && isFrozen()) {
- *     throw new HookDeniedError("Publishing is frozen until Jan 2.");
- *   }
- * }
- * ```
+ * The hooks runner is `@xtandard/kit/hooks`: `HookDeniedError` (thrown from a
+ * `before` hook to deny a mutation with a clean HTTP status, default `403`),
+ * `normalizeHooks`, `runBefore` (sequential; the first throw aborts) and
+ * `runAfter` (concurrent; errors are isolated and reported).
  */
-export class HookDeniedError extends Error {
-  /** HTTP status the API layer should respond with. Default `403`. */
-  readonly status: number;
-  constructor(message: string, options?: { status?: number; cause?: unknown }) {
-    super(message, options?.cause !== undefined ? { cause: options.cause } : undefined);
-    this.name = "HookDeniedError";
-    this.status = options?.status ?? 403;
-  }
-}
+export { HookDeniedError, normalizeHooks, runAfter, runBefore } from "@xtandard/kit/hooks";
 
 /**
  * A control-plane hook. Implement `before`, `after`, or both. Pass one — or an
- * array — to {@link ../core.createFlagsCore} via `hooks`.
+ * array — to `createFlagsCore` via `hooks`. `before` runs before a mutation
+ * commits (**throw to deny**); `after` runs once it has committed, for side
+ * effects only (errors are isolated and reported via `onHookError`).
  */
-export interface FlagsHooks {
-  /**
-   * Runs before a mutation commits. **Throw to deny** (the error propagates to
-   * the caller; its message is the reason). Return/resolve to allow. Must not
-   * mutate the event payload.
-   */
-  before?(event: BeforeEvent): void | Promise<void>;
-  /**
-   * Runs after a mutation commits. For side effects only. Errors are isolated
-   * and reported via `onHookError` — they never fail the (already committed)
-   * operation.
-   */
-  after?(event: AfterEvent): void | Promise<void>;
-}
+export type FlagsHooks = Hooks<BeforeEvent, AfterEvent>;
 
 /** Accepts a single hook, an array, or nothing. */
-export type FlagsHooksInput = FlagsHooks | readonly FlagsHooks[] | undefined;
+export type FlagsHooksInput = HooksInput<BeforeEvent, AfterEvent>;
 
 /** Reports an error thrown by an `after` hook. */
-export type HookErrorReporter = (error: unknown, event: AfterEvent) => void;
-
-/** Normalize the `hooks` option into a flat array (empty when unset). */
-export function normalizeHooks(input: FlagsHooksInput): FlagsHooks[] {
-  if (!input) return [];
-  return Array.isArray(input) ? [...input] : [input as FlagsHooks];
-}
-
-/**
- * Run every `before` hook sequentially, in order. The first hook to throw
- * aborts: the error propagates to the caller (denying the mutation) and no
- * later hook runs. A no-op when there are no `before` hooks.
- */
-export async function runBefore(hooks: FlagsHooks[], event: BeforeEvent): Promise<void> {
-  for (const hook of hooks) {
-    if (hook.before) await hook.before(event);
-  }
-}
-
-/**
- * Run every `after` hook, isolating failures. The mutation has already
- * committed, so a throwing hook must not fail the operation — its error is
- * routed to `onError` and swallowed. Remaining hooks still run.
- */
-export async function runAfter(
-  hooks: FlagsHooks[],
-  event: AfterEvent,
-  onError: HookErrorReporter,
-): Promise<void> {
-  await Promise.all(
-    hooks.map(async (hook) => {
-      if (!hook.after) return;
-      try {
-        await hook.after(event);
-      } catch (error) {
-        onError(error, event);
-      }
-    }),
-  );
-}
+export type HookErrorReporter = KitHookErrorReporter<AfterEvent>;
 
 /** Default `after`-hook error reporter: warn, but never throw. */
-export const defaultHookErrorReporter: HookErrorReporter = (error, event) => {
-  // eslint-disable-next-line no-console
-  console.warn(`[@xtandard/flags] after-hook for "${event.type}" threw:`, error);
-};
+export const defaultHookErrorReporter: HookErrorReporter =
+  createHookErrorReporter("@xtandard/flags");

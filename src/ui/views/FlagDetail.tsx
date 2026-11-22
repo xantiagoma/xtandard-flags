@@ -24,16 +24,23 @@ import type {
 } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
 import { createFlag, updateFlag, listSegments, listFlags } from "../api.ts";
-import { useToast } from "../components/Toast.tsx";
+import {
+  useToast,
+  clearNavBlocker,
+  setNavBlocker,
+  Button,
+  Badge,
+  ToggleSwitch,
+  Segmented,
+  Dropdown,
+  TextInput,
+  cn,
+} from "@xtandard/kit/ui";
 import { TestTargeting } from "../components/TestTargeting.tsx";
 import { TagInput } from "../components/TagInput.tsx";
 import { ConditionTree } from "../components/ConditionTree.tsx";
 import { JsonCodeEditor } from "../components/JsonCodeEditor.tsx";
 import { renameVariantInFlag } from "../lib/variants.ts";
-import { clearNavBlocker, setNavBlocker } from "../lib/nav-guard.ts";
-import { Button, Badge } from "../components/ui-bits.tsx";
-import { ToggleSwitch, Segmented, Dropdown, TextInput } from "../components/primitives.tsx";
-import { cn } from "../lib/utils.ts";
 
 interface Props {
   flag: Flag | null;

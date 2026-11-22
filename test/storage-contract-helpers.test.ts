@@ -40,7 +40,7 @@ describe("storage capability feature-detection", () => {
 describe("requirePeer", () => {
   test("throws an actionable install message", () => {
     expect(() => requirePeer("redis", "storage/redis")).toThrow(
-      /@xtandard\/flags\/storage\/redis requires the "redis" package/,
+      /@xtandard\/flags\/storage\/redis requires the optional peer "redis"/,
     );
     expect(() => requirePeer("redis", "storage/redis")).toThrow(/bun add redis/);
   });

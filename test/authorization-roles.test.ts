@@ -1,7 +1,6 @@
 import { describe, expect, test } from "vitest";
 import type { Principal } from "../src/auth/contract.ts";
 import type { AuthorizeInput, FlagsAction, FlagsResource } from "../src/authorization/contract.ts";
-import { delegatedAuthorization } from "../src/authorization/delegated.ts";
 import {
   ALL_ACTIONS,
   DEFAULT_ROLE_POLICY,
@@ -47,15 +46,6 @@ describe("rolesAuthorization (default policy)", () => {
     expect(await authz.authorize(input(editor, "flag:update"))).toBe(true);
     expect(await authz.authorize(input(editor, "snapshot:publish"))).toBe(true);
   });
-
-  test("null principal is denied", async () => {
-    expect(await authz.authorize(input(null, "flag:read"))).toBe(false);
-  });
-
-  test("principal with no matching role is denied", async () => {
-    expect(await authz.authorize(input({ id: "x", roles: ["nobody"] }, "flag:read"))).toBe(false);
-    expect(await authz.authorize(input({ id: "x" }, "flag:read"))).toBe(false);
-  });
 });
 
 describe("rolesAuthorization (readonly)", () => {
@@ -85,25 +75,5 @@ describe("rolesAuthorization (custom policy)", () => {
   test("DEFAULT_ROLE_POLICY exposes admin/editor/viewer", () => {
     expect(DEFAULT_ROLE_POLICY.admin).toBe("*");
     expect(DEFAULT_ROLE_POLICY.viewer).toEqual([...READ_ACTIONS]);
-  });
-});
-
-describe("delegatedAuthorization", () => {
-  test("allows when the delegate returns true", async () => {
-    const authz = delegatedAuthorization({ authorize: () => true });
-    expect(await authz.authorize(input(null, "flag:update"))).toBe(true);
-  });
-
-  test("denies when the delegate returns false", async () => {
-    const authz = delegatedAuthorization({ authorize: () => false });
-    expect(await authz.authorize(input(admin, "flag:read"))).toBe(false);
-  });
-
-  test("normalizes an async delegate and receives the input", async () => {
-    const authz = delegatedAuthorization({
-      authorize: async ({ action }) => action === "flag:read",
-    });
-    expect(await authz.authorize(input(admin, "flag:read"))).toBe(true);
-    expect(await authz.authorize(input(admin, "flag:update"))).toBe(false);
   });
 });

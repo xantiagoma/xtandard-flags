@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { portalContainerRef } from "../lib/portal-container.ts";
+import { portalContainerRef, useToast, Button, TextInput } from "@xtandard/kit/ui";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@base-ui-components/react/dialog";
 import {
@@ -13,9 +13,6 @@ import {
 } from "../api.ts";
 import type { Flag, Segment, SnapshotSummary } from "../types.ts";
 import { FlagsApiError } from "../types.ts";
-import { useToast } from "../components/Toast.tsx";
-import { Button } from "../components/ui-bits.tsx";
-import { TextInput } from "../components/primitives.tsx";
 import { JsonCodeEditor } from "../components/JsonCodeEditor.tsx";
 
 interface Props {

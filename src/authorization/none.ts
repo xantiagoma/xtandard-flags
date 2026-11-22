@@ -12,7 +12,8 @@
  * @module
  */
 
-import type { AuthorizationProvider, AuthorizeInput } from "./contract.ts";
+import { noAuthorization as kitNoAuthorization } from "@xtandard/kit/authorization/none";
+import type { AuthorizationProvider } from "./contract.ts";
 
 /**
  * Create an {@link AuthorizationProvider} that authorizes everything.
@@ -26,9 +27,5 @@ import type { AuthorizationProvider, AuthorizeInput } from "./contract.ts";
  * ```
  */
 export function noAuthorization(): AuthorizationProvider {
-  return {
-    async authorize(_input: AuthorizeInput): Promise<boolean> {
-      return true;
-    },
-  };
+  return kitNoAuthorization();
 }

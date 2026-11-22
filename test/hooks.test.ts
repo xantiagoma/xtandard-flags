@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import { createFlagsCore } from "../src/core.ts";
 import type { AfterEvent, BeforeEvent, FlagsHooks } from "../src/hooks/contract.ts";
-import { HookDeniedError, normalizeHooks } from "../src/hooks/contract.ts";
+import { HookDeniedError } from "../src/hooks/contract.ts";
 import { createFetchHandler } from "../src/server/create-fetch-handler.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
 import { booleanFlag } from "./fixtures.ts";
@@ -33,13 +33,6 @@ function recorder() {
 }
 
 describe("hooks — normalization", () => {
-  test("normalizeHooks handles undefined / single / array", () => {
-    const h: FlagsHooks = {};
-    expect(normalizeHooks(undefined)).toEqual([]);
-    expect(normalizeHooks(h)).toEqual([h]);
-    expect(normalizeHooks([h, h])).toEqual([h, h]);
-  });
-
   test("core.options.hooks is always a normalized array", () => {
     expect(makeCore().options.hooks).toEqual([]);
     const h: FlagsHooks = {};

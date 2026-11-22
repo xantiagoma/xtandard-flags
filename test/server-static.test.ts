@@ -4,8 +4,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createFetchHandler } from "../src/server/create-fetch-handler.ts";
 import { createMemoryStorage } from "../src/storage/memory.ts";
-import { looksLikeAsset, serveStaticAsset } from "../src/server/static-assets.ts";
-import { renderIndexHtml } from "../src/server/render-index-html.ts";
 
 let uiDir: string;
 let emptyDir: string;
@@ -74,64 +72,5 @@ describe("static assets via fetch handler", () => {
     expect(html).toContain("Fallback Title");
     expect(html).toContain("bun run build:ui");
     expect(html).toContain("__FLAGS_CONFIG__");
-  });
-});
-
-describe("serveStaticAsset directly", () => {
-  test("path traversal is refused (returns null)", async () => {
-    const res = await serveStaticAsset(uiDir, "/../../etc/passwd");
-    expect(res).toBeNull();
-  });
-
-  test("returns null for a non-existent file", async () => {
-    expect(await serveStaticAsset(uiDir, "/nope.js")).toBeNull();
-  });
-
-  test("unknown extension falls back to octet-stream", async () => {
-    await writeFile(join(uiDir, "data.bin"), "x", "utf8");
-    const res = await serveStaticAsset(uiDir, "/data.bin");
-    expect(res?.headers.get("content-type")).toBe("application/octet-stream");
-  });
-});
-
-describe("renderIndexHtml", () => {
-  const cfg = {
-    title: "T",
-    basePath: "",
-    readonly: false,
-    defaultProjectKey: "default",
-    defaultEnvironmentKey: "production",
-  };
-
-  test("prepends tags when index.html has no <head>", async () => {
-    await writeFile(join(uiDir, "index.html"), "<div id=root></div>", "utf8");
-    const html = await renderIndexHtml(uiDir, cfg);
-    expect(html.startsWith('<base href="/">')).toBe(true);
-    expect(html).toContain("__FLAGS_CONFIG__");
-    expect(html).toContain("<div id=root></div>");
-  });
-
-  test("escapes < and > in the injected config to prevent script breakout", async () => {
-    await writeFile(join(uiDir, "index.html"), "<head></head>", "utf8");
-    const html = await renderIndexHtml(uiDir, { ...cfg, title: "</script><x>" });
-    expect(html).not.toContain("</script><x>");
-    expect(html).toContain("\\u003c");
-  });
-
-  test("falls back to the built-in page when index.html is missing", async () => {
-    const html = await renderIndexHtml(emptyDir, { ...cfg, title: "Built-in" });
-    expect(html).toContain("Built-in");
-    expect(html).toContain("bun run build:ui");
-  });
-});
-
-describe("looksLikeAsset", () => {
-  test("true for paths whose last segment has a dot", () => {
-    expect(looksLikeAsset("/assets/app.js")).toBe(true);
-    expect(looksLikeAsset("/favicon.ico")).toBe(true);
-  });
-  test("false for extensionless paths", () => {
-    expect(looksLikeAsset("/some/route")).toBe(false);
-    expect(looksLikeAsset("/")).toBe(false);
   });
 });

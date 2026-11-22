@@ -10,6 +10,7 @@
  * @module
  */
 
+import { delegatedAuthorization as kitDelegated } from "@xtandard/kit/authorization/delegated";
 import type { AuthorizationProvider, AuthorizeInput } from "./contract.ts";
 
 /** Options for {@link delegatedAuthorization}. */
@@ -37,9 +38,5 @@ export interface DelegatedAuthorizationOptions {
 export function delegatedAuthorization(
   options: DelegatedAuthorizationOptions,
 ): AuthorizationProvider {
-  return {
-    async authorize(input: AuthorizeInput): Promise<boolean> {
-      return await options.authorize(input);
-    },
-  };
+  return kitDelegated(options);
 }

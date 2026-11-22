@@ -1,3 +1,5 @@
+import { ApiError as KitApiError, type ApiErrorBody } from "@xtandard/kit/ui";
+
 export type FlagType = "boolean" | "string" | "number" | "json";
 
 export interface Variant {
@@ -164,19 +166,10 @@ export interface AuditEntry {
   flagKey?: string;
 }
 
-export interface ApiError {
-  status: number;
-  error: string;
-  code?: string;
-  errors?: { path?: string; message: string }[];
-}
+/** The JSON error body the API answers with (`{ error, code?, errors? }` plus the status). */
+export type ApiError = ApiErrorBody;
 
-export class FlagsApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly body: ApiError,
-  ) {
-    super(body.error);
-    this.name = "FlagsApiError";
-  }
+/** A non-2xx API response, with the real HTTP `status` and the parsed `body`. */
+export class FlagsApiError extends KitApiError {
+  override name = "FlagsApiError";
 }

@@ -1,15 +1,19 @@
 import React, { useState } from "react";
-import { portalContainerRef } from "../lib/portal-container.ts";
+import {
+  portalContainerRef,
+  useToast,
+  Button,
+  Badge,
+  ToggleSwitch,
+  TextInput,
+  cn,
+} from "@xtandard/kit/ui";
 import { useSearchParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Search, Plus, ChevronRight, Flag, Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { Dialog } from "@base-ui-components/react/dialog";
 import type { Flag as FlagType, FlagType as FlagKind } from "../types.ts";
 import { listFlags, updateFlag, archiveFlag, restoreFlag, deleteFlag } from "../api.ts";
-import { useToast } from "../components/Toast.tsx";
-import { Button, Badge } from "../components/ui-bits.tsx";
-import { ToggleSwitch, TextInput } from "../components/primitives.tsx";
-import { cn } from "../lib/utils.ts";
 import { isStale, scheduleStatus, staleCount } from "../lib/lifecycle.ts";
 import { FlagDetail } from "./FlagDetail.tsx";
 import { CreateFlagModal } from "./CreateFlagModal.tsx";

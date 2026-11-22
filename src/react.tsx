@@ -18,21 +18,17 @@
  * @module react
  */
 
-import React from "react";
-import type { BaseLocationHook } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
-import { useBrowserLocation } from "wouter/use-browser-location";
-import { memoryLocation } from "wouter/memory-location";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type React from "react";
+import type { QueryClient } from "@tanstack/react-query";
+import { createEmbed, type EmbedBaseProps, type EmbedRouting } from "@xtandard/kit/ui/embed";
+import type { FetchLike, ThemeMode } from "@xtandard/kit/ui";
 import { App } from "./ui/App.tsx";
-import { ToastProvider } from "./ui/components/Toast.tsx";
-import { setApiBase, type FetchLike } from "./ui/api.ts";
-import { setPortalContainerRef } from "./ui/lib/portal-container.ts";
-import { ThemeProvider, type ThemeMode } from "./ui/lib/theme-context.tsx";
+import * as api from "./ui/api.ts";
+import { themeStore } from "./ui/theme.ts";
 import "./ui/styles.css";
 
 /** Props for {@link FlagsDashboard}. */
-export interface FlagsDashboardProps {
+export interface FlagsDashboardProps extends EmbedBaseProps {
   /**
    * Base URL where the panel API + `/config` are mounted (e.g. `"/flags"` or
    * `"https://admin.example.com/flags"`). Defaults to `""` (same origin, relative).
@@ -77,7 +73,7 @@ export interface FlagsDashboardProps {
    * - `"memory"` — in-memory only; no URL coupling at all.
    * - a custom wouter location hook for full control.
    */
-  routing?: "hash" | "browser" | "memory" | BaseLocationHook;
+  routing?: EmbedRouting;
   /** Base path the panel is mounted at, used by `routing: "browser"` (e.g. `"/admin/flags"`). */
   routerBase?: string;
   /** Navbar logo image URL (replaces the title wordmark). Overrides server `/config`. */
@@ -93,76 +89,23 @@ export interface FlagsDashboardProps {
   initialEnvironmentKey?: string;
 }
 
-let fallbackClient: QueryClient | undefined;
-function getClient(): QueryClient {
-  fallbackClient ??= new QueryClient({
-    defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
-  });
-  return fallbackClient;
-}
+/**
+ * The shared embed plumbing (`@xtandard/kit/ui/embed`): one theme per embed on
+ * the `.xtandard-flags` wrapper, toasts and Base UI portals inside it, and the
+ * memory router keeping its query string.
+ */
+const embed = createEmbed<{ initialProjectKey?: string; initialEnvironmentKey?: string }>({
+  App,
+  scopeClass: "xtandard-flags",
+  api,
+  themeKey: themeStore,
+  displayNames: { dashboard: "FlagsDashboard" },
+});
 
 /** The full feature-flag admin dashboard as an embeddable React component. */
-export function FlagsDashboard({
-  apiBaseUrl = "",
-  credentials,
-  fetch: fetchImpl,
-  queryClient,
-  theme = "auto",
-  className,
-  routing = "hash",
-  routerBase = "",
-  logoUrl,
-  initialProjectKey,
-  initialEnvironmentKey,
-}: FlagsDashboardProps): React.ReactElement {
-  // Set the API base synchronously so child queries (run on mount) use it.
-  setApiBase(apiBaseUrl, { credentials, fetch: fetchImpl });
-
-  const client = queryClient ?? getClient();
-
-  // Point Base UI portals (Select/Combobox popups, Dialogs) at the scoped
-  // wrapper so they render inside `.xtandard-flags` — the embed stylesheet is
-  // scoped, so anything portaled to document.body would be unstyled.
-  const wrapperRef = React.useRef<HTMLDivElement>(null);
-  setPortalContainerRef(wrapperRef);
-
-  // Resolve the routing strategy to a wouter location hook (+ base). The memory
-  // hook is created once so its in-memory history survives re-renders.
-  const memoryHook = React.useMemo(() => memoryLocation().hook, []);
-  const { hook, base } = React.useMemo(() => {
-    if (typeof routing === "function") return { hook: routing, base: routerBase };
-    if (routing === "browser") return { hook: useBrowserLocation, base: routerBase };
-    if (routing === "memory") return { hook: memoryHook, base: "" };
-    return { hook: useHashLocation, base: "" };
-  }, [routing, routerBase, memoryHook]);
-
-  return (
-    <QueryClientProvider client={client}>
-      <ThemeProvider mode={theme}>
-        {(resolved) => (
-          <div
-            ref={wrapperRef}
-            data-theme={resolved}
-            className={className ? `xtandard-flags ${className}` : "xtandard-flags"}
-          >
-            {/* Inside the wrapper so the toast region gets the scoped styles + theme. */}
-            <ToastProvider>
-              <App
-                locationHook={hook}
-                base={base}
-                logoUrl={logoUrl}
-                initialProjectKey={initialProjectKey}
-                initialEnvironmentKey={initialEnvironmentKey}
-              />
-            </ToastProvider>
-          </div>
-        )}
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
-}
+export const FlagsDashboard: React.FC<FlagsDashboardProps> = embed.Dashboard;
 
 export { setApiBase } from "./ui/api.ts";
 export { setThemePref, getThemePref, type ThemePref, type ResolvedTheme } from "./ui/theme.ts";
-export type { ThemeMode } from "./ui/lib/theme-context.tsx";
+export type { FetchLike, ThemeMode };
 export default FlagsDashboard;

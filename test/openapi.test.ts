@@ -1,3 +1,4 @@
+import pkg from "../package.json" with { type: "json" };
 import { describe, expect, test } from "vitest";
 import { buildOpenApiDocument } from "../src/server/openapi.ts";
 import { createFetchHandler } from "../src/server/create-fetch-handler.ts";
@@ -11,7 +12,7 @@ describe("buildOpenApiDocument", () => {
     expect(doc.openapi).toBe("3.1.0");
     const info = doc.info as { title: string; version: string };
     expect(info.title).toBe("@xtandard/flags Admin API");
-    expect(info.version).toBe("0.1.0");
+    expect(info.version).toBe(pkg.version); // the package version, not a hard-coded "0.1.0"
     expect(doc.servers).toEqual([{ url: "/" }]);
     expect(doc.paths).toBeDefined();
     expect(Object.keys(doc.paths as object).length).toBeGreaterThan(0);

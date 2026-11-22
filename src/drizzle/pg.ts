@@ -6,7 +6,7 @@
  * shape (`key text PRIMARY KEY`, `value jsonb NOT NULL`); adding it to your
  * schema brings the flags table into your normal `drizzle-kit` generate/migrate
  * flow instead of an adapter-side `CREATE TABLE`. `extraColumns`/`extraIndexes`
- * mirror the `drizzle-audit` factories for when you want to extend it.
+ * extend it.
  *
  * @example
  * ```ts
@@ -20,44 +20,25 @@
  * @module
  */
 
-import type { BuildExtraConfigColumns } from "drizzle-orm";
-import {
-  jsonb,
-  pgSchema,
-  pgTable,
-  text,
-  type PgColumnBuilderBase,
-  type PgTableExtraConfigValue,
-} from "drizzle-orm/pg-core";
-import type { DrizzleKvTable } from "./table.ts";
+import { pgKvTable, type DrizzleKvTable, type PgKvTableOptions } from "@xtandard/kit/drizzle/pg";
 
-export type { DrizzleKvTable } from "./table.ts";
+export type { DrizzleKvTable } from "@xtandard/kit/drizzle/pg";
 
-/** The `self` passed to an {@link PgFlagsTableOptions.extraIndexes} callback. */
-type PgFlagsColumns = BuildExtraConfigColumns<string, Record<string, PgColumnBuilderBase>, "pg">;
-
-/** Options for {@link pgFlagsTable}. */
-export interface PgFlagsTableOptions {
-  /** Postgres schema (namespace) to place the table in. Defaults to the public schema. */
-  schema?: string;
-  /** Additional columns merged into the table (e.g. a tenant discriminator). */
-  extraColumns?: () => Record<string, PgColumnBuilderBase>;
-  /** Additional indexes/constraints; receives the built table for column references. */
-  extraIndexes?: (table: PgFlagsColumns) => PgTableExtraConfigValue[];
-}
+/**
+ * Options for {@link pgFlagsTable}: `schema` (Postgres namespace; default the
+ * public schema), `extraColumns`, `extraIndexes`, and `keyCollation` (default
+ * `null`: a plain `text` key, as every earlier release; `"C"` for bytewise,
+ * index-usable prefixes on new tables).
+ */
+export type PgFlagsTableOptions = PgKvTableOptions;
 
 /**
  * Build the Drizzle `pgTable` for the flags KV store. Base columns are fixed —
  * `key text PRIMARY KEY`, `value jsonb NOT NULL` — and required by
- * `createDrizzleStorage`; `schema`/`extraColumns`/`extraIndexes` extend it.
+ * `createDrizzleStorage`; `schema`/`extraColumns`/`extraIndexes` extend it. The
+ * key keeps the plain `text` type of earlier releases, so existing schemas see
+ * no `drizzle-kit` diff; prefix queries are exact either way.
  */
 export function pgFlagsTable(name: string, opts?: PgFlagsTableOptions): DrizzleKvTable {
-  const columns = {
-    key: text("key").primaryKey(),
-    value: jsonb("value").notNull(),
-    ...opts?.extraColumns?.(),
-  };
-  return opts?.schema
-    ? pgSchema(opts.schema).table(name, columns, opts.extraIndexes)
-    : pgTable(name, columns, opts?.extraIndexes);
+  return pgKvTable(name, { keyCollation: null, ...opts });
 }

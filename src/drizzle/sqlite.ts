@@ -4,7 +4,7 @@
  *
  * Base columns: `key text PRIMARY KEY`, `value text NOT NULL` in JSON mode
  * (Drizzle serializes/parses transparently). `extraColumns`/`extraIndexes`
- * mirror `drizzle-audit`.
+ * extend it.
  *
  * @example
  * ```ts
@@ -15,42 +15,21 @@
  * @module
  */
 
-import type { BuildColumns } from "drizzle-orm";
 import {
-  sqliteTable,
-  text,
-  type SQLiteColumnBuilderBase,
-  type SQLiteTableExtraConfigValue,
-} from "drizzle-orm/sqlite-core";
-import type { DrizzleKvTable } from "./table.ts";
+  sqliteKvTable,
+  type DrizzleKvTable,
+  type SqliteKvTableOptions,
+} from "@xtandard/kit/drizzle/sqlite";
 
-export type { DrizzleKvTable } from "./table.ts";
+export type { DrizzleKvTable } from "@xtandard/kit/drizzle/sqlite";
 
-/** The `self` passed to an {@link SqliteFlagsTableOptions.extraIndexes} callback. */
-type SqliteFlagsColumns = BuildColumns<string, Record<string, SQLiteColumnBuilderBase>, "sqlite">;
-
-/** Options for {@link sqliteFlagsTable}. */
-export interface SqliteFlagsTableOptions {
-  /** Additional columns merged into the table. */
-  extraColumns?: () => Record<string, SQLiteColumnBuilderBase>;
-  /** Additional indexes/constraints; receives the built table for column references. */
-  extraIndexes?: (table: SqliteFlagsColumns) => SQLiteTableExtraConfigValue[];
-}
+/** Options for {@link sqliteFlagsTable}: `extraColumns` and `extraIndexes`. */
+export type SqliteFlagsTableOptions = SqliteKvTableOptions;
 
 /**
- * Build the SQLite `sqliteTable` for the flags KV store: `key text PRIMARY KEY`,
- * `value text NOT NULL` (JSON mode).
+ * Build the Drizzle `sqliteTable` for the flags KV store: `key text PRIMARY
+ * KEY`, `value text NOT NULL` (JSON mode).
  */
 export function sqliteFlagsTable(name: string, opts?: SqliteFlagsTableOptions): DrizzleKvTable {
-  const columns = {
-    key: text("key").primaryKey(),
-    value: text("value", { mode: "json" }).notNull(),
-    ...opts?.extraColumns?.(),
-  };
-  // Cast to the exact `self` type Drizzle infers from `columns` — the public
-  // `extraIndexes` type uses a generic column map, which is a supertype.
-  const extraConfig = opts?.extraIndexes as
-    | ((self: BuildColumns<string, typeof columns, "sqlite">) => SQLiteTableExtraConfigValue[])
-    | undefined;
-  return sqliteTable(name, columns, extraConfig);
+  return sqliteKvTable(name, opts);
 }

@@ -1,10 +1,7 @@
 import React, { useState } from "react";
-import { portalContainerRef } from "../lib/portal-container.ts";
+import { portalContainerRef, Button, TextInput, cn } from "@xtandard/kit/ui";
 import { Dialog } from "@base-ui-components/react/dialog";
 import type { FlagType } from "../types.ts";
-import { Button } from "../components/ui-bits.tsx";
-import { TextInput } from "../components/primitives.tsx";
-import { cn } from "../lib/utils.ts";
 
 interface Props {
   open: boolean;

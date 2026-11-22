@@ -1,9 +1,27 @@
 import React, { useState } from "react";
-import { portalContainerRef } from "./lib/portal-container.ts";
-import { Router, Switch, Route, useLocation, useSearchParams, type BaseLocationHook } from "wouter";
+import {
+  BrandMark,
+  Button,
+  ConfigError,
+  CreatableCombobox,
+  canLeave,
+  cn,
+  portalContainerRef,
+  readConfigGlobal,
+  ShellFrame,
+  TextInput,
+  useShellConfig,
+  useShellNav,
+  useTheme,
+  useToast,
+  type ShellAppProps,
+} from "@xtandard/kit/ui";
+import { Router, Switch, Route, useSearchParams } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CloudUpload, Lock, Undo2 } from "lucide-react";
+import symbolSvg from "./public/symbol.svg?raw";
+import symbolLightSvg from "./public/symbol-light.svg?raw";
+import { CloudUpload, Undo2 } from "lucide-react";
 import type { FlagsConfig } from "./types.ts";
 import { FlagsApiError } from "./types.ts";
 import {
@@ -16,19 +34,11 @@ import {
   createProject,
   createEnvironment,
 } from "./api.ts";
-import { useToast } from "./components/Toast.tsx";
-import { Button } from "./components/ui-bits.tsx";
-import { BrandMark } from "./components/BrandMark.tsx";
-import { ThemeToggle } from "./components/ThemeToggle.tsx";
 import { FlagsView } from "./views/FlagsView.tsx";
 import { SegmentsView } from "./views/SegmentsView.tsx";
 import { SnapshotsView } from "./views/SnapshotsView.tsx";
 import { AuditView } from "./views/AuditView.tsx";
-import { cn } from "./lib/utils.ts";
-import { canLeave } from "./lib/nav-guard.ts";
-import { useTheme } from "./lib/theme-context.tsx";
 import { Dialog } from "@base-ui-components/react/dialog";
-import { TextInput, CreatableCombobox } from "./components/primitives.tsx";
 
 // Nav tabs map to route paths. "flags" is the index ("/").
 const NAV_TABS: { path: string; label: string; match: (loc: string) => boolean }[] = [
@@ -38,15 +48,8 @@ const NAV_TABS: { path: string; label: string; match: (loc: string) => boolean }
   { path: "/audit", label: "Audit", match: (l) => l.startsWith("/audit") },
 ];
 
-declare global {
-  interface Window {
-    __FLAGS_CONFIG__?: FlagsConfig;
-  }
-}
-
-function getBootstrap(): Partial<FlagsConfig> {
-  return window.__FLAGS_CONFIG__ ?? {};
-}
+/** The bootstrap the panel handler injects (`window.__FLAGS_CONFIG__`); `{}` in an embed. */
+const getBootstrap = (): Partial<FlagsConfig> => readConfigGlobal<FlagsConfig>("__FLAGS_CONFIG__");
 
 const DIFF_TONE: Record<string, string> = {
   added: "text-success",
@@ -174,6 +177,14 @@ function PublishDialog({
   );
 }
 
+/** Props of {@link App}: the kit shell props plus the embed's initial scope. */
+export interface AppProps extends ShellAppProps {
+  /** Pre-select a project when the URL doesn't name one (embed hosts). */
+  initialProjectKey?: string;
+  /** Pre-select an environment when the URL doesn't name one (embed hosts). */
+  initialEnvironmentKey?: string;
+}
+
 /**
  * The dashboard, wrapped in a wouter {@link Router}. `locationHook` + `base` make
  * routing pluggable: the bundled SPA uses browser history (clean paths, served by
@@ -182,24 +193,22 @@ function PublishDialog({
  */
 export function App({
   locationHook,
+  searchHook,
   base = "",
   logoUrl,
+  showThemeToggle,
   initialProjectKey,
   initialEnvironmentKey,
-}: {
-  locationHook?: BaseLocationHook;
-  base?: string;
-  /** Override the navbar logo image (otherwise taken from server `/config`). */
-  logoUrl?: string;
-  /** Pre-select a project when the URL doesn't name one (embed hosts). */
-  initialProjectKey?: string;
-  /** Pre-select an environment when the URL doesn't name one (embed hosts). */
-  initialEnvironmentKey?: string;
-}): React.ReactElement {
+}: AppProps): React.ReactElement {
   return (
-    <Router hook={locationHook ?? useHashLocation} base={base}>
+    <Router
+      hook={locationHook ?? useHashLocation}
+      {...(searchHook ? { searchHook } : {})}
+      base={base}
+    >
       <AppShell
         logoUrl={logoUrl}
+        showThemeToggle={showThemeToggle}
         initialProjectKey={initialProjectKey}
         initialEnvironmentKey={initialEnvironmentKey}
       />
@@ -209,10 +218,12 @@ export function App({
 
 function AppShell({
   logoUrl,
+  showThemeToggle,
   initialProjectKey,
   initialEnvironmentKey,
 }: {
   logoUrl?: string;
+  showThemeToggle?: boolean;
   initialProjectKey?: string;
   initialEnvironmentKey?: string;
 }) {
@@ -220,7 +231,6 @@ function AppShell({
   const toast = useToast();
   const qc = useQueryClient();
 
-  const [location, navigate] = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [publishOpen, setPublishOpen] = useState(false);
 
@@ -236,15 +246,10 @@ function AppShell({
     "production";
 
   // Navigate to a path while preserving the project/env query. All in-app
-  // navigation funnels through these helpers, so they consult the nav guard —
-  // a view with unsaved edits (FlagDetail) can veto the move. wouter has no
-  // built-in blocker (see molefrog/wouter#452); guarding the entry points is the
-  // workaround. (Browser back/forward still isn't interceptable — known edge.)
-  const search = searchParams.toString();
-  const go = (path: string) => {
-    if (!canLeave()) return;
-    navigate(search ? `${path}?${search}` : path);
-  };
+  // navigation funnels through `go`, which consults the nav guard — a view with
+  // unsaved edits (FlagDetail) can veto the move. (Browser back/forward still
+  // isn't interceptable — known edge.)
+  const go = useShellNav({ stickyParams: ["project", "env"] });
 
   const setProjectKey = (key: string) => {
     if (!canLeave()) return;
@@ -269,21 +274,13 @@ function AppShell({
     );
   };
 
-  const configQuery = useQuery({
-    queryKey: ["config"],
-    queryFn: getConfig,
-    staleTime: 60_000,
-    initialData: bootstrap as FlagsConfig | undefined,
-  });
-
-  const config = configQuery.data ?? (bootstrap as FlagsConfig);
-  const readonly = config?.readonly ?? false;
+  const shell = useShellConfig<FlagsConfig>({ getConfig, bootstrap });
+  const config = shell.config;
+  const readonly = shell.readonly;
 
   // Branding: explicit props win, then server /config, then defaults.
-  const brandTitle = config?.title || "@xtandard/flags";
-  const brandLogoUrl = logoUrl ?? config?.logoUrl;
-  // Hidden when the embedding host owns the theme (`theme="inherit"`/fixed).
-  const showThemeToggle = useTheme().showToggle;
+  const brandTitle = config.title || "@xtandard/flags";
+  const brandLogoUrl = logoUrl ?? config.logoUrl;
 
   const projectsQuery = useQuery({
     queryKey: ["projects"],
@@ -371,124 +368,86 @@ function AppShell({
     onError: () => toast.add("error", "Failed to discard changes"),
   });
 
-  return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background">
-      {/* ── Top Nav ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
-          {/* Brand: a configured logoUrl shows as the logo; otherwise the
-              xtandard-flags symbol next to the title. */}
-          <div className="flex items-center gap-2 shrink-0">
-            {brandLogoUrl ? (
-              <img
-                src={brandLogoUrl}
-                alt={brandTitle}
-                className="h-7 max-w-[320px] object-contain"
-              />
-            ) : (
-              <>
-                <BrandMark className="h-5 w-auto" />
-                <span className="text-sm font-semibold tracking-tight">{brandTitle}</span>
-              </>
-            )}
-          </div>
+  const switcher = (
+    <>
+      {/* Project switcher (type to filter or create) */}
+      <CreatableCombobox
+        value={projectKey}
+        options={projectOptions}
+        onSelect={setProjectKey}
+        onCreate={(key) => createProjectMutation.mutate(key)}
+        disabled={readonly}
+        aria-label="Project"
+        placeholder="Project"
+        createLabel={(q) => `Create project "${q}"`}
+        className="w-40"
+      />
 
-          <span className="text-border select-none">/</span>
+      <span className="text-border select-none">/</span>
 
-          {/* Project switcher (type to filter or create) */}
-          <CreatableCombobox
-            value={projectKey}
-            options={projectOptions}
-            onSelect={setProjectKey}
-            onCreate={(key) => createProjectMutation.mutate(key)}
-            disabled={readonly}
-            aria-label="Project"
-            placeholder="Project"
-            createLabel={(q) => `Create project "${q}"`}
-            className="w-40"
-          />
+      {/* Environment switcher (type to filter or create) */}
+      <CreatableCombobox
+        value={environmentKey}
+        options={envOptions}
+        onSelect={setEnvironmentKey}
+        onCreate={(key) => createEnvMutation.mutate(key)}
+        disabled={readonly}
+        aria-label="Environment"
+        placeholder="Environment"
+        createLabel={(q) => `Create environment "${q}"`}
+        className="w-40"
+      />
+    </>
+  );
 
-          <span className="text-border select-none">/</span>
-
-          {/* Environment switcher (type to filter or create) */}
-          <CreatableCombobox
-            value={environmentKey}
-            options={envOptions}
-            onSelect={setEnvironmentKey}
-            onCreate={(key) => createEnvMutation.mutate(key)}
-            disabled={readonly}
-            aria-label="Environment"
-            placeholder="Environment"
-            createLabel={(q) => `Create environment "${q}"`}
-            className="w-40"
-          />
-
-          <div className="ml-auto flex items-center gap-2">
-            {readonly && (
-              <span className="flex items-center gap-1 rounded-md border border-warning/30 bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
-                <Lock className="size-3" />
-                Read-only
-              </span>
-            )}
-            {!readonly && hasChanges && (
-              <span
-                className="flex items-center gap-1.5 text-xs font-medium text-warning"
-                title="The draft differs from the published snapshot"
-              >
-                <span className="size-2 rounded-full bg-warning" aria-hidden />
-                {diff!.entries.length} unpublished
-              </span>
-            )}
-            {!readonly && hasChanges && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<Undo2 className="size-3.5" />}
-                onClick={() => setDiscardOpen(true)}
-              >
-                Discard
-              </Button>
-            )}
-            {!readonly && (
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<CloudUpload className="size-3.5" />}
-                onClick={() => setPublishOpen(true)}
-                disabled={!hasChanges}
-                title={hasChanges ? "Publish unpublished changes" : "Nothing to publish"}
-              >
-                Publish
-              </Button>
-            )}
-            {showThemeToggle && <ThemeToggle />}
-          </div>
-        </div>
-
-        {/* Nav tabs */}
-        <nav
-          className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto px-2 sm:px-4"
-          aria-label="Main navigation"
+  const publishControls = readonly ? null : (
+    <>
+      {hasChanges && (
+        <span
+          className="flex items-center gap-1.5 text-xs font-medium text-warning"
+          title="The draft differs from the published snapshot"
         >
-          {NAV_TABS.map(({ path, label, match }) => (
-            <button
-              key={path}
-              onClick={() => go(path)}
-              className={cn(
-                "whitespace-nowrap px-3 py-2.5 text-[13px] font-medium transition-colors",
-                match(location)
-                  ? "relative text-foreground after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-      </header>
+          <span className="size-2 rounded-full bg-warning" aria-hidden />
+          {diff!.entries.length} unpublished
+        </span>
+      )}
+      {hasChanges && (
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<Undo2 className="size-3.5" />}
+          onClick={() => setDiscardOpen(true)}
+        >
+          Discard
+        </Button>
+      )}
+      <Button
+        variant="primary"
+        size="sm"
+        icon={<CloudUpload className="size-3.5" />}
+        onClick={() => setPublishOpen(true)}
+        disabled={!hasChanges}
+        title={hasChanges ? "Publish unpublished changes" : "Nothing to publish"}
+      >
+        Publish
+      </Button>
+    </>
+  );
 
-      {/* ── Main content (routed) ────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+  return (
+    <>
+      <ShellFrame
+        title={brandTitle}
+        {...(brandLogoUrl ? { logoUrl: brandLogoUrl } : {})}
+        brandMark={<BrandMark light={symbolLightSvg} dark={symbolSvg} className="h-5 w-auto" />}
+        switcher={switcher}
+        headerExtra={publishControls}
+        readonly={readonly}
+        {...(showThemeToggle !== undefined ? { showThemeToggle } : {})}
+        tabs={NAV_TABS}
+        onNavigate={(path) => go(path)}
+        fallback={shell.failed ? <ConfigError /> : null}
+      >
         <Switch>
           <Route path="/segments/:segmentKey?">
             {(params) => (
@@ -541,7 +500,7 @@ function AppShell({
             />
           </Route>
         </Switch>
-      </main>
+      </ShellFrame>
 
       {/* ── Publish dialog ───────────────────────────────────────────────── */}
       <PublishDialog
@@ -584,6 +543,6 @@ function AppShell({
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
-    </div>
+    </>
   );
 }
