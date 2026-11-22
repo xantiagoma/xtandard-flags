@@ -59,7 +59,9 @@ describe.skipIf(!MYSQL_URL)("createDrizzleStorage (mysql, live)", () => {
     },
     {
       t: { describe, test, expect },
-      capabilities: { compareAndSwap: true, watch: false },
+      // `mysqlFlagsTable`'s default `utf8mb4_bin` key is PAD SPACE: a trailing-space key
+      // collides, and the write throws `KeyCollisionError`.
+      capabilities: { compareAndSwap: true, watch: false, padSpaceKeys: true },
       timeout: 30_000,
     },
   );
