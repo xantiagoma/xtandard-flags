@@ -1,5 +1,179 @@
 # Changelog
 
+## v0.3.0
+
+[compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.2.1...v0.3.0)
+
+### Changed
+
+- **`@xtandard/kit` is now a dependency.** The storage drivers, drizzle table factories, auth and
+  authorization providers, the hooks runner, the validation core, the panel and API plumbing, the
+  framework adapters, the CLI plumbing, the admin shell, the React embed, the build configs and the
+  docs-site tooling come from `@xtandard/kit`. Every subpath and exported name of
+  `@xtandard/flags` is unchanged (the API-surface diff has no removals); users never install or
+  configure the kit.
+- **Every SQL, document, Redis, memory and file adapter now has `compareAndSwap`** (memory, file,
+  Redis/RedisJSON, Postgres, Drizzle on pg/MySQL/SQLite, MongoDB, SQLite, libSQL). Only unstorage
+  and Cloudflare KV lack it. Comparisons are structural (object key order is ignored).
+- **Values are written as canonical JSON** (sorted object keys) by every adapter. Data written by
+  earlier releases reads, lists and swaps as before; no migration.
+- **unstorage writes string values JSON-encoded** (`"hello"` is stored as `"\"hello\""`). An older
+  release still reads them, and strings stored by earlier releases read back as before.
+- **New Postgres tables get `key text COLLATE "C"`** (bytewise, index-usable prefixes). Existing
+  tables are untouched and keep working; the optional `ALTER` is in the kit's storage guide.
+  `pgFlagsTable` keeps the plain `text` key (no drizzle-kit diff for existing schemas).
+- **`mysqlFlagsTable` takes `keyCollation`** (`utf8mb4_bin` default; `utf8mb4_0900_bin` on MySQL
+  8.0+ or `utf8mb4_nopad_bin` on MariaDB for new tables). See "MySQL PAD SPACE" under Fixed.
+- **`createFetchHandler`**: `sourceStorage` is optional when a prebuilt `core` is given (one of the
+  two is required, checked at construction). The result, and every adapter helper (`flagsPanel` for
+  Bun, Hono, Express and Elysia), gains `close()`, which stops the OFREP SSE poller.
+- **Every panel answers `GET {basePath}/healthcheck`** with `{ "ok": true }`, and serves the SPA's
+  `index.html` with `cache-control: no-cache` (an upgrade no longer serves a stale page that points at
+  deleted hashed assets). The standalone server and `serve` keep their `{ status, title }`
+  healthcheck at `/healthcheck` and `{basePath}/healthcheck`.
+- **A non-GET request outside the API** gets `405` with an `Allow: GET, HEAD` header.
+- **The OpenAPI document's `info.version` is the package version** (it was a hard-coded `0.1.0`).
+- **CLI:**
+  - `AUTH_ROLE` sets the basic-auth user's role (`admin` by default, as before).
+  - `SOURCE_SQLITE_TABLE` / `RUNTIME_SQLITE_TABLE` set the SQLite table (default `xtandard_flags`,
+    as before).
+  - `UI_DIR` overrides the bundled UI directory (the standalone image already honoured it).
+  - `bun src/cli.ts <command>` runs the CLI directly (a self-run guard); importing the module never
+    runs it.
+- **The standalone app delegates to the CLI's `serve`**, with its own defaults unchanged (memory
+  storage, `./data/{source,runtime}` and `./data/{source,runtime}.sqlite`).
+- **Optional-peer error messages** read `@xtandard/flags/storage/redis requires the optional peer
+  "redis". Install it with: bun add redis (or npm install redis)`.
+- **Validation:** `ValidationError` and `ValidationResult` (`@xtandard/flags`) are now type aliases
+  of the kit's `ValidationIssue` / `ValidationResult`, with the same shape.
+- **Admin UI:** the header is the kit's shell. The unpublished-changes badge and the Discard and
+  Publish buttons sit before the read-only badge; an embedded dashboard whose `/config` request fails
+  (and that has no server bootstrap) shows a "Could not load the panel configuration" message instead
+  of an empty shell.
+- **React embed:** `@xtandard/flags/react` also exports the `FetchLike` type.
+- **New exports (additions only):** `MemoryFlagsStorage` (`./storage/memory`);
+  `FileFlagsStorage`, `FileLegacyMode` and `migrateFileStorage` (`./storage/file`);
+  `KeyCollisionError` (`./storage/drizzle`); the `FetchLike` type (`./react`).
+- **Docs site, CI and release** run on the kit's tooling and reusable workflows (`@v0.1`). CI now
+  uses `redis:8`, so the RedisJSON conformance cases run. The Docker image is smoke-tested before it
+  is pushed, and `docker.yml` has a `refresh-kit` dispatch input. Release notes come from the tag's
+  CHANGELOG section.
+
+### Fixed
+
+Inherited from `@xtandard/kit` (inventory §3; each has a permanent regression test in the kit).
+
+#### Server and API
+
+- **Node 20.0–20.15 served the "UI not built" page** instead of the admin SPA
+  (`process.getBuiltinModule` is missing there); the UI directory now resolves on every Node 20
+  that `engines` allows (kit 0.1.1).
+- **A throwing auth provider is a `500`, not a `401`.** A broken identity provider no longer looks
+  like bad credentials (flags lacked wh 543e1fa).
+- **The panel requires `sourceStorage` or a prebuilt `core`** and says so at construction, instead
+  of failing on the first request (wh 5b151c1).
+- **Domain errors are mapped by name** (`ReadonlyError`, `NotFoundError`, `SnapshotProtectedError`,
+  the validation errors), so a class copy from another bundle no longer turns into a `500`.
+- **A malformed `%` escape in a path is a `404`**, not a `500` (`URIError`).
+- **Key-shaped path parameters are re-validated before they reach storage** (MySQL PAD SPACE,
+  inventory §5). Flag, segment and snapshot keys must match `[a-zA-Z0-9._-]+`; project and
+  environment keys (path and the OFREP `projectKey`/`environmentKey` query) may not be empty,
+  `.`/`..`, contain `/`, or have leading/trailing whitespace. Example: `DELETE
+  …/snapshots/v1%20` passed the "active snapshot is protected" check (`"v1 " !== "v1"`) and then
+  deleted the `v1` row on MySQL; it is now a `404`.
+- **The panel title is HTML-escaped** in the served page, and so are the `<base href>` and the
+  bootstrap JSON (`<`, `>`, U+2028/U+2029); `$` sequences in the config are kept.
+- **Express keeps every `Set-Cookie` header** and multi-value request headers, re-serialises
+  pre-parsed bodies (JSON, string, bytes, urlencoded) without a stale `content-length`, and
+  **streams responses** with backpressure, so the OFREP SSE stream now works under Express (it was
+  buffered).
+- **The CLI's Node server** (`npx … serve`) keeps every `Set-Cookie`, streams every response (not
+  only SSE) and cancels the body when the client disconnects.
+- **Elysia:** `PATCH` and `DELETE` bodies reach the panel (only `POST`/`PUT` were rebuilt), a stale
+  `content-length` is dropped, and two mounts with different prefixes are no longer deduplicated by
+  the plugin name.
+- **The OpenAPI `info.version`** is the package version, not `0.1.0`.
+
+#### CLI
+
+- **Negative numbers and a bare `-` are values** (`--value -5`, `--reason -`), not new flags
+  (kit 0.1.1 `parseArgs`).
+- **`bun src/cli.ts` runs the CLI** even when its path can't be resolved as written (kit 0.1.1
+  `isMainModule`).
+- **An unknown `SOURCE_STORAGE_DRIVER` / `RUNTIME_STORAGE_DRIVER` fails** instead of silently using
+  the `file` driver.
+- **An empty environment variable counts as unset** (`TITLE=` in a `.env` file kept an empty
+  title).
+- (Unknown `AUTH_MODE` already fails since v0.2.1's hotfix; the kit now enforces it.)
+
+#### Storage
+
+- **file `legacy: "read-through"` (the flags default) could delete another key's file.** The raw
+  legacy path of `x/a%25/k` is the encoded path of `x/a%/k`, so writing or removing `x/a%25/k`
+  deleted `x/a%/k`, and reading a missing `x/a%25/k` returned `x/a%/k`'s value (same for `^`
+  escapes). Present in every earlier flags release; fixed in the kit (#18), and the conformance
+  suite now runs in read-through mode.
+- **file:** a write is atomic (temporary file + rename), so a crash never leaves a half-written
+  value; `watch` reports a `rename` as `remove` only when the file is gone (writes were reported as
+  removals); empty key segments are distinct (`a//b` ≠ `a/b`); on a case-insensitive file system a
+  read-through never opens a legacy `Acme/` for `acme` (`realpath` check).
+- **Redis:** `getKeys` de-duplicates SCAN results (SCAN may return a key twice); `watch` escapes
+  glob characters in the watched prefix (`PSUBSCRIBE`), so it no longer misses or over-matches events.
+- **unstorage:** keys ending in `$` are no longer hidden (unstorage treats them as meta keys), empty
+  key segments are kept, and a stored string that looks like JSON reads back as that string (`"123"`
+  came back as the number `123`). Older spellings still read.
+- **MySQL (drizzle):** `getKeys` no longer skips keys containing supplementary characters (emoji):
+  an indexed `LIKE 'p%'` on `utf8mb4_bin` misses them on MySQL 8.4; it is now a range scan plus an
+  exact `startsWith`.
+- **MySQL PAD SPACE:** `utf8mb4_bin` ignores trailing spaces, so `setItem("flags/a ")` overwrote
+  `"flags/a"`, and reads, removes and swaps acted on the other spelling. Reads, removes and swaps now
+  match keys byte-exactly, and a colliding write throws `KeyCollisionError` instead of overwriting.
+  New tables can opt into a NO PAD collation (`keyCollation`).
+- **Postgres / Drizzle:** a stored JSON string that looks like JSON (`"123"`) reads back as the
+  string (it was parsed twice); a failed connect or table creation is retried on the next call
+  instead of being cached (Postgres, libSQL).
+- **SQLite / libSQL:** prefix listing uses `GLOB` (case-sensitive, index-usable); **MongoDB** re-checks
+  prefixes with `startsWith`, so a case-insensitive collection collation never leaks keys from
+  another prefix.
+- **`@xtandard/flags/storage/sqlite` can be imported under Node** (`bun:sqlite` loads on first
+  use; opening a database still needs Bun). The SQLite table is created on first use.
+- **`withWatch`** results survive an object spread (`{ ...withWatch(s, sub) }` kept no methods).
+
+#### Validation
+
+- **JSON values must be finite:** a `json` variant (or condition value) containing `NaN` or
+  `Infinity` is rejected; it was stored as `null`.
+- **A root-level validation issue** carries the base path (`flag`) without a trailing dot (`flag.`).
+
+#### Admin UI and embed
+
+- **The embed's `routing: "memory"` keeps the query string**, so the `?project=` / `?env=` scope
+  survives navigation.
+- **The theme host watcher works without `MutationObserver`** (`theme="inherit"` in environments
+  without it fell over).
+
+#### Tooling
+
+- **CI runs the RedisJSON conformance cases** (`redis:8`); with `redis:7` they never ran.
+- The deprecated `TransactionalFlagsStorage` / `isTransactional` stay exported for compatibility;
+  no adapter implements them (they never did).
+
+### Migration
+
+None. The API-surface diff (`xtandard-kit api-surface`) shows no removals, stored data written by
+earlier releases reads unchanged, and no persisted or HTTP-contract default changed (table
+`xtandard_flags`, Mongo `xtandard_flags`/`flags_kv`, pg channel `xtandard_flags`, CLI tables
+`xtandard_flags_{source,runtime}`, Redis prefixes `xtandard:flags:{source,runtime}`, file dirs
+`./.flags/…` (CLI) and `./data/…` (image), readonly status `403`, realm `xtandard-flags`,
+`__FLAGS_CONFIG__`, `xtandard-flags:theme`, `.xtandard-flags`).
+
+Optional, for MySQL users on `utf8mb4_bin` tables who want trailing-space keys kept distinct:
+
+```sql
+ALTER TABLE flags_kv MODIFY `key` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin NOT NULL;
+-- MariaDB: COLLATE utf8mb4_nopad_bin
+```
+
 ## v0.2.1
 
 [compare changes](https://github.com/xantiagoma/xtandard-flags/compare/v0.2.0...v0.2.1)
