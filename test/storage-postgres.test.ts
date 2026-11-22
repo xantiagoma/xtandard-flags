@@ -1,6 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { afterAll, describe, expect, test } from "vitest";
-import { createPostgresStorage, type PostgresFlagsStorage } from "../src/storage/postgres.ts";
+import { createPostgresStorage } from "../src/storage/postgres.ts";
 import { runStorageContractTests } from "./storage-contract.ts";
 
 /**
@@ -52,17 +52,14 @@ describe("createPostgresStorage (flags defaults)", () => {
  * without a Postgres server simply skips it. Cleans up after itself.
  */
 describe.skipIf(!process.env.POSTGRES_URL)("createPostgresStorage (live)", () => {
-  const opened: PostgresFlagsStorage[] = [];
+  const tables: string[] = [];
   let n = 0;
   runStorageContractTests(
     "postgres (live)",
     () => {
-      const storage = createPostgresStorage({
-        connectionString: process.env.POSTGRES_URL,
-        table: `xtandard_flags_test_${Date.now()}_${n++}`,
-      });
-      opened.push(storage);
-      return storage;
+      const table = `xtandard_flags_test_${Date.now()}_${n++}`;
+      tables.push(table);
+      return createPostgresStorage({ connectionString: process.env.POSTGRES_URL, table });
     },
     {
       t: { describe, test, expect },
@@ -70,10 +67,15 @@ describe.skipIf(!process.env.POSTGRES_URL)("createPostgresStorage (live)", () =>
       timeout: 30_000,
     },
   );
+  // The kit suite closes each storage after its case, so drop the tables over a connection of our own.
   afterAll(async () => {
-    for (const storage of opened) {
-      for (const key of await storage.getKeys("")) await storage.removeItem(key);
-      await storage.close();
+    const { default: pg } = await import("pg");
+    const client = new pg.Client({ connectionString: process.env.POSTGRES_URL });
+    await client.connect();
+    try {
+      for (const table of tables) await client.query(`DROP TABLE IF EXISTS "${table}"`);
+    } finally {
+      await client.end();
     }
   });
 });
