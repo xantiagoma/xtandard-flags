@@ -19,6 +19,7 @@ import {
   pkgVersion as kitPkgVersion,
   serve,
   storageFromEnv,
+  storageRegistryFrom,
   type StorageRegistry,
   type StorageRole,
 } from "@xtandard/kit/cli";
@@ -61,40 +62,19 @@ const storageRole = (role: Role): StorageRole => {
 
 /**
  * The CLI's drivers, over the flags storage wrappers (so their defaults and
- * error messages apply). Each loads its optional peer only when chosen.
+ * error messages apply). Each loads its optional peer only when chosen; `sqlite`
+ * needs the CLI to run under Bun (`bunx xtandard-flags …`), and `unstorage` is
+ * an in-memory instance (for trying the adapter; wire your own driver in code).
  */
-const STORAGE_DRIVERS: StorageRegistry<FlagsStorage> = {
-  memory: async () => (await import("./storage/memory.ts")).createMemoryStorage(),
-  file: async (c) => (await import("./storage/file.ts")).createFileStorage({ dir: c.fileDir! }),
-  redis: async (c) =>
-    (await import("./storage/redis.ts")).createRedisStorage({
-      url: c.redisUrl,
-      ...(c.prefix ? { prefix: c.prefix } : {}),
-    }),
-  postgres: async (c) =>
-    (await import("./storage/postgres.ts")).createPostgresStorage({
-      connectionString: c.postgresUrl,
-      ...(c.pgTable ? { table: c.pgTable } : {}),
-    }),
-  mongodb: async (c) =>
-    (await import("./storage/mongodb.ts")).createMongoStorage({
-      url: c.mongoUrl,
-      ...(c.mongoDb ? { dbName: c.mongoDb } : {}),
-      ...(c.mongoCollection ? { collectionName: c.mongoCollection } : {}),
-    }),
-  // Requires running the CLI under Bun (`bunx xtandard-flags …`).
-  sqlite: async (c) =>
-    (await import("./storage/sqlite.ts")).createSqliteStorage({
-      ...(c.sqlitePath ? { path: c.sqlitePath } : {}),
-      ...(c.sqliteTable ? { table: c.sqliteTable } : {}),
-    }),
-  // An in-memory unstorage instance (for trying the adapter; wire your own driver in code).
-  unstorage: async () => {
-    const { createUnstorageStorage } = await import("./storage/unstorage.ts");
-    const { createStorage } = (await import("unstorage")) as typeof import("unstorage");
-    return createUnstorageStorage({ storage: createStorage() });
-  },
-};
+const STORAGE_DRIVERS = storageRegistryFrom({
+  memory: () => import("./storage/memory.ts"),
+  file: () => import("./storage/file.ts"),
+  redis: () => import("./storage/redis.ts"),
+  postgres: () => import("./storage/postgres.ts"),
+  mongodb: () => import("./storage/mongodb.ts"),
+  sqlite: () => import("./storage/sqlite.ts"),
+  unstorage: () => import("./storage/unstorage.ts"),
+}) as StorageRegistry<FlagsStorage>;
 
 /** Parse a duration env like `"34h"`, `"30d"`, `"90m"`, `"10s"` into a {@link FlagDuration}. */
 function parseDurationEnv(name: string): FlagDuration | undefined {
